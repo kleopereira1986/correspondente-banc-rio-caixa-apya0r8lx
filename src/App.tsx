@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard'
 import CustomerPortal from './pages/CustomerPortal'
 import ProcessDetail from './pages/ProcessDetail'
 import PublicOnboarding from './pages/PublicOnboarding'
+import Tasks from './pages/Tasks'
+import TaskDetail from './pages/TaskDetail'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -24,6 +26,8 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/portal" element={<CustomerPortal />} />
             <Route path="/process/:id" element={<ProcessDetail />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/tasks/:id" element={<TaskDetail />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

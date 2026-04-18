@@ -47,19 +47,30 @@ export default function Layout() {
   }
 
   const isInternal = user.role === 'master' || user.role === 'analyst'
+  const isBroker = user.role === 'broker'
 
-  const navItems = isInternal
-    ? [
-        { title: 'Painel de Controle', url: '/dashboard', icon: LayoutDashboard },
-        { title: 'Processos', url: '/dashboard', icon: FolderOpen },
-        { title: 'Clientes', url: '#', icon: Users },
-        { title: 'Relatórios', url: '#', icon: FileText },
-      ]
-    : [
-        { title: 'Meu Processo', url: '/portal', icon: FolderOpen },
-        { title: 'Enviar Documentos', url: '/portal', icon: UploadCloud },
-        { title: 'Suporte', url: '#', icon: LifeBuoy },
-      ]
+  let navItems = []
+  if (isInternal) {
+    navItems = [
+      { title: 'Painel de Controle', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Processos', url: '/dashboard', icon: FolderOpen },
+      { title: 'Tarefas', url: '/tasks', icon: FileText },
+      { title: 'Clientes', url: '#', icon: Users },
+      { title: 'Relatórios', url: '#', icon: FileText },
+    ]
+  } else if (isBroker) {
+    navItems = [
+      { title: 'Painel do Corretor', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Minhas Solicitações', url: '/tasks', icon: FileText },
+      { title: 'Meus Processos', url: '#', icon: FolderOpen },
+    ]
+  } else {
+    navItems = [
+      { title: 'Meu Processo', url: '/portal', icon: FolderOpen },
+      { title: 'Enviar Documentos', url: '/portal', icon: UploadCloud },
+      { title: 'Suporte', url: '#', icon: LifeBuoy },
+    ]
+  }
 
   return (
     <SidebarProvider>
@@ -102,7 +113,11 @@ export default function Layout() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-muted-foreground hover:text-primary transition-colors" />
               <h2 className="font-semibold text-lg text-slate-800 hidden sm:block">
-                {isInternal ? 'Área do Correspondente' : 'Portal do Cliente'}
+                {isInternal
+                  ? 'Área do Correspondente'
+                  : isBroker
+                    ? 'Portal do Parceiro'
+                    : 'Portal do Cliente'}
               </h2>
             </div>
 

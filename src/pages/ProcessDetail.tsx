@@ -21,6 +21,7 @@ import {
   Download,
   UploadCloud,
   File as FileIcon,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -138,6 +139,16 @@ export default function ProcessDetail() {
     }
   }
 
+  const handleCopyLink = () => {
+    if (!process) return
+    const url = `${window.location.origin}/public/onboarding/${process.id}`
+    navigator.clipboard.writeText(url)
+    toast({
+      title: 'Link copiado!',
+      description: 'Envie este link para o comprador acessar a página de cadastro.',
+    })
+  }
+
   if (!process)
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
@@ -188,33 +199,44 @@ export default function ProcessDetail() {
 
   return (
     <div className="space-y-6 animate-slide-up max-w-6xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-800">
-              {process.type === 'credit' ? 'Análise de Crédito' : 'Habitacional'}
-            </h1>
-            {process.result === 'approved' ? (
-              <Badge className="bg-emerald-100 text-emerald-800 border-none">Aprovado</Badge>
-            ) : process.result === 'rejected' ? (
-              <Badge variant="destructive" className="border-none">
-                Reprovado
-              </Badge>
-            ) : process.result === 'pending' && process.status === 'Pendência' ? (
-              <Badge className="bg-secondary/10 text-secondary border-none animate-pulse-status">
-                Pendência Cliente
-              </Badge>
-            ) : (
-              <Badge className="bg-blue-100 text-blue-800 border-none">{process.status}</Badge>
-            )}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
+            className="rounded-full shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-800">
+                {process.type === 'credit' ? 'Análise de Crédito' : 'Habitacional'}
+              </h1>
+              {process.result === 'approved' ? (
+                <Badge className="bg-emerald-100 text-emerald-800 border-none">Aprovado</Badge>
+              ) : process.result === 'rejected' ? (
+                <Badge variant="destructive" className="border-none">
+                  Reprovado
+                </Badge>
+              ) : process.result === 'pending' && process.status === 'Pendência' ? (
+                <Badge className="bg-secondary/10 text-secondary border-none animate-pulse-status">
+                  Pendência Cliente
+                </Badge>
+              ) : (
+                <Badge className="bg-blue-100 text-blue-800 border-none">{process.status}</Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground text-sm mt-1">
+              ID: {process.id} • {new Date(process.created).toLocaleDateString('pt-BR')}
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            ID: {process.id} • {new Date(process.created).toLocaleDateString('pt-BR')}
-          </p>
         </div>
+
+        <Button variant="outline" onClick={handleCopyLink} className="shrink-0 shadow-sm">
+          <LinkIcon className="w-4 h-4 mr-2" /> Gerar Link para Comprador
+        </Button>
       </div>
 
       {process.status === 'Pendência' && !isAnalyst && (

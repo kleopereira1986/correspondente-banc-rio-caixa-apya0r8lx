@@ -1,3 +1,4 @@
+import pb from '@/lib/pocketbase/client'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search } from 'lucide-react'
+import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, UserPlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { getProcesses, createProcess, getUsers } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -30,15 +31,21 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [isNewOpen, setIsNewOpen] = useState(false)
   const [newType, setNewType] = useState('credit')
   const [clients, setClients] = useState<any[]>([])
   const [selectedBuyer, setSelectedBuyer] = useState('')
+
+  const [isNewClientOpen, setIsNewClientOpen] = useState(false)
+  const [newClientName, setNewClientName] = useState('')
+  const [newClientEmail, setNewClientEmail] = useState('')
 
   const loadData = async () => {
     try {
@@ -64,6 +71,32 @@ export default function Dashboard() {
   }, [])
 
   useRealtime('processes', () => loadData())
+  useRealtime('users', () => loadClients())
+
+  const handleCreateClient = async () => {
+    if (!newClientName) {
+      toast({ title: 'O nome é obrigatório', variant: 'destructive' })
+      return
+    }
+    const email = newClientEmail || `comprador_${Date.now()}@caixa.com`
+    const password = `Caixa@${Date.now()}`
+    try {
+      await pb.collection('users').create({
+        name: newClientName,
+        email,
+        password,
+        passwordConfirm: password,
+        role: 'buyer',
+      })
+      toast({ title: 'Cliente cadastrado com sucesso!' })
+      setIsNewClientOpen(false)
+      setNewClientName('')
+      setNewClientEmail('')
+      loadClients()
+    } catch (e) {
+      toast({ title: 'Erro ao cadastrar cliente', variant: 'destructive' })
+    }
+  }
 
   const handleCreate = async () => {
     if (!selectedBuyer) return
@@ -74,6 +107,7 @@ export default function Dashboard() {
       buyer: selectedBuyer,
       result: 'pending',
     })
+    toast({ title: 'Processo iniciado com sucesso!' })
     setIsNewOpen(false)
     loadData()
   }
@@ -130,7 +164,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in-up">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-800">Visão Geral</h1>
           <p className="text-muted-foreground mt-1">
@@ -138,50 +172,87 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto shadow-sm">
-              <Plus className="mr-2 h-4 w-4" /> Novo Processo
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Iniciar Novo Processo</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Tipo de Processo</Label>
-                <Select value={newType} onValueChange={setNewType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="credit">Análise de Crédito</SelectItem>
-                    <SelectItem value="housing">Esteira Habitacional</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Cliente (Comprador)</Label>
-                <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={handleCreate} className="w-full">
-                Criar Processo
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto shadow-sm">
+                <UserPlus className="mr-2 h-4 w-4" /> Cadastrar Novo Cliente
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Nome Completo</Label>
+                  <Input
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email (Opcional)</Label>
+                  <Input
+                    type="email"
+                    value={newClientEmail}
+                    onChange={(e) => setNewClientEmail(e.target.value)}
+                    placeholder="Ex: joao@email.com"
+                  />
+                </div>
+                <Button onClick={handleCreateClient} className="w-full">
+                  Cadastrar
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full sm:w-auto shadow-sm">
+                <Plus className="mr-2 h-4 w-4" /> Novo Processo
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Iniciar Novo Processo</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Processo</Label>
+                  <Select value={newType} onValueChange={setNewType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="credit">Análise de Crédito</SelectItem>
+                      <SelectItem value="housing">Esteira Habitacional</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Cliente (Comprador)</Label>
+                  <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleCreate} className="w-full">
+                  Criar Processo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

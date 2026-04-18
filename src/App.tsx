@@ -8,6 +8,7 @@ import Index from './pages/Index'
 import Dashboard from './pages/Dashboard'
 import CustomerPortal from './pages/CustomerPortal'
 import ProcessDetail from './pages/ProcessDetail'
+import PublicOnboarding from './pages/PublicOnboarding'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -17,6 +18,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <Routes>
+          <Route path="/public/onboarding/:id" element={<PublicOnboarding />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />

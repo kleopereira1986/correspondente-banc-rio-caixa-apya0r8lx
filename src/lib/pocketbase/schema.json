@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-04-18T06:17:06.302Z",
+  "generatedAt": "2026-04-18T06:27:31.037Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
         "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "view": "",
         "create": "",
-        "update": "id = @request.auth.id",
+        "update": "",
         "delete": "id = @request.auth.id"
       },
       "fields": [
@@ -44,6 +44,37 @@
           "required": false,
           "system": false,
           "selectValues": ["master", "analyst", "buyer", "seller"]
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "marital_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União Estável"]
+        },
+        {
+          "name": "work_history_36_months",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "income",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pis",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -56,9 +87,9 @@
       "type": "base",
       "apiRules": {
         "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id)",
-        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id)",
+        "view": "",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id)",
+        "update": "",
         "delete": "@request.auth.role = 'master'"
       },
       "fields": [
@@ -143,8 +174,8 @@
       "type": "base",
       "apiRules": {
         "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
-        "create": "@request.auth.id != ''",
+        "view": "",
+        "create": "",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.role = 'master' || uploaded_by = @request.auth.id"
       },

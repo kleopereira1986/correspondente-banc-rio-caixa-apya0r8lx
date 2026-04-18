@@ -2,10 +2,22 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { ArrowLeft, Clock, CheckCircle2, AlertCircle, Send, User } from 'lucide-react'
+import {
+  ArrowLeft,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Send,
+  User,
+  Paperclip,
+  X,
+  Download,
+} from 'lucide-react'
 import { getTask, updateTask, getInteractions, createInteraction } from '@/services/tasks'
 import { useAuth } from '@/contexts/auth-context'
 import { useRealtime } from '@/hooks/use-realtime'
+import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -53,7 +65,9 @@ export default function TaskDetail() {
   const [task, setTask] = useState<any>(null)
   const [interactions, setInteractions] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
+  const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadData = async () => {
     if (!id) return
@@ -113,19 +127,25 @@ export default function TaskDetail() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !task) return
+    if ((!newMessage.trim() && files.length === 0) || !task) return
     try {
-      await createInteraction({
-        task: task.id,
-        user: user.id,
-        message: newMessage.trim(),
+      const formData = new FormData()
+      formData.append('task', task.id)
+      formData.append('user', user.id)
+      formData.append('message', newMessage.trim() || 'Arquivo(s) anexado(s)')
+
+      files.forEach((f) => {
+        formData.append('file', f)
       })
+
+      await createInteraction(formData)
       setNewMessage('')
+      setFiles([])
       scrollToBottom()
     } catch (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível enviar a mensagem.',
+        description: getErrorMessage(error) || 'Não foi possível enviar a mensagem.',
         variant: 'destructive',
       })
     }
@@ -315,6 +335,32 @@ export default function TaskDetail() {
                           >
                             {msg.message}
                           </div>
+
+                          {(() => {
+                            const attachments = Array.isArray(msg.file)
+                              ? msg.file
+                              : msg.file
+                                ? [msg.file]
+                                : []
+                            if (attachments.length === 0) return null
+                            return (
+                              <div className="mt-2 flex flex-col gap-1.5 w-full">
+                                {attachments.map((f: string) => (
+                                  <a
+                                    key={f}
+                                    href={pb.files.getUrl(msg, f)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`flex items-center gap-2 text-xs transition-colors p-2 rounded-lg border ${isMe ? 'bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/20' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'}`}
+                                  >
+                                    <Paperclip size={14} className="shrink-0" />
+                                    <span className="truncate flex-1 font-medium">{f}</span>
+                                    <Download size={14} className="shrink-0" />
+                                  </a>
+                                ))}
+                              </div>
+                            )
+                          })()}
                         </div>
                       </div>
                     )
@@ -322,7 +368,48 @@ export default function TaskDetail() {
                 )}
               </div>
               <div className="p-4 bg-white border-t">
+                {files.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {files.map((f, i) => (
+                      <Badge
+                        key={i}
+                        variant="secondary"
+                        className="flex items-center gap-1.5 py-1 px-2.5 bg-slate-100 border-slate-200"
+                      >
+                        <span className="truncate max-w-[180px] text-xs font-normal text-slate-700">
+                          {f.name}
+                        </span>
+                        <button
+                          onClick={() => setFiles(files.filter((_, idx) => idx !== i))}
+                          className="text-slate-500 hover:text-slate-800 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setFiles((prev) => [...prev, ...Array.from(e.target.files as FileList)])
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 h-[60px] w-[60px] border-dashed"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip size={20} className="text-slate-500" />
+                  </Button>
                   <Textarea
                     placeholder="Adicionar nota ou comentário..."
                     className="min-h-[60px] resize-none"
@@ -338,14 +425,17 @@ export default function TaskDetail() {
                   <Button
                     className="h-auto px-4"
                     onClick={handleSendMessage}
-                    disabled={!newMessage.trim()}
+                    disabled={!newMessage.trim() && files.length === 0}
                   >
                     <Send size={18} />
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Pressione Enter para enviar, Shift+Enter para quebrar linha.
-                </p>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Pressione Enter para enviar, Shift+Enter para quebrar linha.
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Max 50MB por arquivo.</p>
+                </div>
               </div>
             </CardContent>
           </Card>

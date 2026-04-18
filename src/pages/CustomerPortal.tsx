@@ -28,7 +28,9 @@ export default function CustomerPortal() {
     try {
       const data = await getProcesses()
       setProcesses(data)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   useEffect(() => {
@@ -50,7 +52,9 @@ export default function CustomerPortal() {
       setIsNewOpen(false)
       setObservations('')
       loadData()
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const getStatusBadge = (status: string, result: string) => {

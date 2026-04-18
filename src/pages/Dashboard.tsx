@@ -44,14 +44,18 @@ export default function Dashboard() {
     try {
       const data = await getProcesses()
       setProcesses(data)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const loadClients = async () => {
     try {
       const data = await getUsers('buyer')
       setClients(data)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   useEffect(() => {

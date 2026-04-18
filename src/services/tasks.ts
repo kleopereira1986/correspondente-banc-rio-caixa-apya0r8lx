@@ -4,11 +4,21 @@ export const getTaskTypes = () => pb.collection('task_types').getFullList({ sort
 
 export const createTaskType = (data: any) => pb.collection('task_types').create(data)
 
-export const getTasks = () =>
-  pb.collection('tasks').getFullList({
+export const updateTaskType = (id: string, data: any) =>
+  pb.collection('task_types').update(id, data)
+
+export const deleteTaskType = (id: string) => pb.collection('task_types').delete(id)
+
+export const getTasks = (status?: string) => {
+  const options: any = {
     expand: 'type,requester,assigned_analyst',
     sort: '-created',
-  })
+  }
+  if (status && status !== 'all') {
+    options.filter = `status="${status}"`
+  }
+  return pb.collection('tasks').getFullList(options)
+}
 
 export const getTask = (id: string) =>
   pb.collection('tasks').getOne(id, {

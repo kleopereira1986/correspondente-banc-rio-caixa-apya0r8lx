@@ -12,6 +12,8 @@ import PublicOnboarding from './pages/PublicOnboarding'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
 import NotFound from './pages/NotFound'
+import Users from './pages/Users'
+import BrokerProcesses from './pages/BrokerProcesses'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -28,6 +30,8 @@ const App = () => (
             <Route path="/process/:id" element={<ProcessDetail />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/broker-processes" element={<BrokerProcesses />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

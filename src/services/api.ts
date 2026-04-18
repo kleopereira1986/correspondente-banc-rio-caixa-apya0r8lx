@@ -3,9 +3,9 @@ import pb from '@/lib/pocketbase/client'
 export const getProcesses = () =>
   pb
     .collection('processes')
-    .getFullList({ expand: 'buyer,seller,assigned_analyst', sort: '-created' })
+    .getFullList({ expand: 'buyer,seller,assigned_analyst,broker', sort: '-created' })
 export const getProcess = (id: string) =>
-  pb.collection('processes').getOne(id, { expand: 'buyer,seller,assigned_analyst' })
+  pb.collection('processes').getOne(id, { expand: 'buyer,seller,assigned_analyst,broker' })
 export const createProcess = (data: any) => pb.collection('processes').create(data)
 export const updateProcess = (id: string, data: any) => pb.collection('processes').update(id, data)
 
@@ -20,3 +20,7 @@ export const getUsers = (role?: string) => {
   if (role) return pb.collection('users').getFullList({ filter: `role="${role}"` })
   return pb.collection('users').getFullList()
 }
+export const createUser = (data: any) =>
+  pb.collection('users').create({ ...data, passwordConfirm: data.password })
+export const updateUser = (id: string, data: any) => pb.collection('users').update(id, data)
+export const deleteUser = (id: string) => pb.collection('users').delete(id)

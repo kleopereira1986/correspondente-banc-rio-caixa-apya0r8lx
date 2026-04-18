@@ -56,13 +56,14 @@ export default function Layout() {
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },
+      ...(user.role === 'master' ? [{ title: 'Usuários', url: '/users', icon: Users }] : []),
       { title: 'Relatórios', url: '#', icon: FileText },
     ]
   } else if (isBroker) {
     navItems = [
       { title: 'Painel do Corretor', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Minhas Solicitações', url: '/tasks', icon: FileText },
-      { title: 'Meus Processos', url: '#', icon: FolderOpen },
+      { title: 'Meus Processos', url: '/broker-processes', icon: FolderOpen },
     ]
   } else {
     navItems = [

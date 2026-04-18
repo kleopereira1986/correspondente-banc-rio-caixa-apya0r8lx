@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-18T06:54:00.326Z",
+  "generatedAt": "2026-04-18T07:08:51.510Z",
   "collections": [
     {
       "name": "users",
@@ -86,8 +86,8 @@
       "name": "processes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id)",
-        "view": "",
+        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
         "create": "@request.auth.id != ''",
         "update": "",
         "delete": "@request.auth.role = 'master'"
@@ -165,6 +165,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "broker",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": []

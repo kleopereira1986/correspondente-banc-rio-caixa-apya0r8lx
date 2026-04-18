@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import pb from '@/lib/pocketbase/client'
 
 export type Role = 'master' | 'analyst' | 'buyer' | 'seller'
 
@@ -8,56 +9,56 @@ export interface User {
   name: string
   email: string
   role: Role
+  avatar?: string
 }
 
 interface AuthContextType {
   user: User | null
-  login: (role: Role) => void
+  login: (email: string, password?: string) => Promise<{ error: any }>
   logout: () => void
+  loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(pb.authStore.record as User | null)
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
-  const login = (role: Role) => {
-    const mockUsers: Record<Role, User> = {
-      master: { id: '1', name: 'Ana Silva (Master)', email: 'master@caixa.gov.br', role: 'master' },
-      analyst: {
-        id: '2',
-        name: 'Carlos Santos (Analista)',
-        email: 'analista@caixa.gov.br',
-        role: 'analyst',
-      },
-      buyer: {
-        id: '3',
-        name: 'Roberto Almeida (Comprador)',
-        email: 'roberto@email.com',
-        role: 'buyer',
-      },
-      seller: {
-        id: '4',
-        name: 'Juliana Costa (Vendedora)',
-        email: 'juliana@email.com',
-        role: 'seller',
-      },
+  useEffect(() => {
+    const unsubscribe = pb.authStore.onChange((_token, record) => {
+      setUser(record as User | null)
+    })
+    setLoading(false)
+    return () => {
+      unsubscribe()
     }
-    setUser(mockUsers[role])
-    if (role === 'master' || role === 'analyst') {
-      navigate('/dashboard')
-    } else {
-      navigate('/portal')
+  }, [])
+
+  const login = async (email: string, password = 'Skip@Pass') => {
+    try {
+      await pb.collection('users').authWithPassword(email, password)
+      const role = pb.authStore.record?.role as Role
+      if (role === 'master' || role === 'analyst') {
+        navigate('/dashboard')
+      } else {
+        navigate('/portal')
+      }
+      return { error: null }
+    } catch (error) {
+      return { error }
     }
   }
 
   const logout = () => {
-    setUser(null)
+    pb.authStore.clear()
     navigate('/')
   }
 
-  return React.createElement(AuthContext.Provider, { value: { user, login, logout } }, children)
+  return (
+    <AuthContext.Provider value={{ user, login, logout, loading }}>{children}</AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

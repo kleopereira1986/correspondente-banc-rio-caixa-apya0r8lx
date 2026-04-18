@@ -1,12 +1,33 @@
-import { useAuth, Role } from '@/contexts/auth-context'
+import { useState } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Landmark, ShieldCheck } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export default function Index() {
   const { login } = useAuth()
+  const { toast } = useToast()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleLogin = async (presetEmail?: string) => {
+    const e = presetEmail || email
+    const p = presetEmail ? 'Skip@Pass' : password
+    if (!e || !p) {
+      toast({ title: 'Erro', description: 'Preencha email e senha.', variant: 'destructive' })
+      return
+    }
+    setLoading(true)
+    const { error } = await login(e, p)
+    setLoading(false)
+    if (error) {
+      toast({ title: 'Erro', description: 'Credenciais inválidas.', variant: 'destructive' })
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50">
@@ -60,20 +81,27 @@ export default function Index() {
                     type="email"
                     placeholder="nome@exemplo.com.br"
                     className="h-11"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password">Senha</Label>
-                    <a href="#" className="text-sm font-medium text-primary hover:underline">
-                      Esqueceu a senha?
-                    </a>
                   </div>
-                  <Input id="password" type="password" placeholder="••••••••" className="h-11" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="h-11"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
                 <Button
                   className="w-full h-11 text-base font-semibold shadow-md"
-                  onClick={() => login('master')}
+                  onClick={() => handleLogin()}
+                  disabled={loading}
                 >
                   Entrar
                 </Button>
@@ -93,29 +121,29 @@ export default function Index() {
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
-                  className="border-primary/20 hover:bg-primary/5 hover:text-primary"
-                  onClick={() => login('master')}
+                  className="border-primary/20 hover:bg-primary/5 hover:text-primary text-xs"
+                  onClick={() => handleLogin('kleopereira1986@gmail.com')}
                 >
                   Master
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-primary/20 hover:bg-primary/5 hover:text-primary"
-                  onClick={() => login('analyst')}
+                  className="border-primary/20 hover:bg-primary/5 hover:text-primary text-xs"
+                  onClick={() => handleLogin('analista@caixa.gov.br')}
                 >
                   Analista
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground"
-                  onClick={() => login('buyer')}
+                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground text-xs"
+                  onClick={() => handleLogin('roberto@email.com')}
                 >
                   Comprador
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground"
-                  onClick={() => login('seller')}
+                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground text-xs"
+                  onClick={() => handleLogin('juliana@email.com')}
                 >
                   Vendedor
                 </Button>

@@ -1,213 +1,388 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useState, useEffect, useRef } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { mockProcesses, mockDocuments } from '@/lib/data'
 import {
   ArrowLeft,
   User,
-  MapPin,
-  Building,
-  Calendar,
-  DollarSign,
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Eye,
   Download,
+  UploadCloud,
+  File as FileIcon,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/contexts/auth-context'
+import { getProcess, getDocuments, updateProcess, createDocument, getUsers } from '@/services/api'
+import { useRealtime } from '@/hooks/use-realtime'
+import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import pb from '@/lib/pocketbase/client'
 
 export default function ProcessDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { user } = useAuth()
+  const [process, setProcess] = useState<any>(null)
+  const [documents, setDocuments] = useState<any[]>([])
   const [pendencyReason, setPendencyReason] = useState('')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [analysts, setAnalysts] = useState<any[]>([])
+  const [transferAnalyst, setTransferAnalyst] = useState('')
 
-  // Use mock data for demo
-  const process = mockProcesses.find((p) => p.id === id) || mockProcesses[0]
+  const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
-  const handleAction = (action: 'approve' | 'reject' | 'pendency') => {
-    let title,
-      description,
-      variant: 'default' | 'destructive' = 'default'
-
-    if (action === 'approve') {
-      title = 'Processo Aprovado'
-      description = 'Crédito aprovado com sucesso. O cliente será notificado.'
-    } else if (action === 'reject') {
-      title = 'Processo Reprovado'
-      description = 'A avaliação foi encerrada e reprovada.'
-      variant = 'destructive'
-    } else {
-      title = 'Pendência Solicitada'
-      description = 'O cliente foi notificado para corrigir os documentos.'
-      setIsDialogOpen(false)
+  const loadData = async () => {
+    if (!id) return
+    try {
+      const p = await getProcess(id)
+      setProcess(p)
+      const docs = await getDocuments(id)
+      setDocuments(docs)
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Processo não encontrado.', variant: 'destructive' })
+      navigate(-1)
     }
-
-    toast({ title, description, variant })
-    setTimeout(() => navigate('/dashboard'), 1500)
   }
 
+  const loadAnalysts = async () => {
+    if (isAnalyst) {
+      const users = await getUsers('analyst')
+      setAnalysts(users)
+    }
+  }
+
+  useEffect(() => {
+    loadData()
+    loadAnalysts()
+  }, [id])
+
+  useRealtime('processes', () => loadData())
+  useRealtime('documents', () => loadData())
+
+  const handleAction = async (action: 'approve' | 'reject' | 'pendency' | 'transfer' | 'claim') => {
+    if (!process) return
+    try {
+      if (action === 'approve') {
+        await updateProcess(process.id, { result: 'approved', status: 'Completed' })
+        toast({ title: 'Processo Aprovado' })
+      } else if (action === 'reject') {
+        await updateProcess(process.id, { result: 'rejected', status: 'Completed' })
+        toast({ title: 'Processo Reprovado', variant: 'destructive' })
+      } else if (action === 'pendency') {
+        await updateProcess(process.id, {
+          result: 'pending',
+          status: 'Pendência',
+          observations: pendencyReason,
+        })
+        toast({ title: 'Pendência Solicitada' })
+        setIsDialogOpen(false)
+      } else if (action === 'claim') {
+        await updateProcess(process.id, {
+          assigned_analyst: user?.id,
+          status: 'Registration',
+          current_step: 'Registration',
+        })
+        toast({ title: 'Processo Assumido' })
+      } else if (action === 'transfer') {
+        if (!transferAnalyst) return
+        await updateProcess(process.id, {
+          assigned_analyst: transferAnalyst,
+          status: 'Conferral and Analysis',
+          current_step: 'Conferral and Analysis',
+        })
+        toast({ title: 'Processo Transferido' })
+      }
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !process) return
+
+    const formData = new FormData()
+    formData.append('process', process.id)
+    formData.append('file', file)
+    formData.append('name', file.name)
+    formData.append('uploaded_by', user?.id || '')
+    formData.append('category', 'Geral')
+    formData.append('status', 'review')
+
+    try {
+      await createDocument(formData as any)
+      toast({ title: 'Documento enviado' })
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (error) {
+      toast({ title: 'Erro ao enviar', variant: 'destructive' })
+    }
+  }
+
+  if (!process)
+    return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
+
+  const creditSteps = [
+    {
+      id: 1,
+      name: 'Registro',
+      active: true,
+      completed: process.status !== 'Awaiting Registration',
+    },
+    {
+      id: 2,
+      name: 'Análise',
+      active: process.current_step === 'Conferral and Analysis' || process.result !== 'pending',
+      completed: process.result === 'approved' || process.result === 'rejected',
+    },
+    {
+      id: 3,
+      name: 'Decisão',
+      active: process.result === 'approved' || process.result === 'rejected',
+      completed: process.result === 'approved' || process.result === 'rejected',
+    },
+  ]
+  const housingSteps = [
+    {
+      id: 1,
+      name: 'Documentação',
+      active: true,
+      completed: process.current_step !== 'Documentação',
+    },
+    {
+      id: 2,
+      name: 'Formulários',
+      active: true,
+      completed:
+        process.current_step !== 'Documentação' &&
+        process.current_step !== 'Assinatura de Formulários',
+    },
+    {
+      id: 3,
+      name: 'Conformidade',
+      active: process.current_step === 'Conformidade Caixa' || process.status === 'Completed',
+      completed: process.status === 'Completed',
+    },
+  ]
+
+  const steps = process.type === 'credit' ? creditSteps : housingSteps
+
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="space-y-6 animate-slide-up max-w-6xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/dashboard')}
-          className="hover:bg-white rounded-full"
-        >
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-slate-800">Avaliação: {process.id}</h1>
-            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-none">
-              Em Análise
-            </Badge>
+            <h1 className="text-2xl font-bold text-slate-800">
+              {process.type === 'credit' ? 'Análise de Crédito' : 'Habitacional'}
+            </h1>
+            {process.result === 'approved' ? (
+              <Badge className="bg-emerald-100 text-emerald-800 border-none">Aprovado</Badge>
+            ) : process.result === 'rejected' ? (
+              <Badge variant="destructive" className="border-none">
+                Reprovado
+              </Badge>
+            ) : process.result === 'pending' && process.status === 'Pendência' ? (
+              <Badge className="bg-secondary/10 text-secondary border-none animate-pulse-status">
+                Pendência Cliente
+              </Badge>
+            ) : (
+              <Badge className="bg-blue-100 text-blue-800 border-none">{process.status}</Badge>
+            )}
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            {process.type} • Enviado em {new Date(process.date).toLocaleDateString('pt-BR')}
+            ID: {process.id} • {new Date(process.created).toLocaleDateString('pt-BR')}
           </p>
         </div>
       </div>
 
+      {process.status === 'Pendência' && !isAnalyst && (
+        <div className="bg-secondary/10 border-l-4 border-secondary p-4 rounded-md flex items-start gap-3">
+          <AlertTriangle className="text-secondary w-5 h-5 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-secondary">Ação Necessária</h4>
+            <p className="text-sm text-slate-700 mt-1">{process.observations}</p>
+          </div>
+        </div>
+      )}
+
+      <Card className="shadow-sm border-border/50 overflow-hidden">
+        <div className="p-6 bg-slate-50 border-b border-border/50">
+          <div className="flex items-center justify-between relative max-w-2xl mx-auto">
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-slate-200 -z-10 rounded-full"></div>
+            <div
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary -z-10 transition-all duration-500 rounded-full"
+              style={{
+                width:
+                  process.result === 'approved' || process.result === 'rejected' ? '100%' : '50%',
+              }}
+            ></div>
+            {steps.map((step) => (
+              <div key={step.id} className="flex flex-col items-center gap-3 px-2">
+                <div
+                  className={cn(
+                    'w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors',
+                    step.completed
+                      ? 'bg-primary border-primary text-white'
+                      : step.active
+                        ? 'bg-white border-primary text-primary'
+                        : 'bg-white border-slate-300 text-slate-400',
+                  )}
+                >
+                  {step.completed ? <CheckCircle2 className="w-5 h-5" /> : step.id}
+                </div>
+                <span
+                  className={cn(
+                    'text-xs sm:text-sm font-medium text-center',
+                    step.active ? 'text-slate-800' : 'text-slate-400',
+                  )}
+                >
+                  {step.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Card>
+
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column: Data & Actions */}
         <div className="space-y-6 lg:col-span-1">
-          {/* Action Panel */}
-          <Card className="shadow-sm border-border/50 border-t-4 border-t-primary">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Decisão da Avaliação</CardTitle>
-              <CardDescription>Determine o próximo passo deste processo.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                onClick={() => handleAction('approve')}
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar Crédito
-              </Button>
-
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full border-secondary/50 text-secondary hover:bg-secondary/10 font-semibold"
-                  >
-                    <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+          {isAnalyst && process.result !== 'approved' && process.result !== 'rejected' && (
+            <Card className="shadow-sm border-border/50 border-t-4 border-t-primary">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Ações do Analista</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {!process.assigned_analyst ? (
+                  <Button className="w-full" onClick={() => handleAction('claim')}>
+                    Assumir Processo
                   </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Informar Pendência</DialogTitle>
-                    <DialogDescription>
-                      Descreva detalhadamente qual documento está faltando ou incorreto. O cliente
-                      receberá um alerta.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <Textarea
-                      placeholder="Ex: O holerite enviado está ilegível..."
-                      className="min-h-[120px]"
-                      value={pendencyReason}
-                      onChange={(e) => setPendencyReason(e.target.value)}
-                    />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>
-                      Cancelar
-                    </Button>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Select value={transferAnalyst} onValueChange={setTransferAnalyst}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Transferir para..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {analysts.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" onClick={() => handleAction('transfer')}>
+                        Enviar
+                      </Button>
+                    </div>
+                    <hr className="my-2" />
                     <Button
-                      className="bg-secondary hover:bg-secondary/90 text-white"
-                      onClick={() => handleAction('pendency')}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => handleAction('approve')}
                     >
-                      Enviar Notificação
+                      <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
 
-              <Button
-                variant="ghost"
-                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive font-medium"
-                onClick={() => handleAction('reject')}
-              >
-                <XCircle className="w-4 h-4 mr-2" /> Reprovar
-              </Button>
-            </CardContent>
-          </Card>
+                    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Informar Pendência</DialogTitle>
+                        </DialogHeader>
+                        <Textarea
+                          placeholder="Descreva a pendência..."
+                          value={pendencyReason}
+                          onChange={(e) => setPendencyReason(e.target.value)}
+                          className="min-h-[100px]"
+                        />
+                        <DialogFooter>
+                          <Button onClick={() => handleAction('pendency')}>Enviar</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
-          {/* Client Data Sheet */}
+                    <Button
+                      variant="ghost"
+                      className="w-full text-destructive hover:bg-destructive/10"
+                      onClick={() => handleAction('reject')}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" /> Reprovar
+                    </Button>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="shadow-sm border-border/50">
             <CardHeader className="pb-4 border-b border-border/50">
               <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" /> Dados do Comprador
+                <User className="w-5 h-5 text-primary" /> Detalhes
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-border/50 text-sm">
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Nome</span>
+            <CardContent className="p-0 text-sm">
+              <div className="divide-y divide-border/50">
+                <div className="p-4 grid grid-cols-3">
+                  <span className="text-muted-foreground">Comprador</span>
                   <span className="font-medium text-slate-800 col-span-2">
-                    {process.clientName}
+                    {process.expand?.buyer?.name || '-'}
                   </span>
                 </div>
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">CPF</span>
-                  <span className="font-medium text-slate-800 col-span-2">123.456.789-00</span>
-                </div>
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Renda Bruta</span>
-                  <span className="font-medium text-emerald-600 col-span-2">R$ 15.500,00</span>
-                </div>
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Estado Civil</span>
-                  <span className="font-medium text-slate-800 col-span-2">Casado(a)</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Property Data */}
-          <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-4 border-b border-border/50">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Building className="w-5 h-5 text-primary" /> Imóvel Pretendido
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-border/50 text-sm">
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Valor</span>
-                  <span className="font-medium text-slate-800 col-span-2">
+                {process.expand?.seller && (
+                  <div className="p-4 grid grid-cols-3">
+                    <span className="text-muted-foreground">Vendedor</span>
+                    <span className="font-medium text-slate-800 col-span-2">
+                      {process.expand?.seller?.name}
+                    </span>
+                  </div>
+                )}
+                <div className="p-4 grid grid-cols-3">
+                  <span className="text-muted-foreground">Valor</span>
+                  <span className="font-medium text-emerald-600 col-span-2">
                     {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                      process.value,
+                      process.value || 0,
                     )}
                   </span>
                 </div>
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Entrada</span>
-                  <span className="font-medium text-slate-800 col-span-2">R$ 70.000,00 (20%)</span>
-                </div>
-                <div className="p-4 grid grid-cols-3 gap-2">
-                  <span className="text-muted-foreground col-span-1">Localização</span>
+                <div className="p-4 grid grid-cols-3">
+                  <span className="text-muted-foreground">Analista</span>
                   <span className="font-medium text-slate-800 col-span-2">
-                    São Paulo, SP - CEP 01001-000
+                    {process.expand?.assigned_analyst?.name || 'Não atribuído'}
+                  </span>
+                </div>
+                <div className="p-4 grid grid-cols-3">
+                  <span className="text-muted-foreground">Observações</span>
+                  <span className="font-medium text-slate-800 col-span-2">
+                    {process.observations || '-'}
                   </span>
                 </div>
               </div>
@@ -215,64 +390,61 @@ export default function ProcessDetail() {
           </Card>
         </div>
 
-        {/* Right Column: Documents Viewer */}
-        <div className="lg:col-span-2">
-          <Card className="shadow-sm border-border/50 h-full">
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="shadow-sm border-border/50">
             <CardHeader className="pb-4 flex flex-row items-center justify-between border-b border-border/50">
               <div>
-                <CardTitle className="text-lg">Arquivos Anexados</CardTitle>
-                <CardDescription>Revise os documentos enviados pelas partes.</CardDescription>
+                <CardTitle className="text-lg">Documentos</CardTitle>
               </div>
-              <Badge variant="outline" className="bg-slate-50">
-                {mockDocuments.length} Arquivos
-              </Badge>
+              {process.result !== 'approved' && process.result !== 'rejected' && (
+                <div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleUpload}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                  <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <UploadCloud className="w-4 h-4 mr-2" /> Enviar Arquivo
+                  </Button>
+                </div>
+              )}
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                {mockDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="group border border-border/60 rounded-xl overflow-hidden bg-white hover:border-primary/40 hover:shadow-md transition-all duration-300 flex flex-col"
-                  >
-                    <div className="relative aspect-video bg-slate-100 overflow-hidden flex items-center justify-center border-b border-border/50">
-                      <img
-                        src={doc.url}
-                        alt={doc.name}
-                        className="object-cover w-full h-full opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="shadow-lg backdrop-blur-md bg-white/90 hover:bg-white text-slate-800"
-                        >
-                          <Eye className="w-4 h-4 mr-2" /> Visualizar
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="p-3 flex items-start justify-between gap-2 flex-1">
-                      <div>
-                        <h4 className="font-semibold text-sm text-slate-800 line-clamp-2 leading-tight">
-                          {doc.name}
-                        </h4>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-[10px] text-muted-foreground uppercase font-medium bg-slate-100 px-1.5 py-0.5 rounded">
-                            PDF
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">1.2 MB</span>
+            <CardContent className="p-0">
+              <div className="divide-y divide-border/50">
+                {documents.map((doc) => {
+                  const url = pb.files.getURL(doc, doc.file)
+                  return (
+                    <div
+                      key={doc.id}
+                      className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                          <FileIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm text-slate-800">{doc.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Enviado por {doc.expand?.uploaded_by?.name || 'Desconhecido'} em{' '}
+                            {new Date(doc.created).toLocaleDateString('pt-BR')}
+                          </p>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-primary shrink-0"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <a href={url} target="_blank" rel="noreferrer">
+                        <Button variant="ghost" size="icon">
+                          <Download className="w-4 h-4" />
+                        </Button>
+                      </a>
                     </div>
+                  )
+                })}
+                {documents.length === 0 && (
+                  <div className="p-8 text-center text-muted-foreground">
+                    Nenhum documento anexado.
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>

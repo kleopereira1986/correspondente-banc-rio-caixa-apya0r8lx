@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,52 +11,118 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, Filter } from 'lucide-react'
-import { mockProcesses, ProcessStatus } from '@/lib/data'
+import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import { getProcesses, createProcess, getUsers } from '@/services/api'
+import { useRealtime } from '@/hooks/use-realtime'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [processes, setProcesses] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [isNewOpen, setIsNewOpen] = useState(false)
+  const [newType, setNewType] = useState('credit')
+  const [clients, setClients] = useState<any[]>([])
+  const [selectedBuyer, setSelectedBuyer] = useState('')
 
-  const getStatusBadge = (status: ProcessStatus) => {
-    switch (status) {
-      case 'Aprovado':
-        return (
-          <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none font-medium px-2.5 py-0.5">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Aprovado
-          </Badge>
-        )
-      case 'Pendente':
-        return (
-          <Badge className="bg-secondary/10 text-secondary hover:bg-secondary/10 border-none font-medium px-2.5 py-0.5 animate-pulse-status">
-            <AlertCircle className="w-3 h-3 mr-1" /> Pendência
-          </Badge>
-        )
-      case 'Em Análise':
-        return (
-          <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-none font-medium px-2.5 py-0.5">
-            <Clock className="w-3 h-3 mr-1" /> Em Análise
-          </Badge>
-        )
-      case 'Reprovado':
-        return (
-          <Badge variant="destructive" className="border-none font-medium px-2.5 py-0.5">
-            Reprovado
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="secondary" className="font-medium px-2.5 py-0.5">
-            {status}
-          </Badge>
-        )
+  const loadData = async () => {
+    try {
+      const data = await getProcesses()
+      setProcesses(data)
+    } catch (e) {}
+  }
+
+  const loadClients = async () => {
+    try {
+      const data = await getUsers('buyer')
+      setClients(data)
+    } catch (e) {}
+  }
+
+  useEffect(() => {
+    loadData()
+    loadClients()
+  }, [])
+
+  useRealtime('processes', () => loadData())
+
+  const handleCreate = async () => {
+    if (!selectedBuyer) return
+    await createProcess({
+      type: newType,
+      status: newType === 'credit' ? 'Awaiting Registration' : 'Documentação',
+      current_step: newType === 'credit' ? 'Registration' : 'Documentação',
+      buyer: selectedBuyer,
+      result: 'pending',
+    })
+    setIsNewOpen(false)
+    loadData()
+  }
+
+  const getStatusBadge = (status: string, result: string) => {
+    if (result === 'approved')
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-none font-medium">
+          <CheckCircle2 className="w-3 h-3 mr-1" /> Aprovado
+        </Badge>
+      )
+    if (result === 'rejected')
+      return (
+        <Badge variant="destructive" className="border-none font-medium">
+          Reprovado
+        </Badge>
+      )
+    if (result === 'conditioned')
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 border-none font-medium">
+          Condicionado
+        </Badge>
+      )
+
+    if (status === 'Pendente' || status === 'Pendência' || result === 'pending_docs') {
+      return (
+        <Badge className="bg-secondary/10 text-secondary hover:bg-secondary/10 border-none font-medium animate-pulse-status">
+          <AlertCircle className="w-3 h-3 mr-1" /> Pendência
+        </Badge>
+      )
     }
+
+    return (
+      <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-none font-medium">
+        <Clock className="w-3 h-3 mr-1" /> {status}
+      </Badge>
+    )
   }
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
   }
+
+  const filtered = processes.filter(
+    (p) =>
+      p.expand?.buyer?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.id.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  const pendingCount = processes.filter(
+    (p) => p.result === 'pending' || p.status === 'Awaiting Registration',
+  ).length
+  const approvedCount = processes.filter((p) => p.result === 'approved').length
 
   return (
     <div className="space-y-8 animate-fade-in-up">
@@ -66,12 +133,53 @@ export default function Dashboard() {
             Acompanhe o status das avaliações de crédito.
           </p>
         </div>
-        <Button className="w-full sm:w-auto shadow-sm">
-          <Plus className="mr-2 h-4 w-4" /> Novo Processo
-        </Button>
+
+        <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-full sm:w-auto shadow-sm">
+              <Plus className="mr-2 h-4 w-4" /> Novo Processo
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Iniciar Novo Processo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Tipo de Processo</Label>
+                <Select value={newType} onValueChange={setNewType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="credit">Análise de Crédito</SelectItem>
+                    <SelectItem value="housing">Esteira Habitacional</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Cliente (Comprador)</Label>
+                <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={handleCreate} className="w-full">
+                Criar Processo
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
@@ -81,8 +189,7 @@ export default function Dashboard() {
             <FileText className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-800">124</div>
-            <p className="text-xs text-muted-foreground mt-1">+12% desde o último mês</p>
+            <div className="text-3xl font-bold text-slate-800">{processes.length}</div>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
@@ -93,98 +200,81 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-800">15</div>
-            <p className="text-xs text-muted-foreground mt-1">Requerem sua atenção</p>
+            <div className="text-3xl font-bold text-slate-800">{pendingCount}</div>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Aprovados (Mês)
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Aprovados</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-800">48</div>
-            <p className="text-xs text-emerald-600 font-medium mt-1">R$ 12.4 Milhões em crédito</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Com Pendência
-            </CardTitle>
-            <AlertCircle className="h-4 w-4 text-secondary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-800">8</div>
-            <p className="text-xs text-secondary font-medium mt-1">Aguardando cliente</p>
+            <div className="text-3xl font-bold text-slate-800">{approvedCount}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Activity Table */}
       <Card className="shadow-sm border-border/50">
         <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
-          <div>
-            <CardTitle className="text-lg text-slate-800">Processos Recentes</CardTitle>
-          </div>
+          <CardTitle className="text-lg text-slate-800">Fila de Processos</CardTitle>
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder="Buscar cliente..."
-                className="w-full sm:w-[250px] pl-9 h-9 bg-slate-50"
+                className="w-full sm:w-[250px] pl-9 h-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9 shrink-0">
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader className="bg-slate-50/50">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="font-semibold text-slate-600">ID / Cliente</TableHead>
-                <TableHead className="font-semibold text-slate-600 hidden sm:table-cell">
-                  Tipo
-                </TableHead>
-                <TableHead className="font-semibold text-slate-600 text-right">Valor</TableHead>
-                <TableHead className="font-semibold text-slate-600 text-center">Status</TableHead>
-                <TableHead className="font-semibold text-slate-600 text-right hidden md:table-cell">
-                  Data
-                </TableHead>
+              <TableRow>
+                <TableHead>ID / Cliente</TableHead>
+                <TableHead className="hidden sm:table-cell">Tipo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead className="text-center">Status</TableHead>
+                <TableHead className="text-right hidden md:table-cell">Data</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockProcesses.map((process) => (
+              {filtered.map((process) => (
                 <TableRow
                   key={process.id}
-                  className="cursor-pointer group transition-colors"
+                  className="cursor-pointer group"
                   onClick={() => navigate(`/process/${process.id}`)}
                 >
                   <TableCell className="py-4">
-                    <div className="font-medium text-slate-800 group-hover:text-primary transition-colors">
-                      {process.clientName}
+                    <div className="font-medium text-slate-800 group-hover:text-primary">
+                      {process.expand?.buyer?.name || 'N/A'}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{process.id}</div>
+                    <div className="text-xs text-muted-foreground">{process.id}</div>
                   </TableCell>
-                  <TableCell className="py-4 hidden sm:table-cell text-slate-600">
-                    {process.type}
+                  <TableCell className="py-4 hidden sm:table-cell">
+                    {process.type === 'credit' ? 'Crédito' : 'Habitacional'}
                   </TableCell>
                   <TableCell className="py-4 text-right font-medium text-slate-700">
                     {formatCurrency(process.value)}
                   </TableCell>
                   <TableCell className="py-4 text-center">
-                    {getStatusBadge(process.status)}
+                    {getStatusBadge(process.status, process.result)}
                   </TableCell>
                   <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
-                    {new Date(process.date).toLocaleDateString('pt-BR')}
+                    {new Date(process.created).toLocaleDateString('pt-BR')}
                   </TableCell>
                 </TableRow>
               ))}
+              {filtered.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Nenhum processo encontrado.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

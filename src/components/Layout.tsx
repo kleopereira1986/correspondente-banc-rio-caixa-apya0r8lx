@@ -36,6 +36,7 @@ import {
   User,
   Landmark,
   Settings,
+  HardHat,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -57,6 +58,7 @@ export default function Layout() {
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },
+      { title: 'Solicitar Engenharia', url: '/engineering-request', icon: HardHat },
       ...(user.role === 'master'
         ? [
             { title: 'Usuários', url: '/users', icon: Users },

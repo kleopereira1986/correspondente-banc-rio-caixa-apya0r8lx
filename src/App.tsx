@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound'
 import Users from './pages/Users'
 import BrokerProcesses from './pages/BrokerProcesses'
 import ConfigCreditAnalysis from './pages/ConfigCreditAnalysis'
+import EngineeringRequest from './pages/EngineeringRequest'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/users" element={<Users />} />
             <Route path="/broker-processes" element={<BrokerProcesses />} />
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
+            <Route path="/engineering-request" element={<EngineeringRequest />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

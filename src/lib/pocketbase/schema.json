@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T03:19:22.108Z",
+  "generatedAt": "2026-05-05T03:30:29.699Z",
   "collections": [
     {
       "name": "users",
@@ -533,6 +533,125 @@
           "name": "name",
           "type": "text",
           "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "engineering_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "delete": "@request.auth.id != '' && @request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "requester_name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "requester_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requester_email",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "seller_info",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requested_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluation_type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["new", "used"]
+        },
+        {
+          "name": "registration_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "block",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "billing_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "billing_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "billing_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contact_person_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contact_person_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documents",
+          "type": "file",
+          "required": false,
           "system": false
         },
         {

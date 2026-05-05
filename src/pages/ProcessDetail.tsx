@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,8 @@ import pb from '@/lib/pocketbase/client'
 export default function ProcessDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isNewSubmission = new URLSearchParams(location.search).get('success') === 'true'
   const { toast } = useToast()
   const { user } = useAuth()
   const [process, setProcess] = useState<any>(null)
@@ -149,6 +151,79 @@ export default function ProcessDetail() {
     })
   }
 
+  const generatePDF = () => {
+    if (!process) return
+
+    const buyer = process.expand?.buyer || {}
+    const creditType = process.expand?.credit_analysis_type?.name || '-'
+    const devType = process.expand?.development_type?.name || '-'
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Ficha de Avaliação - ${process.id}</title>
+          <style>
+            @media print {
+              body { -webkit-print-color-adjust: exact; }
+              .page-break { page-break-before: always; }
+            }
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.5; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #0f172a; padding-bottom: 20px; }
+            .logo { font-size: 28px; font-weight: bold; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.5px; }
+            .title { font-size: 18px; color: #64748b; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+            .meta { margin-top: 12px; color: #94a3b8; font-size: 14px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 32px; font-size: 15px; }
+            th, td { text-align: left; padding: 14px 12px; border-bottom: 1px solid #e2e8f0; }
+            th { width: 35%; color: #64748b; font-weight: 500; }
+            td { font-weight: 600; color: #0f172a; }
+            .section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; margin-top: 40px; color: #0f172a; background: #f8fafc; padding: 10px 16px; border-radius: 6px; border-left: 4px solid #0f172a; }
+            .footer { margin-top: 60px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">CCA Digital</div>
+            <div class="title">Ficha de Avaliação de Crédito</div>
+            <div class="meta">Processo: ${process.id} &bull; Data de Solicitação: ${new Date(process.created).toLocaleDateString('pt-BR')}</div>
+          </div>
+
+          <div class="section-title">Dados do Cliente</div>
+          <table>
+            <tr><th>Nome Completo</th><td>${buyer.name || '-'}</td></tr>
+            <tr><th>CPF</th><td>${buyer.cpf || '-'}</td></tr>
+            <tr><th>E-mail</th><td>${buyer.email || '-'}</td></tr>
+            <tr><th>Telefone</th><td>${buyer.phone || '-'}</td></tr>
+          </table>
+
+          <div class="section-title">Dados da Operação</div>
+          <table>
+            <tr><th>Tipo de Avaliação</th><td>${creditType}</td></tr>
+            <tr><th>Tipo de Empreendimento</th><td>${devType}</td></tr>
+            <tr><th>Possui 36 meses FGTS?</th><td>${buyer.work_history_36_months ? 'Sim' : 'Não'}</td></tr>
+            <tr><th>Possui Dependente?</th><td>${buyer.has_dependents ? 'Sim' : 'Não'}</td></tr>
+            ${buyer.has_dependents && buyer.dependents_info ? `<tr><th>Observação Dependente</th><td><div style="white-space: pre-wrap;">${buyer.dependents_info}</div></td></tr>` : ''}
+          </table>
+
+          <div class="footer">
+            Documento gerado em ${new Date().toLocaleString('pt-BR')} via CCA Digital.
+          </div>
+        </body>
+      </html>
+    `
+
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(html)
+      printWindow.document.close()
+      printWindow.focus()
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
+  }
+
   if (!process)
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
@@ -199,6 +274,27 @@ export default function ProcessDetail() {
 
   return (
     <div className="space-y-6 animate-slide-up max-w-6xl mx-auto">
+      {isNewSubmission && (
+        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-md flex items-start gap-3 animate-fade-in-down mb-6">
+          <CheckCircle2 className="text-emerald-500 w-5 h-5 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-emerald-800">Solicitação Enviada com Sucesso!</h4>
+            <p className="text-sm text-emerald-700 mt-1">
+              A avaliação de crédito foi registrada e encaminhada para a fila de análise. Revise o
+              resumo da operação abaixo ou exporte as informações.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generatePDF}
+            className="shrink-0 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+          >
+            <Download className="w-4 h-4 mr-2" /> Exportar PDF
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button
@@ -234,9 +330,14 @@ export default function ProcessDetail() {
           </div>
         </div>
 
-        <Button variant="outline" onClick={handleCopyLink} className="shrink-0 shadow-sm">
-          <LinkIcon className="w-4 h-4 mr-2" /> Gerar Link para Comprador
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleCopyLink} className="shrink-0 shadow-sm">
+            <LinkIcon className="w-4 h-4 mr-2" /> Link Comprador
+          </Button>
+          <Button variant="default" onClick={generatePDF} className="shrink-0 shadow-sm">
+            <Download className="w-4 h-4 mr-2" /> Gerar PDF
+          </Button>
+        </div>
       </div>
 
       {process.status === 'Pendência' && !isAnalyst && (
@@ -366,62 +467,128 @@ export default function ProcessDetail() {
           )}
 
           <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-4 border-b border-border/50">
+            <CardHeader className="pb-4 border-b border-border/50 flex flex-row justify-between items-center space-y-0">
               <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" /> Detalhes
+                <User className="w-5 h-5 text-primary" /> Resumo da Operação
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 text-sm">
               <div className="divide-y divide-border/50">
-                <div className="p-4 grid grid-cols-3">
-                  <span className="text-muted-foreground">Comprador</span>
-                  <span className="font-medium text-slate-800 col-span-2">
-                    {process.expand?.buyer?.name || '-'}
-                  </span>
-                </div>
-                {process.expand?.seller && (
-                  <div className="p-4 grid grid-cols-3">
-                    <span className="text-muted-foreground">Vendedor</span>
-                    <span className="font-medium text-slate-800 col-span-2">
-                      {process.expand?.seller?.name}
-                    </span>
+                <div className="p-4 bg-slate-50/50">
+                  <h4 className="font-semibold text-slate-700 mb-3">Dados do Cliente</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Nome Completo</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">CPF</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.cpf || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">E-mail</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.email || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Telefone</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.phone || '-'}
+                      </span>
+                    </div>
                   </div>
-                )}
-                <div className="p-4 grid grid-cols-3">
-                  <span className="text-muted-foreground">Valor</span>
-                  <span className="font-medium text-emerald-600 col-span-2">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                      process.value || 0,
+                </div>
+
+                <div className="p-4 bg-white">
+                  <h4 className="font-semibold text-slate-700 mb-3">Dados da Operação</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Tipo de Avaliação</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.credit_analysis_type?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Tipo de Empreendimento
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.development_type?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Possui 36 meses FGTS?
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.work_history_36_months ? 'Sim' : 'Não'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Possui Dependente?
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.has_dependents ? 'Sim' : 'Não'}
+                      </span>
+                    </div>
+                    {process.expand?.buyer?.has_dependents && (
+                      <div className="sm:col-span-2">
+                        <span className="text-muted-foreground block text-xs">
+                          Observação Dependente
+                        </span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer?.dependents_info || '-'}
+                        </span>
+                      </div>
                     )}
-                  </span>
-                </div>
-                <div className="p-4 grid grid-cols-3">
-                  <span className="text-muted-foreground">Analista</span>
-                  <span className="font-medium text-slate-800 col-span-2">
-                    {process.expand?.assigned_analyst?.name || 'Não atribuído'}
-                  </span>
-                </div>
-                {process.expand?.credit_analysis_type && (
-                  <div className="p-4 grid grid-cols-3">
-                    <span className="text-muted-foreground">Tipo de Análise</span>
-                    <span className="font-medium text-slate-800 col-span-2">
-                      {process.expand.credit_analysis_type.name}
-                    </span>
                   </div>
-                )}
-                {process.expand?.property_type && (
-                  <div className="p-4 grid grid-cols-3">
-                    <span className="text-muted-foreground">Tipo de Imóvel</span>
-                    <span className="font-medium text-slate-800 col-span-2">
-                      {process.expand.property_type.name}
-                    </span>
+                </div>
+
+                <div className="p-4 bg-slate-50/50">
+                  <h4 className="font-semibold text-slate-700 mb-3">Informações Adicionais</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Analista Responsável
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.assigned_analyst?.name || 'Não atribuído'}
+                      </span>
+                    </div>
+                    {process.expand?.property_type && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Tipo de Imóvel</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.property_type?.name}
+                        </span>
+                      </div>
+                    )}
+                    {process.value > 0 && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Valor</span>
+                        <span className="font-medium text-emerald-600">
+                          {new Intl.NumberFormat('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          }).format(process.value)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="sm:col-span-2">
+                      <span className="text-muted-foreground block text-xs">
+                        Observações do Processo
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.observations || '-'}
+                      </span>
+                    </div>
                   </div>
-                )}
-                <div className="p-4 grid grid-cols-3">
-                  <span className="text-muted-foreground">Observações</span>
-                  <span className="font-medium text-slate-800 col-span-2">
-                    {process.observations || '-'}
-                  </span>
                 </div>
               </div>
             </CardContent>

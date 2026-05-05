@@ -14,6 +14,7 @@ import TaskDetail from './pages/TaskDetail'
 import NotFound from './pages/NotFound'
 import Users from './pages/Users'
 import BrokerProcesses from './pages/BrokerProcesses'
+import ConfigCreditAnalysis from './pages/ConfigCreditAnalysis'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/users" element={<Users />} />
             <Route path="/broker-processes" element={<BrokerProcesses />} />
+            <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

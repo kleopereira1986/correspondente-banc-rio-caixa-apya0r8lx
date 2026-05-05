@@ -35,6 +35,7 @@ import {
   LogOut,
   User,
   Landmark,
+  Settings,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -56,7 +57,12 @@ export default function Layout() {
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },
-      ...(user.role === 'master' ? [{ title: 'Usuários', url: '/users', icon: Users }] : []),
+      ...(user.role === 'master'
+        ? [
+            { title: 'Usuários', url: '/users', icon: Users },
+            { title: 'Configurações de Crédito', url: '/config/credit-analysis', icon: Settings },
+          ]
+        : []),
       { title: 'Relatórios', url: '#', icon: FileText },
     ]
   } else if (isBroker) {

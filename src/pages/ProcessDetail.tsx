@@ -401,6 +401,22 @@ export default function ProcessDetail() {
                     {process.expand?.assigned_analyst?.name || 'Não atribuído'}
                   </span>
                 </div>
+                {process.expand?.credit_analysis_type && (
+                  <div className="p-4 grid grid-cols-3">
+                    <span className="text-muted-foreground">Tipo de Análise</span>
+                    <span className="font-medium text-slate-800 col-span-2">
+                      {process.expand.credit_analysis_type.name}
+                    </span>
+                  </div>
+                )}
+                {process.expand?.property_type && (
+                  <div className="p-4 grid grid-cols-3">
+                    <span className="text-muted-foreground">Tipo de Imóvel</span>
+                    <span className="font-medium text-slate-800 col-span-2">
+                      {process.expand.property_type.name}
+                    </span>
+                  </div>
+                )}
                 <div className="p-4 grid grid-cols-3">
                   <span className="text-muted-foreground">Observações</span>
                   <span className="font-medium text-slate-800 col-span-2">

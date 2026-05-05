@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
-import { getProcesses, createProcess, getUsers } from '@/services/api'
+import {
+  getProcesses,
+  createProcess,
+  getUsers,
+  getCreditAnalysisTypes,
+  getPropertyTypes,
+} from '@/services/api'
+import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import {
   Table,
@@ -37,21 +44,38 @@ export default function BrokerProcesses() {
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [buyers, setBuyers] = useState<any[]>([])
+  const [creditAnalysisTypes, setCreditAnalysisTypes] = useState<any[]>([])
+  const [propertyTypes, setPropertyTypes] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [formData, setFormData] = useState({ buyerId: '', observations: '', value: '' })
+  const [formData, setFormData] = useState({
+    buyerId: '',
+    value: '',
+    creditAnalysisType: '',
+    propertyType: '',
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     loadData()
   }, [])
 
+  useRealtime('credit_analysis_types', () => loadData())
+  useRealtime('property_types', () => loadData())
+
   const loadData = async () => {
     try {
-      const [procs, users] = await Promise.all([getProcesses(), getUsers('buyer')])
+      const [procs, users, cats, pts] = await Promise.all([
+        getProcesses(),
+        getUsers('buyer'),
+        getCreditAnalysisTypes(),
+        getPropertyTypes(),
+      ])
       setProcesses(procs)
       setBuyers(users)
+      setCreditAnalysisTypes(cats)
+      setPropertyTypes(pts)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
@@ -66,13 +90,23 @@ export default function BrokerProcesses() {
         setErrors({ buyerId: 'Selecione um cliente.' })
         return
       }
+      if (!formData.creditAnalysisType) {
+        setErrors({ creditAnalysisType: 'Selecione um tipo de análise.' })
+        return
+      }
+      if (!formData.propertyType) {
+        setErrors({ propertyType: 'Selecione um tipo de imóvel.' })
+        return
+      }
+
       await createProcess({
         type: 'credit',
         status: 'Nova Solicitação',
         current_step: 'Análise Inicial',
         buyer: formData.buyerId,
         broker: user?.id,
-        observations: formData.observations,
+        credit_analysis_type: formData.creditAnalysisType,
+        property_type: formData.propertyType,
         value: Number(formData.value) || 0,
       })
       toast({ title: 'Sucesso', description: 'Avaliação de crédito solicitada com sucesso.' })
@@ -118,7 +152,7 @@ export default function BrokerProcesses() {
         </div>
         <Button
           onClick={() => {
-            setFormData({ buyerId: '', observations: '', value: '' })
+            setFormData({ buyerId: '', value: '', creditAnalysisType: '', propertyType: '' })
             setIsDialogOpen(true)
           }}
         >
@@ -211,12 +245,44 @@ export default function BrokerProcesses() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Observações Iniciais</Label>
-              <Input
-                placeholder="Ex: Cliente tem FGTS, renda composta, etc."
-                value={formData.observations}
-                onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-              />
+              <Label>Tipo de Análise de Crédito</Label>
+              <Select
+                value={formData.creditAnalysisType}
+                onValueChange={(v) => setFormData({ ...formData, creditAnalysisType: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo de análise" />
+                </SelectTrigger>
+                <SelectContent>
+                  {creditAnalysisTypes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.creditAnalysisType && (
+                <p className="text-sm text-red-500">{errors.creditAnalysisType}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo de Imóvel</Label>
+              <Select
+                value={formData.propertyType}
+                onValueChange={(v) => setFormData({ ...formData, propertyType: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo de imóvel" />
+                </SelectTrigger>
+                <SelectContent>
+                  {propertyTypes.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.propertyType && <p className="text-sm text-red-500">{errors.propertyType}</p>}
             </div>
           </div>
           <DialogFooter>

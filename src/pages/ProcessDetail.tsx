@@ -82,19 +82,26 @@ export default function ProcessDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [p, docs, docTypes, processLogs] = await Promise.all([
-        getProcess(id),
-        getDocuments(id),
-        getCreditDocumentTypes(),
-        getProcessLogs(id),
-      ])
+      const p = await getProcess(id)
       setProcess(p)
-      setDocuments(docs)
-      setCreditDocumentTypes(docTypes)
-      setLogs(processLogs)
+
+      // Carregar dependências separadamente para evitar falha geral
+      try {
+        const [docs, docTypes, processLogs] = await Promise.all([
+          getDocuments(id).catch(() => []),
+          getCreditDocumentTypes().catch(() => []),
+          getProcessLogs(id).catch(() => []),
+        ])
+        setDocuments(docs)
+        setCreditDocumentTypes(docTypes)
+        setLogs(processLogs)
+      } catch (err) {
+        console.error('Erro ao carregar dependências', err)
+      }
     } catch (e) {
+      console.error(e)
       toast({ title: 'Erro', description: 'Processo não encontrado.', variant: 'destructive' })
-      navigate(-1)
+      navigate('/dashboard')
     }
   }
 
@@ -200,7 +207,8 @@ export default function ProcessDetail() {
 
   const handleUploadSlot = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    expectedCategory: string,
+    cat: string,
+    slotName: string,
   ) => {
     const file = e.target.files?.[0]
     if (!file || !process) return
@@ -208,18 +216,44 @@ export default function ProcessDetail() {
     const formData = new FormData()
     formData.append('process', process.id)
     formData.append('file', file)
-    formData.append('name', file.name)
+    formData.append('name', slotName)
     formData.append('uploaded_by', user?.id || '')
-    formData.append('category', expectedCategory)
+    formData.append('category', cat)
     formData.append('status', 'review')
 
     try {
       await createDocument(formData as any)
-      toast({ title: 'Documento enviado' })
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      toast({ title: 'Documento enviado com sucesso!' })
       e.target.value = ''
+      loadData()
     } catch (error) {
-      toast({ title: 'Erro ao enviar', variant: 'destructive' })
+      toast({
+        title: 'Erro ao enviar',
+        description: 'Não foi possível enviar o documento.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleReplaceSlot = async (e: React.ChangeEvent<HTMLInputElement>, docId: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('status', 'review')
+
+    try {
+      await updateDocument(docId, formData as any)
+      toast({ title: 'Documento substituído com sucesso!' })
+      e.target.value = ''
+      loadData()
+    } catch (error) {
+      toast({
+        title: 'Erro ao substituir',
+        description: 'Não foi possível substituir o documento.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -786,171 +820,191 @@ export default function ProcessDetail() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-0 border-b border-border/50">
-              <CardTitle className="text-lg pb-4">Documentos</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Tabs defaultValue="1º Proponente" className="w-full">
-                <div className="px-4 pt-4 border-b border-border/50 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/50 gap-4">
-                  <TabsList className="bg-transparent space-x-1 h-auto flex-wrap border-b-0 pb-0">
-                    <TabsTrigger
-                      value="1º Proponente"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-b-transparent border border-transparent border-b-0 rounded-b-none py-2"
-                    >
-                      1º Proponente
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="2º Proponente / Conjuge"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-b-transparent border border-transparent border-b-0 rounded-b-none py-2"
-                    >
-                      2º Proponente
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="Geral"
-                      className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:border-b-transparent border border-transparent border-b-0 rounded-b-none py-2"
-                    >
-                      Geral
-                    </TabsTrigger>
-                  </TabsList>
-                  {process.result !== 'approved' && process.result !== 'rejected' && (
-                    <div className="pb-2 self-end sm:self-auto">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        onChange={(e) => handleUploadSlot(e, 'Geral')}
-                        accept=".pdf,.jpg,.jpeg,.png"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        variant="outline"
-                      >
-                        <UploadCloud className="w-4 h-4 mr-2" /> Arquivo Geral
-                      </Button>
-                    </div>
-                  )}
-                </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-800">Documentos</h2>
+            {process.result !== 'approved' && process.result !== 'rejected' && (
+              <div className="relative">
+                <input
+                  type="file"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => handleUploadSlot(e, 'Geral', 'Documento Geral')}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+                <Button variant="outline" size="sm" className="shadow-sm">
+                  <UploadCloud className="w-4 h-4 mr-2" /> Arquivo Extra
+                </Button>
+              </div>
+            )}
+          </div>
 
-                {['1º Proponente', '2º Proponente / Conjuge'].map((cat) => (
-                  <TabsContent key={cat} value={cat} className="p-4 m-0 bg-white">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {creditDocumentTypes
-                        .filter((t) => t.category === cat)
-                        .map((type) => {
-                          const expectedCategory = `${cat}:::${type.name}`
-                          const doc = documents.find((d) => d.category === expectedCategory)
-                          return (
+          {['1º Proponente', '2º Proponente / Conjuge'].map((cat) => {
+            const configuredSlots = creditDocumentTypes
+              .filter((t) => t.category === cat)
+              .map((t) => t.name)
+            const DEFAULT_SLOTS = [
+              'CNH/RG',
+              'Comprovante de Endereço',
+              'Certidão estado civil',
+              'Holerite 01',
+              'Holerite 02',
+              'Holerite 03',
+              'Carteira de trabalho',
+              'IRPF',
+            ]
+            const slotsToRender = configuredSlots.length > 0 ? configuredSlots : DEFAULT_SLOTS
+
+            return (
+              <Card key={cat} className="shadow-sm border-border/50">
+                <CardHeader className="pb-3 border-b border-border/50 bg-slate-50/50">
+                  <CardTitle className="text-base text-slate-700">{cat}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 bg-white">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {slotsToRender.map((slotName) => {
+                      const doc = documents.find(
+                        (d) =>
+                          (d.category === cat && d.name === slotName) ||
+                          d.category === `${cat}:::${slotName}`,
+                      )
+                      return (
+                        <div
+                          key={slotName}
+                          className="flex items-center justify-between p-3 border rounded-lg bg-slate-50/50 shadow-sm transition-colors hover:bg-slate-50"
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden">
                             <div
-                              key={type.id}
-                              className="flex items-center justify-between p-3 border rounded-lg bg-slate-50/50 shadow-sm"
+                              className={cn(
+                                'p-2 rounded-lg shrink-0',
+                                doc
+                                  ? 'bg-emerald-100 text-emerald-600'
+                                  : 'bg-slate-200 text-slate-500',
+                              )}
                             >
-                              <div className="flex items-center gap-3 overflow-hidden">
-                                <div
-                                  className={cn(
-                                    'p-2 rounded-lg shrink-0',
-                                    doc
-                                      ? 'bg-emerald-100 text-emerald-600'
-                                      : 'bg-slate-200 text-slate-500',
-                                  )}
-                                >
-                                  <FileIcon className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-medium text-sm text-slate-800 truncate">
-                                    {type.name}
-                                  </p>
-                                  {doc && (
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {doc.name}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="shrink-0 ml-2">
-                                {doc ? (
-                                  <a
-                                    href={pb.files.getURL(doc, doc.file)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    <Button variant="ghost" size="sm" className="text-blue-600">
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                  </a>
-                                ) : (
-                                  process.result !== 'approved' &&
-                                  process.result !== 'rejected' && (
-                                    <div className="relative">
-                                      <input
-                                        type="file"
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        onChange={(e) => handleUploadSlot(e, expectedCategory)}
-                                        accept=".pdf,.jpg,.jpeg,.png"
-                                      />
-                                      <Button variant="outline" size="sm">
-                                        <UploadCloud className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      {creditDocumentTypes.filter((t) => t.category === cat).length === 0 && (
-                        <div className="col-span-full p-4 text-center text-sm text-muted-foreground">
-                          Nenhum documento configurado para este perfil.
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-                ))}
-
-                <TabsContent value="Geral" className="p-0 m-0 bg-white">
-                  <div className="divide-y divide-border/50">
-                    {documents
-                      .filter((d) => d.category === 'Geral' || !d.category?.includes(':::'))
-                      .map((doc) => {
-                        const url = pb.files.getURL(doc, doc.file)
-                        return (
-                          <div
-                            key={doc.id}
-                            className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                              {doc ? (
+                                <CheckCircle2 className="w-5 h-5" />
+                              ) : (
                                 <FileIcon className="w-5 h-5" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm text-slate-800">{doc.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Enviado por {doc.expand?.uploaded_by?.name || '-'} em{' '}
-                                  {new Date(doc.created).toLocaleDateString('pt-BR')}
-                                </p>
-                              </div>
+                              )}
                             </div>
-                            <a href={url} target="_blank" rel="noreferrer">
-                              <Button variant="ghost" size="icon">
-                                <Download className="w-4 h-4" />
-                              </Button>
-                            </a>
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm text-slate-800 truncate">
+                                {slotName}
+                              </p>
+                              {doc && (
+                                <p className="text-xs text-muted-foreground truncate">Enviado</p>
+                              )}
+                            </div>
                           </div>
-                        )
-                      })}
-                    {documents.filter((d) => d.category === 'Geral' || !d.category?.includes(':::'))
-                      .length === 0 && (
-                      <div className="p-8 text-center text-muted-foreground text-sm">
-                        Nenhum documento geral anexado. Recomendamos anexar a Matrícula do Imóvel
-                        nesta aba.
-                      </div>
-                    )}
+                          <div className="shrink-0 ml-2 flex items-center gap-1">
+                            {doc ? (
+                              <>
+                                <a
+                                  href={pb.files.getURL(doc, doc.file)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-blue-600 h-8 w-8"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </Button>
+                                </a>
+                                {process.result !== 'approved' && process.result !== 'rejected' && (
+                                  <div className="relative">
+                                    <input
+                                      type="file"
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                      onChange={(e) => handleReplaceSlot(e, doc.id)}
+                                      accept=".pdf,.jpg,.jpeg,.png"
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-amber-600 h-8 w-8"
+                                      title="Substituir arquivo"
+                                    >
+                                      <UploadCloud className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              process.result !== 'approved' &&
+                              process.result !== 'rejected' && (
+                                <div className="relative">
+                                  <input
+                                    type="file"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleUploadSlot(e, cat, slotName)}
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                  />
+                                  <Button variant="outline" size="sm" className="h-8">
+                                    <UploadCloud className="w-4 h-4 mr-2" /> Enviar
+                                  </Button>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )
+          })}
+
+          {documents.filter(
+            (d) =>
+              d.category === 'Geral' ||
+              (!d.category?.includes('1º Proponente') && !d.category?.includes('2º Proponente')),
+          ).length > 0 && (
+            <Card className="shadow-sm border-border/50">
+              <CardHeader className="pb-3 border-b border-border/50 bg-slate-50/50">
+                <CardTitle className="text-base text-slate-700">Outros Documentos</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0 bg-white">
+                <div className="divide-y divide-border/50">
+                  {documents
+                    .filter(
+                      (d) =>
+                        d.category === 'Geral' ||
+                        (!d.category?.includes('1º Proponente') &&
+                          !d.category?.includes('2º Proponente')),
+                    )
+                    .map((doc) => {
+                      const url = pb.files.getURL(doc, doc.file)
+                      return (
+                        <div
+                          key={doc.id}
+                          className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                              <FileIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm text-slate-800">{doc.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Enviado por {doc.expand?.uploaded_by?.name || '-'} em{' '}
+                                {new Date(doc.created).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                          <a href={url} target="_blank" rel="noreferrer">
+                            <Button variant="ghost" size="icon">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </a>
+                        </div>
+                      )
+                    })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

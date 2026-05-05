@@ -8,6 +8,10 @@ import {
   createPropertyType,
   updatePropertyType,
   deletePropertyType,
+  getDevelopmentTypes,
+  createDevelopmentType,
+  updateDevelopmentType,
+  deleteDevelopmentType,
 } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -27,7 +31,7 @@ export default function ConfigCreditAnalysis() {
           Gerencie os tipos de análise e tipos de imóvel disponíveis.
         </p>
       </div>
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         <ConfigSection
           title="Tipos de Análise de Crédito"
           fetchFn={getCreditAnalysisTypes}
@@ -43,6 +47,14 @@ export default function ConfigCreditAnalysis() {
           updateFn={updatePropertyType}
           deleteFn={deletePropertyType}
           realtimeKey="property_types"
+        />
+        <ConfigSection
+          title="Tipos de Empreendimentos"
+          fetchFn={getDevelopmentTypes}
+          createFn={createDevelopmentType}
+          updateFn={updateDevelopmentType}
+          deleteFn={deleteDevelopmentType}
+          realtimeKey="development_types"
         />
       </div>
     </div>

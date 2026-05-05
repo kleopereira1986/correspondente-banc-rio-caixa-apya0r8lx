@@ -1,18 +1,16 @@
 import pb from '@/lib/pocketbase/client'
 
 export const getProcesses = () =>
-  pb
-    .collection('processes')
-    .getFullList({
-      expand: 'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type',
-      sort: '-created',
-    })
+  pb.collection('processes').getFullList({
+    expand:
+      'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
+    sort: '-created',
+  })
 export const getProcess = (id: string) =>
-  pb
-    .collection('processes')
-    .getOne(id, {
-      expand: 'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type',
-    })
+  pb.collection('processes').getOne(id, {
+    expand:
+      'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
+  })
 
 export const getCreditAnalysisTypes = () =>
   pb.collection('credit_analysis_types').getFullList({ sort: '-created' })
@@ -29,6 +27,14 @@ export const createPropertyType = (data: any) => pb.collection('property_types')
 export const updatePropertyType = (id: string, data: any) =>
   pb.collection('property_types').update(id, data)
 export const deletePropertyType = (id: string) => pb.collection('property_types').delete(id)
+
+export const getDevelopmentTypes = () =>
+  pb.collection('development_types').getFullList({ sort: '-created' })
+export const createDevelopmentType = (data: any) => pb.collection('development_types').create(data)
+export const updateDevelopmentType = (id: string, data: any) =>
+  pb.collection('development_types').update(id, data)
+export const deleteDevelopmentType = (id: string) => pb.collection('development_types').delete(id)
+
 export const createProcess = (data: any) => pb.collection('processes').create(data)
 export const updateProcess = (id: string, data: any) => pb.collection('processes').update(id, data)
 

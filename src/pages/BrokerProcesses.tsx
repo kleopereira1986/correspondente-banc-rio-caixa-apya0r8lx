@@ -5,8 +5,11 @@ import {
   getProcesses,
   createProcess,
   getUsers,
+  createUser,
+  updateUser,
   getCreditAnalysisTypes,
   getPropertyTypes,
+  getDevelopmentTypes,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
@@ -37,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function BrokerProcesses() {
@@ -46,15 +50,28 @@ export default function BrokerProcesses() {
   const [buyers, setBuyers] = useState<any[]>([])
   const [creditAnalysisTypes, setCreditAnalysisTypes] = useState<any[]>([])
   const [propertyTypes, setPropertyTypes] = useState<any[]>([])
+  const [developmentTypes, setDevelopmentTypes] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [step, setStep] = useState(1)
+  const [clientMode, setClientMode] = useState<'new' | 'existing'>('new')
+
   const [formData, setFormData] = useState({
     buyerId: '',
-    value: '',
+    buyerName: '',
+    buyerCpf: '',
+    buyerPhone: '',
+    buyerEmail: '',
     creditAnalysisType: '',
     propertyType: '',
+    value: '',
+    developmentType: '',
+    workHistory36Months: 'false',
+    hasDependents: 'false',
+    dependentsInfo: '',
   })
+
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -63,19 +80,22 @@ export default function BrokerProcesses() {
 
   useRealtime('credit_analysis_types', () => loadData())
   useRealtime('property_types', () => loadData())
+  useRealtime('development_types', () => loadData())
 
   const loadData = async () => {
     try {
-      const [procs, users, cats, pts] = await Promise.all([
+      const [procs, usersList, cats, pts, devs] = await Promise.all([
         getProcesses(),
         getUsers('buyer'),
         getCreditAnalysisTypes(),
         getPropertyTypes(),
+        getDevelopmentTypes(),
       ])
       setProcesses(procs)
-      setBuyers(users)
+      setBuyers(usersList)
       setCreditAnalysisTypes(cats)
       setPropertyTypes(pts)
+      setDevelopmentTypes(devs)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
@@ -83,32 +103,101 @@ export default function BrokerProcesses() {
     }
   }
 
+  const isMcmvEmpreendimento =
+    creditAnalysisTypes.find((c) => c.id === formData.creditAnalysisType)?.name ===
+    'MCMV IMOVEL NOVO DE EMPREENDIMENTO'
+
+  const isFinalStep = step === 5 || (step === 4 && formData.hasDependents === 'false')
+
+  const handleNext = () => {
+    if (step === 1) {
+      if (
+        clientMode === 'new' &&
+        (!formData.buyerName || !formData.buyerCpf || !formData.buyerEmail)
+      ) {
+        toast({ title: 'Aviso', description: 'Preencha os campos obrigatórios do cliente.' })
+        return
+      }
+      if (clientMode === 'existing' && !formData.buyerId) {
+        toast({ title: 'Aviso', description: 'Selecione um cliente.' })
+        return
+      }
+      setStep(2)
+    } else if (step === 2) {
+      if (!formData.creditAnalysisType || !formData.propertyType || !formData.value) {
+        toast({ title: 'Aviso', description: 'Preencha os campos obrigatórios da avaliação.' })
+        return
+      }
+      if (isMcmvEmpreendimento) {
+        setStep(3)
+      } else {
+        setStep(4)
+      }
+    } else if (step === 3) {
+      if (!formData.developmentType) {
+        toast({ title: 'Aviso', description: 'Selecione um empreendimento.' })
+        return
+      }
+      setStep(4)
+    } else if (step === 4) {
+      if (formData.hasDependents === 'true') {
+        setStep(5)
+      } else {
+        handleCreate()
+      }
+    } else if (step === 5) {
+      handleCreate()
+    }
+  }
+
+  const handleBack = () => {
+    if (step === 2) setStep(1)
+    if (step === 3) setStep(2)
+    if (step === 4) {
+      if (isMcmvEmpreendimento) setStep(3)
+      else setStep(2)
+    }
+    if (step === 5) setStep(4)
+  }
+
   const handleCreate = async () => {
     setErrors({})
     try {
-      if (!formData.buyerId) {
-        setErrors({ buyerId: 'Selecione um cliente.' })
-        return
-      }
-      if (!formData.creditAnalysisType) {
-        setErrors({ creditAnalysisType: 'Selecione um tipo de análise.' })
-        return
-      }
-      if (!formData.propertyType) {
-        setErrors({ propertyType: 'Selecione um tipo de imóvel.' })
-        return
+      let currentBuyerId = formData.buyerId
+
+      if (clientMode === 'new') {
+        const userRes = await createUser({
+          name: formData.buyerName,
+          cpf: formData.buyerCpf,
+          email: formData.buyerEmail,
+          phone: formData.buyerPhone,
+          has_dependents: formData.hasDependents === 'true',
+          dependents_info: formData.dependentsInfo,
+          work_history_36_months: formData.workHistory36Months === 'true',
+          role: 'buyer',
+          password: 'Skip@Pass123!',
+        })
+        currentBuyerId = userRes.id
+      } else {
+        await updateUser(currentBuyerId, {
+          has_dependents: formData.hasDependents === 'true',
+          dependents_info: formData.dependentsInfo,
+          work_history_36_months: formData.workHistory36Months === 'true',
+        })
       }
 
       await createProcess({
         type: 'credit',
         status: 'Nova Solicitação',
         current_step: 'Análise Inicial',
-        buyer: formData.buyerId,
+        buyer: currentBuyerId,
         broker: user?.id,
         credit_analysis_type: formData.creditAnalysisType,
         property_type: formData.propertyType,
         value: Number(formData.value) || 0,
+        development_type: formData.developmentType || null,
       })
+
       toast({ title: 'Sucesso', description: 'Avaliação de crédito solicitada com sucesso.' })
       setIsDialogOpen(false)
       loadData()
@@ -141,6 +230,206 @@ export default function BrokerProcesses() {
     }
   }
 
+  const renderStep1 = () => (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Tipo de Cadastro</Label>
+        <RadioGroup
+          value={clientMode}
+          onValueChange={(v: any) => setClientMode(v)}
+          className="flex space-x-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="new" id="new" />
+            <Label htmlFor="new">Novo Cliente</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="existing" id="existing" />
+            <Label htmlFor="existing">Cliente Existente</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {clientMode === 'existing' ? (
+        <div className="space-y-2">
+          <Label>Cliente (Comprador) *</Label>
+          <Select
+            value={formData.buyerId}
+            onValueChange={(v) => setFormData({ ...formData, buyerId: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione um cliente cadastrado" />
+            </SelectTrigger>
+            <SelectContent>
+              {buyers.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name || b.email}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            <Label>Nome Completo *</Label>
+            <Input
+              value={formData.buyerName}
+              onChange={(e) => setFormData({ ...formData, buyerName: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>CPF *</Label>
+            <Input
+              value={formData.buyerCpf}
+              onChange={(e) => setFormData({ ...formData, buyerCpf: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Telefone</Label>
+            <Input
+              value={formData.buyerPhone}
+              onChange={(e) => setFormData({ ...formData, buyerPhone: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Email *</Label>
+            <Input
+              type="email"
+              value={formData.buyerEmail}
+              onChange={(e) => setFormData({ ...formData, buyerEmail: e.target.value })}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  )
+
+  const renderStep2 = () => (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Tipo de Análise de Crédito *</Label>
+        <Select
+          value={formData.creditAnalysisType}
+          onValueChange={(v) => setFormData({ ...formData, creditAnalysisType: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {creditAnalysisTypes.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Tipo de Imóvel *</Label>
+        <Select
+          value={formData.propertyType}
+          onValueChange={(v) => setFormData({ ...formData, propertyType: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione..." />
+          </SelectTrigger>
+          <SelectContent>
+            {propertyTypes.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label>Valor do Imóvel/Crédito *</Label>
+        <Input
+          type="number"
+          placeholder="Ex: 350000"
+          value={formData.value}
+          onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+        />
+      </div>
+    </div>
+  )
+
+  const renderStep3 = () => (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Tipo de Empreendimento *</Label>
+        <Select
+          value={formData.developmentType}
+          onValueChange={(v) => setFormData({ ...formData, developmentType: v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione o empreendimento" />
+          </SelectTrigger>
+          <SelectContent>
+            {developmentTypes.map((d) => (
+              <SelectItem key={d.id} value={d.id}>
+                {d.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+
+  const renderStep4 = () => (
+    <div className="space-y-6 py-4">
+      <div className="space-y-3">
+        <Label>Possui 36 meses sob regime FGTS?</Label>
+        <RadioGroup
+          value={formData.workHistory36Months}
+          onValueChange={(v) => setFormData({ ...formData, workHistory36Months: v })}
+          className="flex space-x-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="true" id="fgts-yes" />
+            <Label htmlFor="fgts-yes">Sim</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="false" id="fgts-no" />
+            <Label htmlFor="fgts-no">Não</Label>
+          </div>
+        </RadioGroup>
+      </div>
+      <div className="space-y-3">
+        <Label>Possui dependente?</Label>
+        <RadioGroup
+          value={formData.hasDependents}
+          onValueChange={(v) => setFormData({ ...formData, hasDependents: v })}
+          className="flex space-x-4"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="true" id="dep-yes" />
+            <Label htmlFor="dep-yes">Sim</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="false" id="dep-no" />
+            <Label htmlFor="dep-no">Não</Label>
+          </div>
+        </RadioGroup>
+      </div>
+    </div>
+  )
+
+  const renderStep5 = () => (
+    <div className="space-y-4 py-4">
+      <div className="space-y-2">
+        <Label>Observação (Dependentes)</Label>
+        <Input
+          placeholder="Informe detalhes dos dependentes"
+          value={formData.dependentsInfo}
+          onChange={(e) => setFormData({ ...formData, dependentsInfo: e.target.value })}
+        />
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -152,11 +441,26 @@ export default function BrokerProcesses() {
         </div>
         <Button
           onClick={() => {
-            setFormData({ buyerId: '', value: '', creditAnalysisType: '', propertyType: '' })
+            setStep(1)
+            setClientMode('new')
+            setFormData({
+              buyerId: '',
+              buyerName: '',
+              buyerCpf: '',
+              buyerPhone: '',
+              buyerEmail: '',
+              creditAnalysisType: '',
+              propertyType: '',
+              value: '',
+              developmentType: '',
+              workHistory36Months: 'false',
+              hasDependents: 'false',
+              dependentsInfo: '',
+            })
             setIsDialogOpen(true)
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Nova Avaliação de Crédito
+          <Plus className="w-4 h-4 mr-2" /> Cadastrar Novo Cliente
         </Button>
       </div>
 
@@ -210,86 +514,33 @@ export default function BrokerProcesses() {
         </Table>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(val) => {
+          setIsDialogOpen(val)
+          if (!val) setStep(1)
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Nova Avaliação de Crédito</DialogTitle>
+            <DialogTitle>Cadastrar Novo Cliente (Passo {step})</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Cliente (Comprador)</Label>
-              <Select
-                value={formData.buyerId}
-                onValueChange={(v) => setFormData({ ...formData, buyerId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente cadastrado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buyers.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name || b.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.buyerId && <p className="text-sm text-red-500">{errors.buyerId}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label>Valor do Imóvel/Crédito Desejado</Label>
-              <Input
-                type="number"
-                placeholder="Ex: 350000"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tipo de Análise de Crédito</Label>
-              <Select
-                value={formData.creditAnalysisType}
-                onValueChange={(v) => setFormData({ ...formData, creditAnalysisType: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo de análise" />
-                </SelectTrigger>
-                <SelectContent>
-                  {creditAnalysisTypes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.creditAnalysisType && (
-                <p className="text-sm text-red-500">{errors.creditAnalysisType}</p>
+
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
+          {step === 4 && renderStep4()}
+          {step === 5 && renderStep5()}
+
+          <DialogFooter className="flex flex-row justify-between w-full mt-4">
+            <div>
+              {step > 1 && (
+                <Button variant="outline" onClick={handleBack}>
+                  Voltar
+                </Button>
               )}
             </div>
-            <div className="space-y-2">
-              <Label>Tipo de Imóvel</Label>
-              <Select
-                value={formData.propertyType}
-                onValueChange={(v) => setFormData({ ...formData, propertyType: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo de imóvel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {propertyTypes.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.propertyType && <p className="text-sm text-red-500">{errors.propertyType}</p>}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate}>Solicitar Avaliação</Button>
+            <Button onClick={handleNext}>{isFinalStep ? 'Finalizar' : 'Próximo'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

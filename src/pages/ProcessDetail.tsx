@@ -62,6 +62,7 @@ export default function ProcessDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysts, setAnalysts] = useState<any[]>([])
   const [transferAnalyst, setTransferAnalyst] = useState('')
+  const [logs, setLogs] = useState<any[]>([])
 
   const [approveDialog, setApproveDialog] = useState(false)
   const [conditionDialog, setConditionDialog] = useState(false)
@@ -81,14 +82,16 @@ export default function ProcessDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [p, docs, docTypes] = await Promise.all([
+      const [p, docs, docTypes, processLogs] = await Promise.all([
         getProcess(id),
         getDocuments(id),
         getCreditDocumentTypes(),
+        getProcessLogs(id),
       ])
       setProcess(p)
       setDocuments(docs)
       setCreditDocumentTypes(docTypes)
+      setLogs(processLogs)
     } catch (e) {
       toast({ title: 'Erro', description: 'Processo não encontrado.', variant: 'destructive' })
       navigate(-1)
@@ -110,8 +113,9 @@ export default function ProcessDetail() {
   useRealtime('processes', () => loadData())
   useRealtime('documents', () => loadData())
   useRealtime('credit_document_types', () => loadData())
+  useRealtime('process_logs', () => loadData())
 
-  const handleAction = async (action: 'pendency' | 'transfer' | 'claim') => {
+  const handleAction = async (action: 'pendency' | 'transfer' | 'claim' | 'start') => {
     if (!process) return
     try {
       if (action === 'pendency') {
@@ -122,6 +126,11 @@ export default function ProcessDetail() {
         })
         toast({ title: 'Pendência Solicitada' })
         setIsPendencyDialogOpen(false)
+      } else if (action === 'start') {
+        await updateProcess(process.id, {
+          status: 'Processo Iniciado',
+        })
+        toast({ title: 'Processo Iniciado' })
       } else if (action === 'claim') {
         await updateProcess(process.id, {
           assigned_analyst: user?.id,
@@ -517,9 +526,9 @@ export default function ProcessDetail() {
                           variant="outline"
                           className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
                         >
-                          <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência Cliente
+                          <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
                         </Button>
-                      </DialogTrigger>
+                      </DialogTrigger>{' '}
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
@@ -543,11 +552,53 @@ export default function ProcessDetail() {
                     >
                       <XCircle className="w-4 h-4 mr-2" /> Reprovar
                     </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-blue-600 hover:bg-blue-50"
+                      onClick={() => handleAction('start')}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Iniciado
+                    </Button>
                   </>
                 )}
               </CardContent>
             </Card>
           )}
+
+          <Card className="shadow-sm border-border/50 bg-slate-50">
+            <CardHeader className="pb-4 border-b border-border/50">
+              <CardTitle className="text-lg flex items-center gap-2">
+                Histórico de Alterações
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4 max-h-64 overflow-y-auto">
+              <div className="space-y-4">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="text-sm border-l-2 border-primary pl-3 pb-2 relative"
+                  >
+                    <div className="absolute -left-[5px] top-1 w-2 h-2 bg-primary rounded-full"></div>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(log.created).toLocaleString('pt-BR')}
+                    </p>
+                    <p className="font-medium text-slate-800">
+                      {log.from_step || 'Início'} ➔ {log.to_step}
+                    </p>
+                    {log.note && <p className="text-xs text-slate-600 mt-1 italic">"{log.note}"</p>}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Por: {log.expand?.changed_by?.name || 'Sistema'}
+                    </p>
+                  </div>
+                ))}
+                {logs.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    Nenhum histórico registrado.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {process.result && process.result !== 'pending' && (
             <Card className="shadow-sm border-border/50 bg-slate-50">
@@ -891,7 +942,8 @@ export default function ProcessDetail() {
                     {documents.filter((d) => d.category === 'Geral' || !d.category?.includes(':::'))
                       .length === 0 && (
                       <div className="p-8 text-center text-muted-foreground text-sm">
-                        Nenhum documento geral anexado.
+                        Nenhum documento geral anexado. Recomendamos anexar a Matrícula do Imóvel
+                        nesta aba.
                       </div>
                     )}
                   </div>

@@ -28,6 +28,17 @@ export const updatePropertyType = (id: string, data: any) =>
   pb.collection('property_types').update(id, data)
 export const deletePropertyType = (id: string) => pb.collection('property_types').delete(id)
 
+export const getHousingStages = () => pb.collection('housing_stages').getFullList({ sort: 'order' })
+export const createHousingStage = (data: any) => pb.collection('housing_stages').create(data)
+export const updateHousingStage = (id: string, data: any) =>
+  pb.collection('housing_stages').update(id, data)
+export const deleteHousingStage = (id: string) => pb.collection('housing_stages').delete(id)
+
+export const getProcessLogs = (processId: string) =>
+  pb
+    .collection('process_logs')
+    .getFullList({ filter: `process="${processId}"`, sort: 'created', expand: 'changed_by' })
+
 export const getDevelopmentTypes = () =>
   pb.collection('development_types').getFullList({ sort: '-created' })
 export const createDevelopmentType = (data: any) => pb.collection('development_types').create(data)

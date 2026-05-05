@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
 import {
   Sidebar,
@@ -44,8 +44,19 @@ export default function Layout() {
   const location = useLocation()
 
   // Do not show layout on login page
-  if (!user || location.pathname === '/') {
+  if (!user) {
+    if (location.pathname !== '/') {
+      return <Navigate to="/" replace />
+    }
     return <Outlet />
+  }
+
+  if (location.pathname === '/') {
+    if (user.role === 'master' || user.role === 'analyst' || user.role === 'broker') {
+      return <Navigate to="/dashboard" replace />
+    } else {
+      return <Navigate to="/portal" replace />
+    }
   }
 
   const isInternal = user.role === 'master' || user.role === 'analyst'
@@ -59,14 +70,16 @@ export default function Layout() {
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },
       { title: 'Solicitar Engenharia', url: '/engineering-request', icon: HardHat },
+      { title: 'Processo Habitacional', url: '/housing-kanban', icon: LayoutDashboard },
       ...(user.role === 'master'
         ? [
             { title: 'Usuários', url: '/users', icon: Users },
-            { title: 'Configurações de Crédito', url: '/config/credit-analysis', icon: Settings },
+            { title: 'Config. Crédito', url: '/config/credit-analysis', icon: Settings },
+            { title: 'Config. Habitacional', url: '/config/housing-stages', icon: Settings },
           ]
         : []),
       {
-        title: 'Avaliações de Engenharia Solicitadas',
+        title: 'Avaliações de Engenharia',
         url: '/engineering-requests-list',
         icon: FileText,
       },

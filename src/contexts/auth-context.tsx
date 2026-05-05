@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password = 'Skip@Pass') => {
     try {
       await pb.collection('users').authWithPassword(email, password)
-      const role = pb.authStore.record?.role as Role
-      if (role === 'master' || role === 'analyst') {
+      const role = pb.authStore.record?.role as Role | 'broker'
+      if (role === 'master' || role === 'analyst' || role === 'broker') {
         navigate('/dashboard')
       } else {
         navigate('/portal')

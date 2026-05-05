@@ -57,6 +57,10 @@ export default function BrokerProcesses() {
   const [step, setStep] = useState(1)
   const [clientMode, setClientMode] = useState<'new' | 'existing'>('new')
 
+  const [housingNotes, setHousingNotes] = useState('')
+  const [selectedProcessId, setSelectedProcessId] = useState('')
+  const [housingDialogOpen, setHousingDialogOpen] = useState(false)
+
   const [formData, setFormData] = useState({
     buyerId: '',
     buyerName: '',
@@ -423,6 +427,29 @@ export default function BrokerProcesses() {
     </div>
   )
 
+  const handleStartHousing = async () => {
+    try {
+      const p = processes.find((x) => x.id === selectedProcessId)
+      if (!p) return
+      await createProcess({
+        type: 'housing',
+        buyer: p.buyer,
+        broker: user?.id,
+        current_step: 'Montagem de Pasta',
+        status: 'Nova Solicitação',
+        observations: housingNotes,
+        credit_analysis_type: p.credit_analysis_type,
+        development_type: p.development_type,
+        value: p.approved_financing_value || p.value,
+      })
+      toast({ title: 'Sucesso', description: 'Processo Habitacional iniciado com sucesso.' })
+      setHousingDialogOpen(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
+
   const renderStep5 = () => (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
@@ -501,11 +528,27 @@ export default function BrokerProcesses() {
                 <TableCell>{getStatusBadge(p.status)}</TableCell>
                 <TableCell>{p.current_step || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={`/process/${p.id}`}>
-                      <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
-                    </Link>
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    {p.type === 'credit' && p.result === 'approved' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                        onClick={() => {
+                          setSelectedProcessId(p.id)
+                          setHousingNotes('')
+                          setHousingDialogOpen(true)
+                        }}
+                      >
+                        Iniciar Habitacional
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/process/${p.id}`}>
+                        <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
+                      </Link>
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -547,6 +590,30 @@ export default function BrokerProcesses() {
               )}
             </div>
             <Button onClick={handleNext}>{isFinalStep ? 'Finalizar' : 'Próximo'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={housingDialogOpen} onOpenChange={setHousingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Iniciar Processo Habitacional</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Observações Iniciais</Label>
+              <Input
+                placeholder="Detalhes para a montagem de pasta..."
+                value={housingNotes}
+                onChange={(e) => setHousingNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHousingDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleStartHousing}>Iniciar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

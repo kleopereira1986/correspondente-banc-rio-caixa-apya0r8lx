@@ -19,6 +19,9 @@ import EngineeringRequest from './pages/EngineeringRequest'
 import PublicEngineeringRequest from './pages/PublicEngineeringRequest'
 import EngineeringRequestsList from './pages/EngineeringRequestsList'
 import PublicEngineeringStatus from './pages/PublicEngineeringStatus'
+import HousingKanban from './pages/HousingKanban'
+import ConfigHousingStages from './pages/ConfigHousingStages'
+import PublicHousingStatus from './pages/PublicHousingStatus'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -30,6 +33,7 @@ const App = () => (
           <Route path="/public/onboarding/:id" element={<PublicOnboarding />} />
           <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
           <Route path="/consultar-engenharia/:id" element={<PublicEngineeringStatus />} />
+          <Route path="/public/housing/:id" element={<PublicHousingStatus />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -40,6 +44,8 @@ const App = () => (
             <Route path="/users" element={<Users />} />
             <Route path="/broker-processes" element={<BrokerProcesses />} />
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
+            <Route path="/config/housing-stages" element={<ConfigHousingStages />} />
+            <Route path="/housing-kanban" element={<HousingKanban />} />
             <Route path="/engineering-request" element={<EngineeringRequest />} />
             <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />
           </Route>

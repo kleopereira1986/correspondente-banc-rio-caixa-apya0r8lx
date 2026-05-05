@@ -18,6 +18,7 @@ import ConfigCreditAnalysis from './pages/ConfigCreditAnalysis'
 import EngineeringRequest from './pages/EngineeringRequest'
 import PublicEngineeringRequest from './pages/PublicEngineeringRequest'
 import EngineeringRequestsList from './pages/EngineeringRequestsList'
+import PublicEngineeringStatus from './pages/PublicEngineeringStatus'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -28,6 +29,7 @@ const App = () => (
         <Routes>
           <Route path="/public/onboarding/:id" element={<PublicOnboarding />} />
           <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
+          <Route path="/consultar-engenharia/:id" element={<PublicEngineeringStatus />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />

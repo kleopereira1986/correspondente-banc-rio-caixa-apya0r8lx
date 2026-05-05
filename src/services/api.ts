@@ -40,6 +40,8 @@ export const getEngineeringRequests = () =>
   pb.collection('engineering_requests').getFullList({ sort: '-created' })
 export const createEngineeringRequest = (data: FormData) =>
   pb.collection('engineering_requests').create(data)
+export const updateEngineeringRequest = (id: string, data: any) =>
+  pb.collection('engineering_requests').update(id, data)
 export const updateProcess = (id: string, data: any) => pb.collection('processes').update(id, data)
 
 export const getDocuments = (processId: string) =>

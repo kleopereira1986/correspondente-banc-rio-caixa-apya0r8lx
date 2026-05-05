@@ -93,6 +93,7 @@ export default function PublicEngineeringRequest() {
         else if (v !== undefined && v !== null && k !== 'documents') formData.append(k, v as string)
       })
       formData.append('origin', 'external')
+      formData.append('status', 'pending_analysis')
       await createEngineeringRequest(formData)
       setIsSuccess(true)
     } catch (e) {
@@ -120,7 +121,7 @@ export default function PublicEngineeringRequest() {
           <Card className="border-green-200 bg-green-50 shadow-sm text-center pt-10 pb-10 flex flex-col items-center gap-4">
             <CheckCircle2 className="w-16 h-16 text-green-500" />
             <h2 className="text-xl font-bold text-green-800 px-6">
-              SUA AVALIAÇÃO FOI SOLICITADA COM SUCESSO! VOCÊ RECEBERÁ INFORMAÇÕES NO SEU EMAIL E
+              SUA AVALIAÇÃO FOI SOLICITADA COM SUCESSO! VOCÊ RECEBERÁ INFORMAÇÕES NO SEU E-MAIL E
               TELEFONE CADASTRADO.
             </h2>
             <Button

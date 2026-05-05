@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T16:01:11.759Z",
+  "generatedAt": "2026-05-05T16:05:46.296Z",
   "collections": [
     {
       "name": "users",
@@ -211,6 +211,48 @@
           "required": false,
           "system": false,
           "collectionRef": "development_types"
+        },
+        {
+          "name": "approved_financing_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "approved_installment_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluation_expiry_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "additional_details",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conditioning_reason",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conditioned_installment_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rejection_reason",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []
@@ -808,6 +850,47 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "credit_document_types",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'master'",
+        "update": "@request.auth.role = 'master'",
+        "delete": "@request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "category",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["1º Proponente", "2º Proponente / Conjuge"]
         },
         {
           "name": "created",

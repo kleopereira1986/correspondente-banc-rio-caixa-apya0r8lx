@@ -26,8 +26,9 @@ import { useToast } from '@/hooks/use-toast'
 import { CheckCircle2, UploadCloud, LinkIcon } from 'lucide-react'
 
 const formSchema = z.object({
+  requester_type: z.string().min(1, 'Obrigatório'),
   requester_name: z.string().min(1, 'Obrigatório'),
-  requester_cpf: z.string().optional(),
+  requester_phone: z.string().min(1, 'Obrigatório'),
   requester_email: z.string().email('Email inválido'),
   seller_info: z.string().optional(),
   requested_value: z.string().optional(),
@@ -35,12 +36,13 @@ const formSchema = z.object({
   registration_number: z.string().optional(),
   block: z.string().optional(),
   area: z.string().optional(),
-  billing_name: z.string().optional(),
+  billing_name: z.string().min(1, 'Obrigatório'),
+  billing_cpf_cnpj: z.string().min(1, 'Obrigatório'),
+  billing_phone: z.string().min(1, 'Obrigatório'),
   billing_email: z
     .string()
     .optional()
     .refine((v) => !v || z.string().email().safeParse(v).success, 'Email inválido'),
-  billing_phone: z.string().optional(),
   contact_person_name: z.string().optional(),
   contact_person_phone: z.string().optional(),
   documents: z.any().optional(),
@@ -80,9 +82,10 @@ export default function EngineeringRequest() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      requester_type: '',
       requester_name: user?.name || '',
+      requester_phone: user?.phone || '',
       requester_email: user?.email || '',
-      requester_cpf: user?.cpf || '',
       seller_info: '',
       requested_value: '',
       evaluation_type: '',
@@ -90,8 +93,9 @@ export default function EngineeringRequest() {
       block: '',
       area: '',
       billing_name: '',
-      billing_email: '',
+      billing_cpf_cnpj: '',
       billing_phone: '',
+      billing_email: '',
       contact_person_name: '',
       contact_person_phone: '',
     },
@@ -140,7 +144,7 @@ export default function EngineeringRequest() {
     )
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
       <h1 className="text-2xl font-bold text-slate-800">SOLICITAÇÃO DE AVALIAÇÃO DE IMÓVEL</h1>
       <Card>
         <CardContent className="pt-6">
@@ -148,9 +152,32 @@ export default function EngineeringRequest() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold border-b pb-2">Dados do Solicitante</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="requester_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tipo de Solicitante</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Parceiro Corretor">Parceiro Corretor</SelectItem>
+                            <SelectItem value="Construtora">Construtora</SelectItem>
+                            <SelectItem value="Comprador">Comprador</SelectItem>
+                            <SelectItem value="Vendedor PF">Vendedor PF</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <CustomField control={form.control} name="requester_name" label="Nome" />
-                  <CustomField control={form.control} name="requester_cpf" label="CPF" />
+                  <CustomField control={form.control} name="requester_phone" label="Telefone" />
                   <CustomField
                     control={form.control}
                     name="requester_email"
@@ -206,16 +233,17 @@ export default function EngineeringRequest() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">
-                    Para quem deve enviar o boleto
+                    DADOS PARA EMISSÃO DA ORDEM DE AVALIAÇÃO
                   </h3>
                   <CustomField control={form.control} name="billing_name" label="Nome" />
+                  <CustomField control={form.control} name="billing_cpf_cnpj" label="CPF/CNPJ" />
+                  <CustomField control={form.control} name="billing_phone" label="Telefone" />
                   <CustomField
                     control={form.control}
                     name="billing_email"
-                    label="Email"
+                    label="Email (Opcional)"
                     type="email"
                   />
-                  <CustomField control={form.control} name="billing_phone" label="Telefone" />
                 </div>
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold border-b pb-2">

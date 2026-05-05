@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T04:20:59.127Z",
+  "generatedAt": "2026-05-05T04:30:36.651Z",
   "collections": [
     {
       "name": "users",
@@ -734,6 +734,25 @@
         },
         {
           "name": "non_conformity_notes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requester_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Parceiro Corretor", "Construtora", "Comprador", "Vendedor PF"]
+        },
+        {
+          "name": "requester_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "billing_cpf_cnpj",
           "type": "text",
           "required": false,
           "system": false

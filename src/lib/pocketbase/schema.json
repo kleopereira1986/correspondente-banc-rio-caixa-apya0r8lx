@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T16:18:00.862Z",
+  "generatedAt": "2026-05-05T16:23:34.129Z",
   "collections": [
     {
       "name": "users",
@@ -251,6 +251,18 @@
         {
           "name": "rejection_reason",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "boleto_sent_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "housing_finalized_at",
+          "type": "date",
           "required": false,
           "system": false
         }
@@ -891,6 +903,118 @@
           "required": true,
           "system": false,
           "selectValues": ["1º Proponente", "2º Proponente / Conjuge"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "housing_stages",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'master'",
+        "update": "@request.auth.role = 'master'",
+        "delete": "@request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "order",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "process_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "process",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "processes"
+        },
+        {
+          "name": "from_step",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_step",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "from_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "changed_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "note",
+          "type": "text",
+          "required": false,
+          "system": false
         },
         {
           "name": "created",

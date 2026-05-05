@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getEngineeringRequests, updateEngineeringRequest } from '@/services/api'
+import {
+  getEngineeringRequests,
+  updateEngineeringRequest,
+  getEngineeringLogs,
+} from '@/services/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -29,8 +33,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { CopyIcon } from 'lucide-react'
+import { CopyIcon, Eye } from 'lucide-react'
 
 export default function EngineeringRequestsList() {
   const [requests, setRequests] = useState<any[]>([])
@@ -48,6 +60,10 @@ export default function EngineeringRequestsList() {
   const [evaluationValue, setEvaluationValue] = useState('')
   const [reportStatus, setReportStatus] = useState('')
   const [nonConformityNotes, setNonConformityNotes] = useState('')
+
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [logs, setLogs] = useState<any[]>([])
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false)
 
   const fetchRequests = async () => {
     setIsLoading(true)
@@ -138,6 +154,32 @@ export default function EngineeringRequestsList() {
     })
   }
 
+  const handleOpenDetails = async (req: any) => {
+    setSelectedRequest(req)
+    setDetailsOpen(true)
+    setIsLoadingLogs(true)
+    try {
+      const data = await getEngineeringLogs(req.id)
+      setLogs(data)
+    } catch (error) {
+      console.error('Error fetching logs:', error)
+    } finally {
+      setIsLoadingLogs(false)
+    }
+  }
+
+  const getStatusName = (status: string) => {
+    const map: Record<string, string> = {
+      pending_analysis: 'Pendente Análise',
+      in_progress: 'Em Análise',
+      boleto_issued: 'Boleto Emitido',
+      engineer_requested: 'Empresa Informada',
+      in_evaluation: 'Em Avaliação',
+      completed: 'Finalizada',
+    }
+    return map[status] || status || 'Criado'
+  }
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':
@@ -197,7 +239,9 @@ export default function EngineeringRequestsList() {
                   requests.map((req) => (
                     <TableRow key={req.id}>
                       <TableCell className="font-medium whitespace-nowrap">
-                        {req.requester_name}
+                        {req.origin === 'internal'
+                          ? `Interno - ${req.requester_name}`
+                          : req.requester_name}
                         {req.requester_cpf && (
                           <span className="block text-xs text-muted-foreground">
                             {req.requester_cpf}
@@ -227,7 +271,15 @@ export default function EngineeringRequestsList() {
                       <TableCell className="whitespace-nowrap">
                         <div className="flex flex-col gap-1 items-start">
                           {getStatusBadge(req.status)}
-                          {req.is_paid && (
+
+                          {req.boleto_sent_at && (
+                            <span className="text-[10px] text-muted-foreground mt-1">
+                              Boleto:{' '}
+                              {format(new Date(req.boleto_sent_at), 'dd/MM/yy', { locale: ptBR })}
+                            </span>
+                          )}
+
+                          {req.is_paid && req.payment_date && (
                             <Badge
                               variant="outline"
                               className="text-green-600 border-green-200 bg-green-50 text-[10px]"
@@ -236,10 +288,26 @@ export default function EngineeringRequestsList() {
                               {format(new Date(req.payment_date), 'dd/MM', { locale: ptBR })}
                             </Badge>
                           )}
+
+                          {req.finalized_at && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Finalizado:{' '}
+                              {format(new Date(req.finalized_at), 'dd/MM/yy', { locale: ptBR })}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleOpenDetails(req)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Detalhes
+                          </Button>
+
                           {(!req.status || req.status === 'pending_analysis') && (
                             <Button size="sm" onClick={() => handleStartAnalysis(req.id)}>
                               Iniciar Análise
@@ -414,6 +482,172 @@ export default function EngineeringRequestsList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <SheetContent className="sm:max-w-[600px] overflow-y-auto w-full">
+          <SheetHeader className="mb-6">
+            <SheetTitle>Detalhes da Solicitação</SheetTitle>
+            <SheetDescription>Informações completas e histórico da avaliação.</SheetDescription>
+          </SheetHeader>
+
+          {selectedRequest && (
+            <Tabs defaultValue="details">
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="details">Dados do Formulário</TabsTrigger>
+                <TabsTrigger value="history">Histórico</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-6 mt-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Origem</span>
+                    <span>{selectedRequest.origin === 'external' ? 'Externa' : 'Interna'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Tipo de Avaliação</span>
+                    <span>{selectedRequest.evaluation_type === 'new' ? 'Novo' : 'Usado'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Solicitante</span>
+                    <span>{selectedRequest.requester_name}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">CPF/CNPJ Solicitante</span>
+                    <span>{selectedRequest.requester_cpf || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Tipo Solicitante</span>
+                    <span>{selectedRequest.requester_type || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Email</span>
+                    <span>{selectedRequest.requester_email}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Telefone</span>
+                    <span>{selectedRequest.requester_phone || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Valor Solicitado</span>
+                    <span>
+                      {selectedRequest.requested_value
+                        ? `R$ ${selectedRequest.requested_value.toLocaleString('pt-BR')}`
+                        : '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Matrícula</span>
+                    <span>{selectedRequest.registration_number || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Quadra/Lote</span>
+                    <span>{selectedRequest.block || '-'}</span>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-semibold text-slate-500 block">
+                      Informações do Vendedor
+                    </span>
+                    <span>{selectedRequest.seller_info || '-'}</span>
+                  </div>
+
+                  <div className="col-span-2 border-t pt-4 mt-2">
+                    <h4 className="font-semibold mb-2">Dados de Contato (Vistoria)</h4>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Nome</span>
+                    <span>{selectedRequest.contact_person_name || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Telefone</span>
+                    <span>{selectedRequest.contact_person_phone || '-'}</span>
+                  </div>
+
+                  <div className="col-span-2 border-t pt-4 mt-2">
+                    <h4 className="font-semibold mb-2">Dados de Faturamento</h4>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Nome/Razão Social</span>
+                    <span>{selectedRequest.billing_name || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">CPF/CNPJ</span>
+                    <span>{selectedRequest.billing_cpf_cnpj || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Email</span>
+                    <span>{selectedRequest.billing_email || '-'}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500 block">Telefone</span>
+                    <span>{selectedRequest.billing_phone || '-'}</span>
+                  </div>
+
+                  {(selectedRequest.documents || selectedRequest.boleto_file) && (
+                    <div className="col-span-2 border-t pt-4 mt-2 space-y-2 flex flex-col items-start">
+                      <h4 className="font-semibold mb-2">Documentos</h4>
+                      {selectedRequest.documents && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/engineering_requests/${selectedRequest.id}/${selectedRequest.documents}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Download Matrícula
+                          </a>
+                        </Button>
+                      )}
+                      {selectedRequest.boleto_file && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={`${import.meta.env.VITE_POCKETBASE_URL}/api/files/engineering_requests/${selectedRequest.id}/${selectedRequest.boleto_file}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Download Boleto
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="history" className="mt-4">
+                {isLoadingLogs ? (
+                  <div className="text-center py-8 text-slate-500">Carregando histórico...</div>
+                ) : logs.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500">
+                    Nenhum movimento registrado.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {logs.map((log) => (
+                      <div key={log.id} className="border-l-2 border-slate-200 pl-4 py-1">
+                        <div className="text-xs text-slate-500 mb-1">
+                          {format(new Date(log.created), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                        <div className="text-sm">
+                          Mudou de{' '}
+                          <span className="font-medium text-slate-700">
+                            {getStatusName(log.from_status)}
+                          </span>{' '}
+                          para{' '}
+                          <span className="font-medium text-slate-700">
+                            {getStatusName(log.to_status)}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          Por: {log.expand?.changed_by?.name || 'Sistema'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

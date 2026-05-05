@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T04:30:36.651Z",
+  "generatedAt": "2026-05-05T04:41:28.750Z",
   "collections": [
     {
       "name": "users",
@@ -756,6 +756,72 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "boleto_sent_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finalized_at",
+          "type": "date",
+          "required": false,
+          "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "engineering_logs",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "create": null,
+        "update": null,
+        "delete": null
+      },
+      "fields": [
+        {
+          "name": "request",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "engineering_requests"
+        },
+        {
+          "name": "from_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "to_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "changed_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

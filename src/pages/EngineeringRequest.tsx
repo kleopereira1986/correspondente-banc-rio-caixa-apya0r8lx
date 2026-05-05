@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/form'
 import { createEngineeringRequest } from '@/services/api'
 import { useAuth } from '@/contexts/auth-context'
-import { CheckCircle2, UploadCloud } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import { CheckCircle2, UploadCloud, LinkIcon } from 'lucide-react'
 
 const formSchema = z.object({
   requester_name: z.string().min(1, 'Obrigatório'),
@@ -63,8 +64,18 @@ const CustomField = ({ control, name, label, type = 'text' }: any) => (
 
 export default function EngineeringRequest() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [isSuccess, setIsSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleGenerateLink = () => {
+    const url = `${window.location.origin}/public/solicitacao-engenharia`
+    navigator.clipboard.writeText(url)
+    toast({
+      title: 'Link copiado!',
+      description: 'O link para solicitação externa foi copiado para a área de transferência.',
+    })
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -94,6 +105,7 @@ export default function EngineeringRequest() {
         if (k === 'documents' && v?.[0]) formData.append(k, v[0])
         else if (v !== undefined && v !== null && k !== 'documents') formData.append(k, v as string)
       })
+      formData.append('origin', 'internal')
       await createEngineeringRequest(formData)
       setIsSuccess(true)
     } catch (e) {
@@ -109,7 +121,7 @@ export default function EngineeringRequest() {
         <Card className="border-green-200 bg-green-50 shadow-sm text-center pt-10 pb-10 flex flex-col items-center gap-4">
           <CheckCircle2 className="w-16 h-16 text-green-500" />
           <h2 className="text-xl font-bold text-green-800 px-6">
-            SUA AVALIAÇÃO FOI SOLICITADA COM SUCESSO! VOCÊ RECEBERA INFORMÇÕES NO SEU EMAIL E
+            SUA AVALIAÇÃO FOI SOLICITADA COM SUCESSO! VOCÊ RECEBERÁ INFORMAÇÕES NO SEU EMAIL E
             TELEFONE CADASTRADO.
           </h2>
           <Button
@@ -247,7 +259,16 @@ export default function EngineeringRequest() {
                   />
                 </div>
               </div>
-              <div className="pt-6 border-t flex justify-end">
+              <div className="pt-6 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGenerateLink}
+                  className="w-full sm:w-auto"
+                >
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  Gerar Link Externo
+                </Button>
                 <Button
                   type="submit"
                   size="lg"

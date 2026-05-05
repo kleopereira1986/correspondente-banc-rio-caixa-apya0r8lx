@@ -36,6 +36,8 @@ export const updateDevelopmentType = (id: string, data: any) =>
 export const deleteDevelopmentType = (id: string) => pb.collection('development_types').delete(id)
 
 export const createProcess = (data: any) => pb.collection('processes').create(data)
+export const getEngineeringRequests = () =>
+  pb.collection('engineering_requests').getFullList({ sort: '-created' })
 export const createEngineeringRequest = (data: FormData) =>
   pb.collection('engineering_requests').create(data)
 export const updateProcess = (id: string, data: any) => pb.collection('processes').update(id, data)

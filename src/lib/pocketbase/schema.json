@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T03:30:29.699Z",
+  "generatedAt": "2026-05-05T03:44:11.401Z",
   "collections": [
     {
       "name": "users",
@@ -558,7 +558,7 @@
       "apiRules": {
         "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
         "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
-        "create": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "create": "",
         "update": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
         "delete": "@request.auth.id != '' && @request.auth.role = 'master'"
       },
@@ -667,6 +667,13 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "origin",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["internal", "external"]
         }
       ],
       "indexes": []

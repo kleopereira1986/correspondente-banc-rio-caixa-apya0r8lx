@@ -65,6 +65,11 @@ export default function Layout() {
             { title: 'Configurações de Crédito', url: '/config/credit-analysis', icon: Settings },
           ]
         : []),
+      {
+        title: 'Avaliações de Engenharia Solicitadas',
+        url: '/engineering-requests-list',
+        icon: FileText,
+      },
       { title: 'Relatórios', url: '#', icon: FileText },
     ]
   } else if (isBroker) {

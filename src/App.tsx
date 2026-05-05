@@ -16,6 +16,8 @@ import Users from './pages/Users'
 import BrokerProcesses from './pages/BrokerProcesses'
 import ConfigCreditAnalysis from './pages/ConfigCreditAnalysis'
 import EngineeringRequest from './pages/EngineeringRequest'
+import PublicEngineeringRequest from './pages/PublicEngineeringRequest'
+import EngineeringRequestsList from './pages/EngineeringRequestsList'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -25,6 +27,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/public/onboarding/:id" element={<PublicOnboarding />} />
+          <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -36,6 +39,7 @@ const App = () => (
             <Route path="/broker-processes" element={<BrokerProcesses />} />
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
             <Route path="/engineering-request" element={<EngineeringRequest />} />
+            <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

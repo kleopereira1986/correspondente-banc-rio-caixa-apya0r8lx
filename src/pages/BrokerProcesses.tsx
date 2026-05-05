@@ -215,6 +215,12 @@ export default function BrokerProcesses() {
             <CheckCircle2 className="w-3 h-3 mr-1" /> Aprovado
           </Badge>
         )
+      case 'condicionado':
+        return (
+          <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+            <AlertCircle className="w-3 h-3 mr-1" /> Condicionado
+          </Badge>
+        )
       case 'reprovado':
         return (
           <Badge variant="destructive">

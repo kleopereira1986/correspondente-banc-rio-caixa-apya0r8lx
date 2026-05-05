@@ -35,6 +35,15 @@ export const updateDevelopmentType = (id: string, data: any) =>
   pb.collection('development_types').update(id, data)
 export const deleteDevelopmentType = (id: string) => pb.collection('development_types').delete(id)
 
+export const getCreditDocumentTypes = () =>
+  pb.collection('credit_document_types').getFullList({ sort: 'category,name' })
+export const createCreditDocumentType = (data: any) =>
+  pb.collection('credit_document_types').create(data)
+export const updateCreditDocumentType = (id: string, data: any) =>
+  pb.collection('credit_document_types').update(id, data)
+export const deleteCreditDocumentType = (id: string) =>
+  pb.collection('credit_document_types').delete(id)
+
 export const createProcess = (data: any) => pb.collection('processes').create(data)
 export const getEngineeringRequests = () =>
   pb.collection('engineering_requests').getFullList({ sort: '-created' })

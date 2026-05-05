@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T04:06:17.703Z",
+  "generatedAt": "2026-05-05T04:20:59.127Z",
   "collections": [
     {
       "name": "users",
@@ -685,6 +685,7 @@
             "in_progress",
             "boleto_issued",
             "engineer_requested",
+            "in_evaluation",
             "completed"
           ]
         },
@@ -714,6 +715,25 @@
         },
         {
           "name": "engineer_phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "evaluation_value",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "report_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["valid", "invalid"]
+        },
+        {
+          "name": "non_conformity_notes",
           "type": "text",
           "required": false,
           "system": false

@@ -81,7 +81,20 @@ export default function PublicEngineeringStatus() {
   const showBoleto =
     request.status === 'boleto_issued' ||
     request.status === 'engineer_requested' ||
+    request.status === 'in_evaluation' ||
     request.status === 'completed'
+
+  const statusMap: Record<string, string> = {
+    pending_analysis: 'PENDENTE ANÁLISE',
+    in_progress: 'EM ANÁLISE',
+    boleto_issued: 'BOLETO EMITIDO',
+    engineer_requested: 'AVALIAÇÃO EM ANDAMENTO',
+    in_evaluation: 'AVALIAÇÃO EM ANDAMENTO',
+    completed: 'AVALIAÇÃO FINALIZADA',
+  }
+
+  const displayStatus =
+    statusMap[request.status] || request.status?.toUpperCase() || 'PENDENTE ANÁLISE'
 
   return (
     <div className="min-h-screen bg-slate-50 pb-12">
@@ -115,9 +128,7 @@ export default function PublicEngineeringStatus() {
               </div>
               <div>
                 <span className="text-slate-500 block">Status Atual</span>
-                <span className="font-bold text-primary uppercase">
-                  {request.status?.replace('_', ' ') || 'PENDENTE ANÁLISE'}
-                </span>
+                <span className="font-bold text-primary uppercase">{displayStatus}</span>
               </div>
             </div>
 
@@ -180,18 +191,58 @@ export default function PublicEngineeringStatus() {
               </div>
             )}
 
-            {request.status === 'engineer_requested' && request.engineer_name && (
-              <div className="border-t pt-6">
-                <h3 className="font-semibold text-slate-800 mb-4">Engenheiro Designado</h3>
-                <div className="bg-slate-50 p-4 rounded-lg border grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <span className="text-slate-500 text-sm block">Nome</span>
-                    <span className="font-medium">{request.engineer_name}</span>
+            {(request.status === 'engineer_requested' ||
+              request.status === 'in_evaluation' ||
+              request.status === 'completed') &&
+              request.engineer_name && (
+                <div className="border-t pt-6">
+                  <h3 className="font-semibold text-slate-800 mb-4">
+                    Empresa Contratada / Engenharia
+                  </h3>
+                  <div className="bg-slate-50 p-4 rounded-lg border">
+                    <div>
+                      <span className="text-slate-500 text-sm block">Dados da Empresa</span>
+                      <span className="font-medium">{request.engineer_name}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-500 text-sm block">Telefone</span>
-                    <span className="font-medium">{request.engineer_phone}</span>
+                </div>
+              )}
+
+            {request.status === 'completed' && request.evaluation_value && (
+              <div className="border-t pt-6 space-y-4">
+                <h3 className="font-semibold text-slate-800">Resultado da Avaliação</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-lg border shadow-sm">
+                    <span className="text-slate-500 text-sm block mb-1">Valor da Avaliação</span>
+                    <span className="text-xl font-bold text-green-600">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(request.evaluation_value)}
+                    </span>
                   </div>
+                  <div className="bg-white p-4 rounded-lg border shadow-sm">
+                    <span className="text-slate-500 text-sm block mb-1">Status do Laudo</span>
+                    {request.report_status === 'valid' ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        Válido
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                        Inválido
+                      </span>
+                    )}
+                  </div>
+                  {request.report_status === 'invalid' && request.non_conformity_notes && (
+                    <div className="sm:col-span-2 bg-red-50 p-4 rounded-lg border border-red-100">
+                      <span className="text-red-800 text-sm font-semibold block mb-1">
+                        Observações de Não Conformidade
+                      </span>
+                      <p className="text-red-700 text-sm whitespace-pre-wrap">
+                        {request.non_conformity_notes}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

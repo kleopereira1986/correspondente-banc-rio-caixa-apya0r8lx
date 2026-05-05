@@ -22,6 +22,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { CopyIcon } from 'lucide-react'
 
@@ -36,7 +43,11 @@ export default function EngineeringRequestsList() {
 
   const [engineerDialogOpen, setEngineerDialogOpen] = useState(false)
   const [engineerName, setEngineerName] = useState('')
-  const [engineerPhone, setEngineerPhone] = useState('')
+
+  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false)
+  const [evaluationValue, setEvaluationValue] = useState('')
+  const [reportStatus, setReportStatus] = useState('')
+  const [nonConformityNotes, setNonConformityNotes] = useState('')
 
   const fetchRequests = async () => {
     setIsLoading(true)
@@ -81,20 +92,40 @@ export default function EngineeringRequestsList() {
   }
 
   const handleEngineerSubmit = async () => {
-    if (!engineerName || !engineerPhone || !selectedRequest) return
+    if (!engineerName || !selectedRequest) return
     try {
       await updateEngineeringRequest(selectedRequest.id, {
-        status: 'engineer_requested',
+        status: 'in_evaluation',
         engineer_name: engineerName,
-        engineer_phone: engineerPhone,
       })
-      toast({ title: 'Engenheiro solicitado com sucesso' })
+      toast({ title: 'Empresa informada com sucesso' })
       setEngineerDialogOpen(false)
       setEngineerName('')
-      setEngineerPhone('')
       fetchRequests()
     } catch (error) {
       toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+    }
+  }
+
+  const handleFinalizeSubmit = async () => {
+    if (!evaluationValue || !reportStatus || !selectedRequest) return
+    if (reportStatus === 'invalid' && !nonConformityNotes) return
+
+    try {
+      await updateEngineeringRequest(selectedRequest.id, {
+        status: 'completed',
+        evaluation_value: Number(evaluationValue),
+        report_status: reportStatus,
+        non_conformity_notes: reportStatus === 'invalid' ? nonConformityNotes : '',
+      })
+      toast({ title: 'Avaliação finalizada com sucesso' })
+      setFinalizeDialogOpen(false)
+      setEvaluationValue('')
+      setReportStatus('')
+      setNonConformityNotes('')
+      fetchRequests()
+    } catch (error) {
+      toast({ title: 'Erro ao finalizar', variant: 'destructive' })
     }
   }
 
@@ -103,7 +134,7 @@ export default function EngineeringRequestsList() {
     navigator.clipboard.writeText(url)
     toast({
       title: 'Link copiado!',
-      description: 'O link de pagamento foi copiado para a área de transferência.',
+      description: 'O link de acompanhamento foi copiado para a área de transferência.',
     })
   }
 
@@ -114,9 +145,10 @@ export default function EngineeringRequestsList() {
       case 'boleto_issued':
         return <Badge className="bg-purple-500">BOLETO EMITIDO</Badge>
       case 'engineer_requested':
-        return <Badge className="bg-green-500">ENGENHEIRO SOLICITADO</Badge>
+      case 'in_evaluation':
+        return <Badge className="bg-indigo-500">AVALIAÇÃO EM ANDAMENTO</Badge>
       case 'completed':
-        return <Badge className="bg-slate-700">CONCLUÍDO</Badge>
+        return <Badge className="bg-slate-700">AVALIAÇÃO FINALIZADA</Badge>
       default:
         return <Badge className="bg-amber-500">PENDENTE ANÁLISE</Badge>
     }
@@ -241,19 +273,31 @@ export default function EngineeringRequestsList() {
                                   setEngineerDialogOpen(true)
                                 }}
                               >
-                                Solicitar Engenheiro
+                                Informar Empresa
                               </Button>
                             </>
                           )}
-                          {req.status === 'engineer_requested' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleGenerateLink(req.id)}
-                              title="Copiar Link"
-                            >
-                              <CopyIcon className="w-4 h-4" />
-                            </Button>
+                          {(req.status === 'engineer_requested' ||
+                            req.status === 'in_evaluation') && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleGenerateLink(req.id)}
+                                title="Copiar Link"
+                              >
+                                <CopyIcon className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedRequest(req)
+                                  setFinalizeDialogOpen(true)
+                                }}
+                              >
+                                Finalizar Avaliação
+                              </Button>
+                            </>
                           )}
                         </div>
                       </TableCell>
@@ -291,23 +335,15 @@ export default function EngineeringRequestsList() {
       <Dialog open={engineerDialogOpen} onOpenChange={setEngineerDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Solicitar Engenheiro</DialogTitle>
+            <DialogTitle>Dados da Empresa Contratada</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Nome do Engenheiro</Label>
+              <Label>Dados da Empresa (Nome, CNPJ, etc)</Label>
               <Input
                 value={engineerName}
                 onChange={(e) => setEngineerName(e.target.value)}
-                placeholder="Ex: João da Silva"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Telefone do Engenheiro</Label>
-              <Input
-                value={engineerPhone}
-                onChange={(e) => setEngineerPhone(e.target.value)}
-                placeholder="(00) 00000-0000"
+                placeholder="Ex: Engenharia XYZ Ltda"
               />
             </div>
           </div>
@@ -315,8 +351,65 @@ export default function EngineeringRequestsList() {
             <Button variant="outline" onClick={() => setEngineerDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEngineerSubmit} disabled={!engineerName || !engineerPhone}>
+            <Button onClick={handleEngineerSubmit} disabled={!engineerName}>
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Finalizar Avaliação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Valor da Avaliação (R$)</Label>
+              <Input
+                type="number"
+                value={evaluationValue}
+                onChange={(e) => setEvaluationValue(e.target.value)}
+                placeholder="Ex: 500000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status do Laudo</Label>
+              <Select value={reportStatus} onValueChange={setReportStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="valid">Válido</SelectItem>
+                  <SelectItem value="invalid">Inválido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {reportStatus === 'invalid' && (
+              <div className="space-y-2">
+                <Label>Observações (Não Conformidade)</Label>
+                <textarea
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={nonConformityNotes}
+                  onChange={(e) => setNonConformityNotes(e.target.value)}
+                  placeholder="Descreva as não conformidades encontradas..."
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizeDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleFinalizeSubmit}
+              disabled={
+                !evaluationValue ||
+                !reportStatus ||
+                (reportStatus === 'invalid' && !nonConformityNotes)
+              }
+            >
+              Salvar Finalização
             </Button>
           </DialogFooter>
         </DialogContent>

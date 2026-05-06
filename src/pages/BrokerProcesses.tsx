@@ -4,9 +4,7 @@ import { useAuth } from '@/contexts/auth-context'
 import {
   getProcesses,
   createProcess,
-  getUsers,
   createUser,
-  updateUser,
   getCreditAnalysisTypes,
   getPropertyTypes,
   getDevelopmentTypes,
@@ -47,7 +45,6 @@ export default function BrokerProcesses() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
-  const [buyers, setBuyers] = useState<any[]>([])
   const [creditAnalysisTypes, setCreditAnalysisTypes] = useState<any[]>([])
   const [propertyTypes, setPropertyTypes] = useState<any[]>([])
   const [developmentTypes, setDevelopmentTypes] = useState<any[]>([])
@@ -55,7 +52,6 @@ export default function BrokerProcesses() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [step, setStep] = useState(1)
-  const [clientMode, setClientMode] = useState<'new' | 'existing'>('new')
 
   const [housingNotes, setHousingNotes] = useState('')
   const [selectedProcessId, setSelectedProcessId] = useState('')
@@ -88,15 +84,13 @@ export default function BrokerProcesses() {
 
   const loadData = async () => {
     try {
-      const [procs, usersList, cats, pts, devs] = await Promise.all([
+      const [procs, cats, pts, devs] = await Promise.all([
         getProcesses(),
-        getUsers('buyer'),
         getCreditAnalysisTypes(),
         getPropertyTypes(),
         getDevelopmentTypes(),
       ])
       setProcesses(procs)
-      setBuyers(usersList)
       setCreditAnalysisTypes(cats)
       setPropertyTypes(pts)
       setDevelopmentTypes(devs)
@@ -115,15 +109,8 @@ export default function BrokerProcesses() {
 
   const handleNext = () => {
     if (step === 1) {
-      if (
-        clientMode === 'new' &&
-        (!formData.buyerName || !formData.buyerCpf || !formData.buyerEmail)
-      ) {
+      if (!formData.buyerName || !formData.buyerCpf || !formData.buyerEmail) {
         toast({ title: 'Aviso', description: 'Preencha os campos obrigatórios do cliente.' })
-        return
-      }
-      if (clientMode === 'existing' && !formData.buyerId) {
-        toast({ title: 'Aviso', description: 'Selecione um cliente.' })
         return
       }
       setStep(2)
@@ -167,28 +154,18 @@ export default function BrokerProcesses() {
   const handleCreate = async () => {
     setErrors({})
     try {
-      let currentBuyerId = formData.buyerId
-
-      if (clientMode === 'new') {
-        const userRes = await createUser({
-          name: formData.buyerName,
-          cpf: formData.buyerCpf,
-          email: formData.buyerEmail,
-          phone: formData.buyerPhone,
-          has_dependents: formData.hasDependents === 'true',
-          dependents_info: formData.dependentsInfo,
-          work_history_36_months: formData.workHistory36Months === 'true',
-          role: 'buyer',
-          password: 'Skip@Pass123!',
-        })
-        currentBuyerId = userRes.id
-      } else {
-        await updateUser(currentBuyerId, {
-          has_dependents: formData.hasDependents === 'true',
-          dependents_info: formData.dependentsInfo,
-          work_history_36_months: formData.workHistory36Months === 'true',
-        })
-      }
+      const userRes = await createUser({
+        name: formData.buyerName,
+        cpf: formData.buyerCpf,
+        email: formData.buyerEmail,
+        phone: formData.buyerPhone,
+        has_dependents: formData.hasDependents === 'true',
+        dependents_info: formData.dependentsInfo,
+        work_history_36_months: formData.workHistory36Months === 'true',
+        role: 'buyer',
+        password: 'Skip@Pass123!',
+      })
+      const currentBuyerId = userRes.id
 
       await createProcess({
         type: 'credit',
@@ -243,75 +220,34 @@ export default function BrokerProcesses() {
   const renderStep1 = () => (
     <div className="space-y-4 py-4">
       <div className="space-y-2">
-        <Label>Tipo de Cadastro</Label>
-        <RadioGroup
-          value={clientMode}
-          onValueChange={(v: any) => setClientMode(v)}
-          className="flex space-x-4"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="new" id="new" />
-            <Label htmlFor="new">Novo Cliente</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="existing" id="existing" />
-            <Label htmlFor="existing">Cliente Existente</Label>
-          </div>
-        </RadioGroup>
+        <Label>Nome Completo *</Label>
+        <Input
+          value={formData.buyerName}
+          onChange={(e) => setFormData({ ...formData, buyerName: e.target.value })}
+        />
       </div>
-
-      {clientMode === 'existing' ? (
-        <div className="space-y-2">
-          <Label>Cliente (Comprador) *</Label>
-          <Select
-            value={formData.buyerId}
-            onValueChange={(v) => setFormData({ ...formData, buyerId: v })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione um cliente cadastrado" />
-            </SelectTrigger>
-            <SelectContent>
-              {buyers.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name || b.email}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            <Label>Nome Completo *</Label>
-            <Input
-              value={formData.buyerName}
-              onChange={(e) => setFormData({ ...formData, buyerName: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>CPF *</Label>
-            <Input
-              value={formData.buyerCpf}
-              onChange={(e) => setFormData({ ...formData, buyerCpf: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Telefone</Label>
-            <Input
-              value={formData.buyerPhone}
-              onChange={(e) => setFormData({ ...formData, buyerPhone: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Email *</Label>
-            <Input
-              type="email"
-              value={formData.buyerEmail}
-              onChange={(e) => setFormData({ ...formData, buyerEmail: e.target.value })}
-            />
-          </div>
-        </>
-      )}
+      <div className="space-y-2">
+        <Label>CPF *</Label>
+        <Input
+          value={formData.buyerCpf}
+          onChange={(e) => setFormData({ ...formData, buyerCpf: e.target.value })}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Telefone</Label>
+        <Input
+          value={formData.buyerPhone}
+          onChange={(e) => setFormData({ ...formData, buyerPhone: e.target.value })}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Email *</Label>
+        <Input
+          type="email"
+          value={formData.buyerEmail}
+          onChange={(e) => setFormData({ ...formData, buyerEmail: e.target.value })}
+        />
+      </div>
     </div>
   )
 
@@ -475,7 +411,6 @@ export default function BrokerProcesses() {
         <Button
           onClick={() => {
             setStep(1)
-            setClientMode('new')
             setFormData({
               buyerId: '',
               buyerName: '',

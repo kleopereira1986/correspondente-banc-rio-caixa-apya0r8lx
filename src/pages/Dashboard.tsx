@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, UserPlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { getProcesses, createProcess, getUsers } from '@/services/api'
+import { getProcesses, createProcess, getUsers, updateProcess } from '@/services/api'
 import { useAuth } from '@/contexts/auth-context'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -55,6 +55,7 @@ export default function Dashboard() {
   const [clients, setClients] = useState<any[]>([])
   const [selectedBuyer, setSelectedBuyer] = useState('')
 
+  const [isUnassignedListOpen, setIsUnassignedListOpen] = useState(false)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
@@ -107,6 +108,20 @@ export default function Dashboard() {
       loadClients()
     } catch (e) {
       toast({ title: 'Erro ao cadastrar cliente', variant: 'destructive' })
+    }
+  }
+
+  const handleAssumeProcess = async (processId: string) => {
+    try {
+      await updateProcess(processId, {
+        assigned_analyst: user?.id,
+        status: 'Em Análise',
+        current_step: 'Análise',
+      })
+      toast({ title: 'Processo assumido com sucesso!' })
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao assumir processo', variant: 'destructive' })
     }
   }
 
@@ -179,6 +194,9 @@ export default function Dashboard() {
 
   // Credit Dashboard Data
   const creditProcesses = processes.filter((p) => p.type === 'credit')
+  const unassignedCredit = creditProcesses.filter(
+    (p) => !p.assigned_analyst && p.result === 'pending',
+  )
   const creditStats = {
     inProgress: creditProcesses.filter(
       (p) =>
@@ -327,6 +345,50 @@ export default function Dashboard() {
           </Dialog>
         </div>
       </div>
+
+      <Dialog open={isUnassignedListOpen} onOpenChange={setIsUnassignedListOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Processos Aguardando Analista</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <Table>
+              <TableHeader className="bg-slate-50 sticky top-0">
+                <TableRow>
+                  <TableHead>ID / Cliente</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {unassignedCredit.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="font-medium">{p.expand?.buyer?.name || 'N/A'}</div>
+                      <div className="text-xs text-muted-foreground">{p.id}</div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(p.value)}</TableCell>
+                    <TableCell>{new Date(p.created).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" onClick={() => handleAssumeProcess(p.id)}>
+                        Assumir Processo
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {unassignedCredit.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      Nenhum processo aguardando analista.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Tabs defaultValue="fila_credito" className="w-full space-y-6">
         <TabsList className="bg-slate-100/50 flex-wrap h-auto">
@@ -525,7 +587,22 @@ export default function Dashboard() {
         {isMaster && (
           <>
             <TabsContent value="credito" className="space-y-6 mt-0">
-              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+                <Card
+                  className="cursor-pointer hover:border-primary/50 transition-colors bg-amber-50/30"
+                  onClick={() => setIsUnassignedListOpen(true)}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Aguardando Analista
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-amber-600">
+                      {unassignedCredit.length}
+                    </div>
+                  </CardContent>
+                </Card>
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">

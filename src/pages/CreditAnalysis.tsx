@@ -13,13 +13,13 @@ import {
   Clock,
   ArrowRight,
   User,
+  ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function CreditAnalysis() {
   const [processes, setProcesses] = useState<any[]>([])
-  const [filter, setFilter] = useState('fila_analise')
+  const [filter, setFilter] = useState('aguardando_conformidade')
 
   const loadData = async () => {
     try {
@@ -37,21 +37,22 @@ export default function CreditAnalysis() {
   useRealtime('processes', () => loadData())
 
   const stats = {
+    aguardando_conformidade: processes.filter((p) => !p.is_conformity_approved),
     fila_analise: processes.filter((p) => p.is_conformity_approved && !p.result),
     approved: processes.filter((p) => p.result === 'approved'),
     rejected: processes.filter((p) => p.result === 'rejected'),
     conditioned: processes.filter((p) => p.result === 'conditioned'),
     pending: processes.filter((p) => p.result === 'pending'),
-    triagem: processes.filter((p) => !p.analysis_type),
-    conf_primeira: processes.filter(
-      (p) => p.analysis_type === 'first_analysis' && !p.is_conformity_approved,
-    ),
-    conf_reavaliacao: processes.filter(
-      (p) => p.analysis_type === 'reevaluation' && !p.is_conformity_approved,
-    ),
   }
 
   const cards = [
+    {
+      id: 'aguardando_conformidade',
+      label: 'Aguardar Conformidade',
+      count: stats.aguardando_conformidade.length,
+      color: 'bg-slate-100 text-slate-700',
+      icon: ClipboardCheck,
+    },
     {
       id: 'fila_analise',
       label: 'Fila para Análise',
@@ -100,7 +101,7 @@ export default function CreditAnalysis() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {cards.map((c) => (
           <Card
             key={c.id}
@@ -112,29 +113,20 @@ export default function CreditAnalysis() {
           >
             <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
               <div className={cn('p-3 rounded-full', c.color)}>
-                <c.icon className="w-6 h-6" />
+                <c.icon className="w-5 h-5" />
               </div>
-              <p className="font-semibold text-slate-700 text-sm mt-1 leading-tight">{c.label}</p>
-              <p className="text-2xl font-bold text-slate-900">{c.count}</p>
+              <p className="font-semibold text-slate-700 text-xs mt-1 leading-tight">{c.label}</p>
+              <p className="text-xl font-bold text-slate-900">{c.count}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <Tabs value={filter} onValueChange={setFilter} className="w-full mt-8">
+      <div className="mt-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-          <h2 className="text-lg font-semibold text-slate-800">Listagem de Processos</h2>
-          <TabsList className="bg-slate-100/50 flex-wrap h-auto py-1">
-            <TabsTrigger value="triagem" className="text-xs sm:text-sm">
-              Triagem ({stats.triagem.length})
-            </TabsTrigger>
-            <TabsTrigger value="conf_primeira" className="text-xs sm:text-sm">
-              1ª Análise ({stats.conf_primeira.length})
-            </TabsTrigger>
-            <TabsTrigger value="conf_reavaliacao" className="text-xs sm:text-sm">
-              Reavaliação ({stats.conf_reavaliacao.length})
-            </TabsTrigger>
-          </TabsList>
+          <h2 className="text-lg font-semibold text-slate-800">
+            {cards.find((c) => c.id === filter)?.label || 'Listagem de Processos'}
+          </h2>
         </div>
 
         <Card className="shadow-sm border-border/50">
@@ -189,6 +181,16 @@ export default function CreditAnalysis() {
                           <Badge variant="outline" className="font-normal text-xs bg-slate-50">
                             {proc.expand?.credit_analysis_type?.name || 'Crédito'}
                           </Badge>
+                          {proc.analysis_type && (
+                            <Badge
+                              variant="secondary"
+                              className="font-normal text-xs bg-blue-50 text-blue-700"
+                            >
+                              {proc.analysis_type === 'first_analysis'
+                                ? 'Primeira Análise'
+                                : 'Reavaliação'}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -204,7 +206,7 @@ export default function CreditAnalysis() {
             )}
           </CardContent>
         </Card>
-      </Tabs>
+      </div>
     </div>
   )
 }

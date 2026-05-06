@@ -38,6 +38,7 @@ export const getProcessLogs = (processId: string) =>
   pb
     .collection('process_logs')
     .getFullList({ filter: `process="${processId}"`, sort: 'created', expand: 'changed_by' })
+export const createProcessLog = (data: any) => pb.collection('process_logs').create(data)
 
 export const getDevelopmentTypes = () =>
   pb.collection('development_types').getFullList({ sort: '-created' })

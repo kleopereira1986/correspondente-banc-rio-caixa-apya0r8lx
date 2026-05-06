@@ -35,6 +35,7 @@ import {
   getUsers,
   getCreditDocumentTypes,
   getProcessLogs,
+  createProcessLog,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -203,15 +204,30 @@ export default function ProcessDetail() {
 
     setIsLoadingConformity(true)
     try {
+      const fromStatus = process.status || 'Início'
+      const fromStep = process.current_step || 'Triagem'
+
       await updateProcess(process.id, {
         is_conformity_approved: true,
         analysis_type: analysisType,
-        current_step: 'analise_efetiva',
+        current_step: 'Análise',
         assigned_analyst: '',
         status: 'Fila para Análise',
       })
+
+      await createProcessLog({
+        process: process.id,
+        from_status: fromStatus,
+        to_status: 'Fila para Análise',
+        from_step: fromStep,
+        to_step: 'Análise',
+        changed_by: user?.id,
+        note: `Conformidade aprovada: ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
+      })
+
       setTriageDialog(false)
       toast({ title: 'Conformidade aprovada. Processo enviado para Fila de Análise.' })
+      loadData()
     } catch (e) {
       toast({ title: 'Erro ao aprovar conformidade', variant: 'destructive' })
     } finally {

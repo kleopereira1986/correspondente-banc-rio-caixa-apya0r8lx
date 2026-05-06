@@ -169,8 +169,8 @@ export default function BrokerProcesses() {
 
       await createProcess({
         type: 'credit',
-        status: 'Nova Solicitação',
-        current_step: 'Análise Inicial',
+        status: 'Triagem',
+        current_step: 'Triagem',
         buyer: currentBuyerId,
         broker: user?.id,
         credit_analysis_type: formData.creditAnalysisType,

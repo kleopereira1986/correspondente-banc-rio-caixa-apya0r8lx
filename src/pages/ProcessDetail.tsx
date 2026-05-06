@@ -217,7 +217,7 @@ export default function ProcessDetail() {
       }
 
       if (process.assigned_analyst) {
-        payload.assigned_analyst = null
+        payload.assigned_analyst = ''
       }
 
       await updateProcess(process.id, payload)
@@ -228,7 +228,7 @@ export default function ProcessDetail() {
         to_status: 'Aguardando Análise',
         from_step: fromStep,
         to_step: 'Análise',
-        changed_by: user?.id || null,
+        changed_by: user?.id || '',
         note: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       })
 

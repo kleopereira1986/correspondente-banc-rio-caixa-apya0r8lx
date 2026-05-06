@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 export default function CreditAnalysis() {
   const [processes, setProcesses] = useState<any[]>([])
-  const [filter, setFilter] = useState('aguardando_conformidade')
+  const [filter, setFilter] = useState('triagem')
 
   const loadData = async () => {
     try {
@@ -38,7 +38,7 @@ export default function CreditAnalysis() {
   useRealtime('processes', () => loadData())
 
   const stats = {
-    aguardando_conformidade: processes.filter((p) => !p.is_conformity_approved),
+    triagem: processes.filter((p) => !p.is_conformity_approved),
     primeira_analise: processes.filter(
       (p) => p.is_conformity_approved && !p.result && p.analysis_type === 'first_analysis',
     ),
@@ -53,9 +53,9 @@ export default function CreditAnalysis() {
 
   const cards = [
     {
-      id: 'aguardando_conformidade',
-      label: 'Aguardar Conformidade',
-      count: stats.aguardando_conformidade.length,
+      id: 'triagem',
+      label: 'Triagem',
+      count: stats.triagem.length,
       color: 'bg-slate-100 text-slate-700',
       icon: ClipboardCheck,
     },

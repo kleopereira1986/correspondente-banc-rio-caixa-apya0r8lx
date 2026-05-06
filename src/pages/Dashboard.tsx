@@ -129,8 +129,8 @@ export default function Dashboard() {
     if (!selectedBuyer) return
     await createProcess({
       type: newType,
-      status: newType === 'credit' ? 'Awaiting Registration' : 'Documentação',
-      current_step: newType === 'credit' ? 'Registration' : 'Documentação',
+      status: newType === 'credit' ? 'Triagem' : 'Documentação',
+      current_step: newType === 'credit' ? 'Triagem' : 'Documentação',
       buyer: selectedBuyer,
       result: 'pending',
     })
@@ -188,7 +188,7 @@ export default function Dashboard() {
   const filteredHousing = filtered.filter((p) => p.type === 'housing')
 
   const pendingCount = processes.filter(
-    (p) => p.result === 'pending' || p.status === 'Awaiting Registration',
+    (p) => p.result === 'pending' || p.status === 'Triagem' || p.status === 'Awaiting Registration',
   ).length
   const approvedCount = processes.filter((p) => p.result === 'approved').length
 

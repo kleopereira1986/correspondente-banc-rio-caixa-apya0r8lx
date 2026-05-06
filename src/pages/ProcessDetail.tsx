@@ -70,12 +70,13 @@ export default function ProcessDetail() {
   const [approveDialog, setApproveDialog] = useState(false)
   const [conditionDialog, setConditionDialog] = useState(false)
   const [rejectDialog, setRejectDialog] = useState(false)
+  const [conditioningReasons, setConditioningReasons] = useState<any[]>([])
   const [decisionForm, setDecisionForm] = useState({
     approved_financing_value: '',
     approved_installment_value: '',
     evaluation_expiry_date: '',
     additional_details: '',
-    conditioning_reason: '',
+    conditioning_reason_type: '',
     conditioned_installment_value: '',
     rejection_reason: '',
     federal_subsidy: '',
@@ -95,14 +96,19 @@ export default function ProcessDetail() {
 
       // Carregar dependências separadamente para evitar falha geral
       try {
-        const [docs, docTypes, processLogs] = await Promise.all([
+        const [docs, docTypes, processLogs, condReasons] = await Promise.all([
           getDocuments(id).catch(() => []),
           getCreditDocumentTypes().catch(() => []),
           getProcessLogs(id).catch(() => []),
+          pb
+            .collection('conditioning_reasons')
+            .getFullList({ sort: 'name' })
+            .catch(() => []),
         ])
         setDocuments(docs)
         setCreditDocumentTypes(docTypes)
         setLogs(processLogs)
+        setConditioningReasons(condReasons)
       } catch (err) {
         console.error('Erro ao carregar dependências', err)
       }
@@ -129,6 +135,7 @@ export default function ProcessDetail() {
   useRealtime('documents', () => loadData())
   useRealtime('credit_document_types', () => loadData())
   useRealtime('process_logs', () => loadData())
+  useRealtime('conditioning_reasons', () => loadData())
 
   const handleAction = async (
     action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency',
@@ -207,10 +214,18 @@ export default function ProcessDetail() {
         setApproveDialog(false)
         toast({ title: 'Processo Aprovado' })
       } else if (action === 'condition') {
+        if (!decisionForm.conditioning_reason_type) {
+          toast({
+            title: 'Erro',
+            description: 'Selecione um motivo de condicionamento.',
+            variant: 'destructive',
+          })
+          return
+        }
         await updateProcess(process.id, {
           ...basePayload,
           result: 'conditioned',
-          conditioning_reason: decisionForm.conditioning_reason,
+          conditioning_reason_type: decisionForm.conditioning_reason_type,
           conditioned_installment_value: Number(decisionForm.conditioned_installment_value),
         })
         setConditionDialog(false)
@@ -809,7 +824,10 @@ export default function ProcessDetail() {
                         Motivo do Condicionamento
                       </span>
                       <span className="font-medium text-amber-600">
-                        {process.conditioning_reason}
+                        {conditioningReasons.find((r) => r.id === process.conditioning_reason_type)
+                          ?.name ||
+                          process.conditioning_reason ||
+                          '-'}
                       </span>
                     </div>
                     <div>
@@ -1348,13 +1366,23 @@ export default function ProcessDetail() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Motivo do condicionamento</Label>
-              <Textarea
-                placeholder="Descreva as condições exigidas..."
-                value={decisionForm.conditioning_reason}
-                onChange={(e) =>
-                  setDecisionForm({ ...decisionForm, conditioning_reason: e.target.value })
+              <Select
+                value={decisionForm.conditioning_reason_type}
+                onValueChange={(val) =>
+                  setDecisionForm({ ...decisionForm, conditioning_reason_type: val })
                 }
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {conditioningReasons.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Valor da possível parcela Condicionada</Label>

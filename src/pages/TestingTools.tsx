@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +20,7 @@ import { useNavigate } from 'react-router-dom'
 
 export default function TestingTools() {
   const [isResetting, setIsResetting] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
   const { toast } = useToast()
   const navigate = useNavigate()
 
@@ -39,6 +41,7 @@ export default function TestingTools() {
       })
     } finally {
       setIsResetting(false)
+      setConfirmText('')
     }
   }
 
@@ -77,7 +80,7 @@ export default function TestingTools() {
                   ) : (
                     <Trash2 className="w-4 h-4 mr-2" />
                   )}
-                  Zerar Sistema
+                  Reiniciar Ambiente de Testes
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -88,14 +91,29 @@ export default function TestingTools() {
                     irreversível e apagará todos os processos, documentos e tarefas.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                <div className="py-4">
+                  <p className="text-sm text-slate-700 mb-2">
+                    Para confirmar, digite <strong>RESETAR</strong> abaixo:
+                  </p>
+                  <Input
+                    value={confirmText}
+                    onChange={(e) => setConfirmText(e.target.value)}
+                    placeholder="Digite RESETAR"
+                    className="uppercase"
+                  />
+                </div>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isResetting}>Cancelar</AlertDialogCancel>
+                  <AlertDialogCancel disabled={isResetting} onClick={() => setConfirmText('')}>
+                    Cancelar
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={(e) => {
                       e.preventDefault()
-                      handleReset()
+                      if (confirmText.toUpperCase() === 'RESETAR') {
+                        handleReset()
+                      }
                     }}
-                    disabled={isResetting}
+                    disabled={isResetting || confirmText.toUpperCase() !== 'RESETAR'}
                     className="bg-red-600 hover:bg-red-700 text-white"
                   >
                     {isResetting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

@@ -37,7 +37,6 @@ import {
   getUsers,
   getCreditDocumentTypes,
   getProcessLogs,
-  createProcessLog,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -214,23 +213,14 @@ export default function ProcessDetail() {
         analysis_type: analysisType,
         current_step: 'Análise',
         status: 'Aguardando Análise',
+        observations: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       }
 
       if (process.assigned_analyst) {
-        payload.assigned_analyst = null
+        payload.assigned_analyst = ''
       }
 
       await updateProcess(process.id, payload)
-
-      await createProcessLog({
-        process: process.id,
-        from_status: fromStatus,
-        to_status: 'Aguardando Análise',
-        from_step: fromStep,
-        to_step: 'Análise',
-        changed_by: user?.id || '',
-        note: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
-      })
 
       setTriageDialog(false)
       toast({ title: 'Triagem aprovada. Processo enviado para Fila de Análise.' })

@@ -15,6 +15,7 @@ import {
 import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, UserPlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { getProcesses, createProcess, getUsers } from '@/services/api'
+import { useAuth } from '@/contexts/auth-context'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   Dialog,
@@ -23,6 +24,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { PieChart, Pie, Cell } from 'recharts'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -35,6 +45,8 @@ import { useToast } from '@/hooks/use-toast'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isMaster = user?.role === 'master'
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -162,6 +174,64 @@ export default function Dashboard() {
   ).length
   const approvedCount = processes.filter((p) => p.result === 'approved').length
 
+  // Credit Dashboard Data
+  const creditProcesses = processes.filter((p) => p.type === 'credit')
+  const creditStats = {
+    inProgress: creditProcesses.filter(
+      (p) =>
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned' &&
+        p.status !== 'Pendência' &&
+        p.result !== 'pending',
+    ).length,
+    approved: creditProcesses.filter((p) => p.result === 'approved').length,
+    pending: creditProcesses.filter((p) => p.status === 'Pendência' || p.result === 'pending')
+      .length,
+    conditioned: creditProcesses.filter((p) => p.result === 'conditioned').length,
+    rejected: creditProcesses.filter((p) => p.result === 'rejected').length,
+  }
+
+  const creditChartData = [
+    { status: 'inProgress', value: creditStats.inProgress, fill: 'var(--color-inProgress)' },
+    { status: 'approved', value: creditStats.approved, fill: 'var(--color-approved)' },
+    { status: 'pending', value: creditStats.pending, fill: 'var(--color-pending)' },
+    { status: 'conditioned', value: creditStats.conditioned, fill: 'var(--color-conditioned)' },
+    { status: 'rejected', value: creditStats.rejected, fill: 'var(--color-rejected)' },
+  ].filter((d) => d.value > 0)
+
+  const chartConfigCredit = {
+    inProgress: { label: 'Em Andamento', color: 'hsl(var(--chart-1))' },
+    approved: { label: 'Aprovados', color: 'hsl(var(--chart-2))' },
+    pending: { label: 'Pendentes', color: 'hsl(var(--chart-3))' },
+    conditioned: { label: 'Condicionados', color: 'hsl(var(--chart-4))' },
+    rejected: { label: 'Reprovados', color: 'hsl(var(--chart-5))' },
+  }
+
+  // Housing Dashboard Data
+  const housingProcesses = processes.filter((p) => p.type === 'housing')
+  const housingStagesCount = housingProcesses.reduce(
+    (acc, p) => {
+      const step = p.current_step || 'Não iniciada'
+      acc[step] = (acc[step] || 0) + 1
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+
+  const housingChartData = Object.entries(housingStagesCount).map(([step, count], index) => {
+    const key = `step${index}`
+    return { stepName: step, status: key, value: count, fill: `var(--color-${key})` }
+  })
+
+  const chartConfigHousing = housingChartData.reduce(
+    (acc, item, index) => {
+      acc[item.status] = { label: item.stepName, color: `hsl(var(--chart-${(index % 5) + 1}))` }
+      return acc
+    },
+    {} as Record<string, any>,
+  )
+
   return (
     <div className="space-y-8 animate-fade-in-up">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -255,105 +325,274 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Processos
-            </CardTitle>
-            <FileText className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-800">{processes.length}</div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pendente Avaliação
-            </CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-800">{pendingCount}</div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Aprovados</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-800">{approvedCount}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="geral" className="w-full space-y-6">
+        <TabsList className="bg-slate-100/50">
+          <TabsTrigger value="geral">Fila Geral</TabsTrigger>
+          {isMaster && (
+            <>
+              <TabsTrigger value="credito">Dashboard de Crédito</TabsTrigger>
+              <TabsTrigger value="habitacional">Dashboard Habitacional</TabsTrigger>
+            </>
+          )}
+        </TabsList>
 
-      <Card className="shadow-sm border-border/50">
-        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
-          <CardTitle className="text-lg text-slate-800">Fila de Processos</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar cliente..."
-                className="w-full sm:w-[250px] pl-9 h-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
+        <TabsContent value="geral" className="space-y-6 mt-0">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Processos
+                </CardTitle>
+                <FileText className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-800">{processes.length}</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Pendente Avaliação
+                </CardTitle>
+                <Clock className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-800">{pendingCount}</div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Aprovados
+                </CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-800">{approvedCount}</div>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50/50">
-              <TableRow>
-                <TableHead>ID / Cliente</TableHead>
-                <TableHead className="hidden sm:table-cell">Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-center">Status</TableHead>
-                <TableHead className="text-right hidden md:table-cell">Data</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((process) => (
-                <TableRow
-                  key={process.id}
-                  className="cursor-pointer group"
-                  onClick={() => navigate(`/process/${process.id}`)}
-                >
-                  <TableCell className="py-4">
-                    <div className="font-medium text-slate-800 group-hover:text-primary">
-                      {process.expand?.buyer?.name || 'N/A'}
+
+          <Card className="shadow-sm border-border/50">
+            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
+              <CardTitle className="text-lg text-slate-800">Fila de Processos</CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar cliente..."
+                    className="w-full sm:w-[250px] pl-9 h-9"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead>ID / Cliente</TableHead>
+                    <TableHead className="hidden sm:table-cell">Tipo</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Data</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((process) => (
+                    <TableRow
+                      key={process.id}
+                      className="cursor-pointer group"
+                      onClick={() => navigate(`/process/${process.id}`)}
+                    >
+                      <TableCell className="py-4">
+                        <div className="font-medium text-slate-800 group-hover:text-primary">
+                          {process.expand?.buyer?.name || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{process.id}</div>
+                      </TableCell>
+                      <TableCell className="py-4 hidden sm:table-cell">
+                        {process.type === 'credit' ? 'Crédito' : 'Habitacional'}
+                      </TableCell>
+                      <TableCell className="py-4 text-right font-medium text-slate-700">
+                        {formatCurrency(process.value)}
+                      </TableCell>
+                      <TableCell className="py-4 text-center">
+                        {getStatusBadge(process.status, process.result)}
+                      </TableCell>
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
+                        {new Date(process.created).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        Nenhum processo encontrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {isMaster && (
+          <>
+            <TabsContent value="credito" className="space-y-6 mt-0">
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Em Andamento
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-slate-800">
+                      {creditStats.inProgress}
                     </div>
-                    <div className="text-xs text-muted-foreground">{process.id}</div>
-                  </TableCell>
-                  <TableCell className="py-4 hidden sm:table-cell">
-                    {process.type === 'credit' ? 'Crédito' : 'Habitacional'}
-                  </TableCell>
-                  <TableCell className="py-4 text-right font-medium text-slate-700">
-                    {formatCurrency(process.value)}
-                  </TableCell>
-                  <TableCell className="py-4 text-center">
-                    {getStatusBadge(process.status, process.result)}
-                  </TableCell>
-                  <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
-                    {new Date(process.created).toLocaleDateString('pt-BR')}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhum processo encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Aprovados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {creditStats.approved}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Pendentes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-secondary">{creditStats.pending}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Condicionados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {creditStats.conditioned}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Reprovados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-destructive">
+                      {creditStats.rejected}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Distribuição de Status (Crédito)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {creditChartData.length > 0 ? (
+                    <ChartContainer
+                      config={chartConfigCredit}
+                      className="h-[300px] w-full max-w-md mx-auto"
+                    >
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Pie
+                          data={creditChartData}
+                          dataKey="value"
+                          nameKey="status"
+                          innerRadius={60}
+                          strokeWidth={2}
+                        >
+                          {creditChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <ChartLegend content={<ChartLegendContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                      Sem dados suficientes.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="habitacional" className="space-y-6 mt-0">
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+                {Object.entries(housingStagesCount).map(([step, count]) => (
+                  <Card key={step}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm text-muted-foreground">{step}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-slate-800">{count}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {Object.keys(housingStagesCount).length === 0 && (
+                  <div className="col-span-full p-4 text-center text-muted-foreground bg-slate-50 rounded-lg border border-dashed">
+                    Nenhum processo habitacional no momento.
+                  </div>
+                )}
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Processos por Etapa (Habitacional)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {housingChartData.length > 0 ? (
+                    <ChartContainer
+                      config={chartConfigHousing}
+                      className="h-[300px] w-full max-w-md mx-auto"
+                    >
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Pie
+                          data={housingChartData}
+                          dataKey="value"
+                          nameKey="status"
+                          innerRadius={60}
+                          strokeWidth={2}
+                        >
+                          {housingChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <ChartLegend content={<ChartLegendContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                      Sem dados suficientes.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </>
+        )}
+      </Tabs>
     </div>
   )
 }

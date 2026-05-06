@@ -22,6 +22,7 @@ import {
   UploadCloud,
   File as FileIcon,
   Link as LinkIcon,
+  Loader2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -30,8 +31,10 @@ import {
   getDocuments,
   updateProcess,
   createDocument,
+  updateDocument,
   getUsers,
   getCreditDocumentTypes,
+  getProcessLogs,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -76,6 +79,8 @@ export default function ProcessDetail() {
     conditioned_installment_value: '',
     rejection_reason: '',
   })
+
+  const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({})
 
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
@@ -209,10 +214,12 @@ export default function ProcessDetail() {
     e: React.ChangeEvent<HTMLInputElement>,
     cat: string,
     slotName: string,
+    uploadKey?: string,
   ) => {
     const file = e.target.files?.[0]
     if (!file || !process) return
 
+    const key = uploadKey || `${cat}-${slotName}`
     const formData = new FormData()
     formData.append('process', process.id)
     formData.append('file', file)
@@ -222,6 +229,7 @@ export default function ProcessDetail() {
     formData.append('status', 'review')
 
     try {
+      setUploadingSlots((prev) => ({ ...prev, [key]: true }))
       await createDocument(formData as any)
       toast({ title: 'Documento enviado com sucesso!' })
       e.target.value = ''
@@ -232,6 +240,8 @@ export default function ProcessDetail() {
         description: 'Não foi possível enviar o documento.',
         variant: 'destructive',
       })
+    } finally {
+      setUploadingSlots((prev) => ({ ...prev, [key]: false }))
     }
   }
 
@@ -244,6 +254,7 @@ export default function ProcessDetail() {
     formData.append('status', 'review')
 
     try {
+      setUploadingSlots((prev) => ({ ...prev, [docId]: true }))
       await updateDocument(docId, formData as any)
       toast({ title: 'Documento substituído com sucesso!' })
       e.target.value = ''
@@ -254,6 +265,8 @@ export default function ProcessDetail() {
         description: 'Não foi possível substituir o documento.',
         variant: 'destructive',
       })
+    } finally {
+      setUploadingSlots((prev) => ({ ...prev, [docId]: false }))
     }
   }
 
@@ -822,19 +835,28 @@ export default function ProcessDetail() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-800">Documentos</h2>
-            {process.result !== 'approved' && process.result !== 'rejected' && (
-              <div className="relative">
-                <input
-                  type="file"
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  onChange={(e) => handleUploadSlot(e, 'Geral', 'Documento Geral')}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                <Button variant="outline" size="sm" className="shadow-sm">
-                  <UploadCloud className="w-4 h-4 mr-2" /> Arquivo Extra
+            {process.result !== 'approved' &&
+              process.result !== 'rejected' &&
+              (uploadingSlots['Geral-Extra'] ? (
+                <Button variant="outline" size="sm" className="shadow-sm" disabled>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
                 </Button>
-              </div>
-            )}
+              ) : (
+                <div className="relative">
+                  <input
+                    type="file"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleUploadSlot(e, 'Geral', file.name, 'Geral-Extra')
+                    }}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                  <Button variant="outline" size="sm" className="shadow-sm">
+                    <UploadCloud className="w-4 h-4 mr-2" /> Arquivo Extra
+                  </Button>
+                </div>
+              ))}
           </div>
 
           {['1º Proponente', '2º Proponente / Conjuge'].map((cat) => {
@@ -911,32 +933,48 @@ export default function ProcessDetail() {
                                     <Download className="w-4 h-4" />
                                   </Button>
                                 </a>
-                                {process.result !== 'approved' && process.result !== 'rejected' && (
-                                  <div className="relative">
-                                    <input
-                                      type="file"
-                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                      onChange={(e) => handleReplaceSlot(e, doc.id)}
-                                      accept=".pdf,.jpg,.jpeg,.png"
-                                    />
+                                {process.result !== 'approved' &&
+                                  process.result !== 'rejected' &&
+                                  (uploadingSlots[doc.id] ? (
                                     <Button
                                       variant="ghost"
                                       size="icon"
                                       className="text-amber-600 h-8 w-8"
-                                      title="Substituir arquivo"
+                                      disabled
                                     >
-                                      <UploadCloud className="w-4 h-4" />
+                                      <Loader2 className="w-4 h-4 animate-spin" />
                                     </Button>
-                                  </div>
-                                )}
+                                  ) : (
+                                    <div className="relative">
+                                      <input
+                                        type="file"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                        onChange={(e) => handleReplaceSlot(e, doc.id)}
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-amber-600 h-8 w-8"
+                                        title="Substituir arquivo"
+                                      >
+                                        <UploadCloud className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
                               </>
                             ) : (
                               process.result !== 'approved' &&
-                              process.result !== 'rejected' && (
+                              process.result !== 'rejected' &&
+                              (uploadingSlots[`${cat}-${slotName}`] ? (
+                                <Button variant="outline" size="sm" className="h-8" disabled>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
+                                </Button>
+                              ) : (
                                 <div className="relative">
                                   <input
                                     type="file"
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                                     onChange={(e) => handleUploadSlot(e, cat, slotName)}
                                     accept=".pdf,.jpg,.jpeg,.png"
                                   />
@@ -944,7 +982,7 @@ export default function ProcessDetail() {
                                     <UploadCloud className="w-4 h-4 mr-2" /> Enviar
                                   </Button>
                                 </div>
-                              )
+                              ))
                             )}
                           </div>
                         </div>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T02:55:57.631Z",
+  "generatedAt": "2026-05-06T03:10:53.457Z",
   "collections": [
     {
       "name": "users",
@@ -298,9 +298,25 @@
           "required": false,
           "system": false,
           "collectionRef": "rejection_reasons"
+        },
+        {
+          "name": "analysis_type",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["first_analysis", "reevaluation"]
+        },
+        {
+          "name": "is_conformity_approved",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE INDEX `idx_processes_analysis_type` ON `processes` (analysis_type)",
+        "CREATE INDEX `idx_processes_conformity` ON `processes` (is_conformity_approved)"
+      ]
     },
     {
       "name": "documents",

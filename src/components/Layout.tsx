@@ -37,6 +37,7 @@ import {
   Landmark,
   Settings,
   HardHat,
+  ClipboardCheck,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -66,6 +67,7 @@ export default function Layout() {
   if (isInternal) {
     navItems = [
       { title: 'Painel de Controle', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Análise de Créditos', url: '/credit-analysis', icon: ClipboardCheck },
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },

@@ -23,6 +23,7 @@ import HousingKanban from './pages/HousingKanban'
 import ConfigHousingStages from './pages/ConfigHousingStages'
 import PublicHousingStatus from './pages/PublicHousingStatus'
 import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
+import CreditAnalysis from './pages/CreditAnalysis'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -38,6 +39,7 @@ const App = () => (
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/credit-analysis" element={<CreditAnalysis />} />
             <Route path="/portal" element={<CustomerPortal />} />
             <Route path="/process/:id" element={<ProcessDetail />} />
             <Route path="/tasks" element={<Tasks />} />

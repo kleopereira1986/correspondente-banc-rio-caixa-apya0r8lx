@@ -87,6 +87,8 @@ export default function ProcessDetail() {
   const [approvalFile, setApprovalFile] = useState<File | null>(null)
 
   const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({})
+  const [triageDialog, setTriageDialog] = useState(false)
+  const [analysisType, setAnalysisType] = useState('')
 
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
@@ -188,6 +190,42 @@ export default function ProcessDetail() {
       }
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
+    }
+  }
+
+  const handleTriage = async () => {
+    if (!process) return
+    if (!analysisType) {
+      toast({ title: 'Selecione o tipo de análise', variant: 'destructive' })
+      return
+    }
+    try {
+      await updateProcess(process.id, {
+        analysis_type: analysisType,
+        current_step:
+          analysisType === 'first_analysis' ? 'conformidade_primeira' : 'conformidade_reavaliacao',
+        assigned_analyst: user?.id,
+        status: 'Em Conformidade',
+      })
+      setTriageDialog(false)
+      toast({ title: 'Triagem realizada com sucesso' })
+    } catch (e) {
+      toast({ title: 'Erro na triagem', variant: 'destructive' })
+    }
+  }
+
+  const handleConformityApproval = async () => {
+    if (!process) return
+    try {
+      await updateProcess(process.id, {
+        is_conformity_approved: true,
+        current_step: 'analise_efetiva',
+        assigned_analyst: '',
+        status: 'Fila para Análise',
+      })
+      toast({ title: 'Conformidade aprovada. Processo enviado para Fila de Análise.' })
+    } catch (e) {
+      toast({ title: 'Erro ao aprovar conformidade', variant: 'destructive' })
     }
   }
 
@@ -425,18 +463,24 @@ export default function ProcessDetail() {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
   const creditSteps = [
-    { id: 1, name: 'Registro', active: true, completed: process.status !== 'Nova Solicitação' },
+    { id: 1, name: 'Triagem', active: true, completed: !!process.analysis_type },
     {
       id: 2,
+      name: 'Conformidade',
+      active: !!process.analysis_type,
+      completed: process.is_conformity_approved,
+    },
+    {
+      id: 3,
       name: 'Análise',
-      active: process.current_step === 'Análise' || process.result !== 'pending',
+      active: process.is_conformity_approved,
       completed:
         process.result === 'approved' ||
         process.result === 'rejected' ||
         process.result === 'conditioned',
     },
     {
-      id: 3,
+      id: 4,
       name: 'Decisão',
       active:
         process.result === 'approved' ||
@@ -602,96 +646,163 @@ export default function ProcessDetail() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="space-y-6 lg:col-span-1">
-          {isAnalyst && process.result !== 'approved' && process.result !== 'rejected' && (
-            <Card className="shadow-sm border-border/50 border-t-4 border-t-primary">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Ações do Analista</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {!process.assigned_analyst ? (
-                  <Button className="w-full" onClick={() => handleAction('claim')}>
-                    Assumir Processo
-                  </Button>
-                ) : (
-                  <>
-                    <div className="flex gap-2">
-                      <Select value={transferAnalyst} onValueChange={setTransferAnalyst}>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Transferir para..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {analysts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>
-                              {a.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button variant="outline" onClick={() => handleAction('transfer')}>
-                        Enviar
-                      </Button>
-                    </div>
-                    <hr className="my-2" />
+          {isAnalyst &&
+            process.result !== 'approved' &&
+            process.result !== 'rejected' &&
+            (() => {
+              const isCredit = process.type === 'credit'
+              const needsTriage = isCredit && !process.analysis_type
+              const inConformity =
+                isCredit && process.analysis_type && !process.is_conformity_approved
+              const inAnalysis =
+                isCredit &&
+                process.is_conformity_approved &&
+                (!process.result || process.result === 'pending')
 
-                    <Button
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                      onClick={() => setApproveDialog(true)}
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-50"
-                      onClick={() => setConditionDialog(true)}
-                    >
-                      <AlertTriangle className="w-4 h-4 mr-2" /> Aprovação Condicionada
-                    </Button>
-
-                    <Dialog open={isPendencyDialogOpen} onOpenChange={setIsPendencyDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
-                        >
-                          <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+              return (
+                <Card className="shadow-sm border-border/50 border-t-4 border-t-primary">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg">Ações do Analista</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {!process.assigned_analyst ? (
+                      needsTriage ? (
+                        <Dialog open={triageDialog} onOpenChange={setTriageDialog}>
+                          <DialogTrigger asChild>
+                            <Button className="w-full">Assumir para Triagem</Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Classificar Solicitação</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Tipo de Análise</Label>
+                                <Select value={analysisType} onValueChange={setAnalysisType}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o tipo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="first_analysis">Primeira Análise</SelectItem>
+                                    <SelectItem value="reevaluation">Reavaliação</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setTriageDialog(false)}>
+                                Cancelar
+                              </Button>
+                              <Button onClick={handleTriage}>Confirmar</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      ) : inConformity ? (
+                        <Button className="w-full" onClick={() => handleAction('claim')}>
+                          Assumir para Conformidade
                         </Button>
-                      </DialogTrigger>{' '}
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
-                        </DialogHeader>
-                        <Textarea
-                          placeholder="Descreva a pendência..."
-                          value={pendencyReason}
-                          onChange={(e) => setPendencyReason(e.target.value)}
-                          className="min-h-[100px]"
-                        />
-                        <DialogFooter>
-                          <Button onClick={() => handleAction('pendency')}>Enviar</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                      ) : inAnalysis || !isCredit ? (
+                        <Button className="w-full" onClick={() => handleAction('claim')}>
+                          Assumir Processo
+                        </Button>
+                      ) : null
+                    ) : (
+                      <>
+                        <div className="flex gap-2">
+                          <Select value={transferAnalyst} onValueChange={setTransferAnalyst}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Transferir para..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {analysts.map((a) => (
+                                <SelectItem key={a.id} value={a.id}>
+                                  {a.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="outline" onClick={() => handleAction('transfer')}>
+                            Enviar
+                          </Button>
+                        </div>
+                        <hr className="my-2" />
 
-                    <Button
-                      variant="ghost"
-                      className="w-full text-destructive hover:bg-destructive/10"
-                      onClick={() => setRejectDialog(true)}
-                    >
-                      <XCircle className="w-4 h-4 mr-2" /> Reprovar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      className="w-full text-blue-600 hover:bg-blue-50"
-                      onClick={() => handleAction('start')}
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Iniciado
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                        {inConformity && (
+                          <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={handleConformityApproval}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar Conformidade
+                          </Button>
+                        )}
+
+                        {(inAnalysis || !isCredit) && (
+                          <>
+                            <Button
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                              onClick={() => setApproveDialog(true)}
+                            >
+                              <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              className="w-full border-amber-500/50 text-amber-600 hover:bg-amber-50"
+                              onClick={() => setConditionDialog(true)}
+                            >
+                              <AlertTriangle className="w-4 h-4 mr-2" /> Aprovação Condicionada
+                            </Button>
+
+                            <Dialog
+                              open={isPendencyDialogOpen}
+                              onOpenChange={setIsPendencyDialogOpen}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
+                                >
+                                  <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+                                </Button>
+                              </DialogTrigger>{' '}
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
+                                </DialogHeader>
+                                <Textarea
+                                  placeholder="Descreva a pendência..."
+                                  value={pendencyReason}
+                                  onChange={(e) => setPendencyReason(e.target.value)}
+                                  className="min-h-[100px]"
+                                />
+                                <DialogFooter>
+                                  <Button onClick={() => handleAction('pendency')}>Enviar</Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+
+                            <Button
+                              variant="ghost"
+                              className="w-full text-destructive hover:bg-destructive/10"
+                              onClick={() => setRejectDialog(true)}
+                            >
+                              <XCircle className="w-4 h-4 mr-2" /> Reprovar
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          className="w-full text-blue-600 hover:bg-blue-50"
+                          onClick={() => handleAction('start')}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Iniciado
+                        </Button>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
 
           <Card className="shadow-sm border-border/50 bg-slate-50">
             <CardHeader className="pb-4 border-b border-border/50">

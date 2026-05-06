@@ -210,19 +210,19 @@ export default function ProcessDetail() {
       await updateProcess(process.id, {
         is_conformity_approved: true,
         analysis_type: analysisType,
-        current_step: 'Análise',
+        current_step: 'Conformidade',
         assigned_analyst: '',
-        status: 'Fila para Análise',
+        status: 'Aguardando Análise',
       })
 
       await createProcessLog({
         process: process.id,
         from_status: fromStatus,
-        to_status: 'Fila para Análise',
+        to_status: 'Aguardando Análise',
         from_step: fromStep,
-        to_step: 'Análise',
+        to_step: 'Conformidade',
         changed_by: user?.id,
-        note: `Conformidade aprovada: ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
+        note: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       })
 
       setTriageDialog(false)
@@ -657,7 +657,9 @@ export default function ProcessDetail() {
             process.result !== 'rejected' &&
             (() => {
               const isCredit = process.type === 'credit'
-              const needsConformity = isCredit && !process.is_conformity_approved
+              const needsConformity =
+                isCredit &&
+                (!process.current_step || process.current_step.toLowerCase() === 'triagem')
               const inAnalysis =
                 isCredit &&
                 process.is_conformity_approved &&

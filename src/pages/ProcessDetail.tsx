@@ -89,6 +89,7 @@ export default function ProcessDetail() {
   const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({})
   const [triageDialog, setTriageDialog] = useState(false)
   const [analysisType, setAnalysisType] = useState('')
+  const [isLoadingConformity, setIsLoadingConformity] = useState(false)
 
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
@@ -193,39 +194,28 @@ export default function ProcessDetail() {
     }
   }
 
-  const handleTriage = async () => {
-    if (!process) return
-    if (!analysisType) {
-      toast({ title: 'Selecione o tipo de análise', variant: 'destructive' })
-      return
-    }
-    try {
-      await updateProcess(process.id, {
-        analysis_type: analysisType,
-        current_step:
-          analysisType === 'first_analysis' ? 'conformidade_primeira' : 'conformidade_reavaliacao',
-        assigned_analyst: user?.id,
-        status: 'Em Conformidade',
-      })
-      setTriageDialog(false)
-      toast({ title: 'Triagem realizada com sucesso' })
-    } catch (e) {
-      toast({ title: 'Erro na triagem', variant: 'destructive' })
-    }
-  }
-
   const handleConformityApproval = async () => {
     if (!process) return
+    if (!analysisType) {
+      toast({ title: 'Selecione a classificação da análise', variant: 'destructive' })
+      return
+    }
+
+    setIsLoadingConformity(true)
     try {
       await updateProcess(process.id, {
         is_conformity_approved: true,
+        analysis_type: analysisType,
         current_step: 'analise_efetiva',
         assigned_analyst: '',
         status: 'Fila para Análise',
       })
+      setTriageDialog(false)
       toast({ title: 'Conformidade aprovada. Processo enviado para Fila de Análise.' })
     } catch (e) {
       toast({ title: 'Erro ao aprovar conformidade', variant: 'destructive' })
+    } finally {
+      setIsLoadingConformity(false)
     }
   }
 
@@ -651,9 +641,7 @@ export default function ProcessDetail() {
             process.result !== 'rejected' &&
             (() => {
               const isCredit = process.type === 'credit'
-              const needsTriage = isCredit && !process.analysis_type
-              const inConformity =
-                isCredit && process.analysis_type && !process.is_conformity_approved
+              const needsConformity = isCredit && !process.is_conformity_approved
               const inAnalysis =
                 isCredit &&
                 process.is_conformity_approved &&
@@ -665,43 +653,53 @@ export default function ProcessDetail() {
                     <CardTitle className="text-lg">Ações do Analista</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {!process.assigned_analyst ? (
-                      needsTriage ? (
-                        <Dialog open={triageDialog} onOpenChange={setTriageDialog}>
-                          <DialogTrigger asChild>
-                            <Button className="w-full">Assumir para Triagem</Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Classificar Solicitação</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label>Tipo de Análise</Label>
-                                <Select value={analysisType} onValueChange={setAnalysisType}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione o tipo" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="first_analysis">Primeira Análise</SelectItem>
-                                    <SelectItem value="reevaluation">Reavaliação</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                    {needsConformity ? (
+                      <Dialog open={triageDialog} onOpenChange={setTriageDialog}>
+                        <DialogTrigger asChild>
+                          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Dar Conformidade
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Dar Conformidade</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label>Classificação da Análise</Label>
+                              <Select value={analysisType} onValueChange={setAnalysisType}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione a classificação" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="first_analysis">Primeira Análise</SelectItem>
+                                  <SelectItem value="reevaluation">Reavaliação</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setTriageDialog(false)}>
-                                Cancelar
-                              </Button>
-                              <Button onClick={handleTriage}>Confirmar</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      ) : inConformity ? (
-                        <Button className="w-full" onClick={() => handleAction('claim')}>
-                          Assumir para Conformidade
-                        </Button>
-                      ) : inAnalysis || !isCredit ? (
+                          </div>
+                          <DialogFooter>
+                            <Button
+                              variant="outline"
+                              onClick={() => setTriageDialog(false)}
+                              disabled={isLoadingConformity}
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              onClick={handleConformityApproval}
+                              disabled={isLoadingConformity}
+                            >
+                              {isLoadingConformity ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : null}
+                              Confirmar
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    ) : !process.assigned_analyst ? (
+                      inAnalysis || !isCredit ? (
                         <Button className="w-full" onClick={() => handleAction('claim')}>
                           Assumir Processo
                         </Button>
@@ -726,15 +724,6 @@ export default function ProcessDetail() {
                           </Button>
                         </div>
                         <hr className="my-2" />
-
-                        {inConformity && (
-                          <Button
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={handleConformityApproval}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar Conformidade
-                          </Button>
-                        )}
 
                         {(inAnalysis || !isCredit) && (
                           <>

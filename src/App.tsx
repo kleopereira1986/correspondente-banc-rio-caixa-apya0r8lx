@@ -22,6 +22,7 @@ import PublicEngineeringStatus from './pages/PublicEngineeringStatus'
 import HousingKanban from './pages/HousingKanban'
 import ConfigHousingStages from './pages/ConfigHousingStages'
 import PublicHousingStatus from './pages/PublicHousingStatus'
+import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/broker-processes" element={<BrokerProcesses />} />
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
             <Route path="/config/housing-stages" element={<ConfigHousingStages />} />
+            <Route path="/config/rejection-reasons" element={<ConfigRejectionReasons />} />
             <Route path="/housing-kanban" element={<HousingKanban />} />
             <Route path="/engineering-request" element={<EngineeringRequest />} />
             <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />

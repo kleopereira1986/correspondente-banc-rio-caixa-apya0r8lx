@@ -76,6 +76,7 @@ export default function Layout() {
             { title: 'Usuários', url: '/users', icon: Users },
             { title: 'Config. Crédito', url: '/config/credit-analysis', icon: Settings },
             { title: 'Config. Habitacional', url: '/config/housing-stages', icon: Settings },
+            { title: 'Config. Reprovação', url: '/config/rejection-reasons', icon: Settings },
           ]
         : []),
       {

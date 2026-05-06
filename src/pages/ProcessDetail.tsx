@@ -71,6 +71,7 @@ export default function ProcessDetail() {
   const [conditionDialog, setConditionDialog] = useState(false)
   const [rejectDialog, setRejectDialog] = useState(false)
   const [conditioningReasons, setConditioningReasons] = useState<any[]>([])
+  const [rejectionReasons, setRejectionReasons] = useState<any[]>([])
   const [decisionForm, setDecisionForm] = useState({
     approved_financing_value: '',
     approved_installment_value: '',
@@ -78,6 +79,7 @@ export default function ProcessDetail() {
     additional_details: '',
     conditioning_reason_type: '',
     conditioned_installment_value: '',
+    rejection_reason_type: '',
     rejection_reason: '',
     federal_subsidy: '',
     amortization_system: '',
@@ -96,7 +98,7 @@ export default function ProcessDetail() {
 
       // Carregar dependências separadamente para evitar falha geral
       try {
-        const [docs, docTypes, processLogs, condReasons] = await Promise.all([
+        const [docs, docTypes, processLogs, condReasons, rejReasons] = await Promise.all([
           getDocuments(id).catch(() => []),
           getCreditDocumentTypes().catch(() => []),
           getProcessLogs(id).catch(() => []),
@@ -104,11 +106,16 @@ export default function ProcessDetail() {
             .collection('conditioning_reasons')
             .getFullList({ sort: 'name' })
             .catch(() => []),
+          pb
+            .collection('rejection_reasons')
+            .getFullList({ sort: 'name' })
+            .catch(() => []),
         ])
         setDocuments(docs)
         setCreditDocumentTypes(docTypes)
         setLogs(processLogs)
         setConditioningReasons(condReasons)
+        setRejectionReasons(rejReasons)
       } catch (err) {
         console.error('Erro ao carregar dependências', err)
       }
@@ -136,6 +143,7 @@ export default function ProcessDetail() {
   useRealtime('credit_document_types', () => loadData())
   useRealtime('process_logs', () => loadData())
   useRealtime('conditioning_reasons', () => loadData())
+  useRealtime('rejection_reasons', () => loadData())
 
   const handleAction = async (
     action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency',
@@ -231,9 +239,18 @@ export default function ProcessDetail() {
         setConditionDialog(false)
         toast({ title: 'Aprovação Condicionada Registrada' })
       } else if (action === 'reject') {
+        if (!decisionForm.rejection_reason_type) {
+          toast({
+            title: 'Erro',
+            description: 'Selecione um motivo de reprovação.',
+            variant: 'destructive',
+          })
+          return
+        }
         await updateProcess(process.id, {
           ...basePayload,
           result: 'rejected',
+          rejection_reason_type: decisionForm.rejection_reason_type,
           rejection_reason: decisionForm.rejection_reason,
         })
         setRejectDialog(false)
@@ -852,8 +869,23 @@ export default function ProcessDetail() {
                       <span className="text-muted-foreground block text-xs">
                         Motivo da Reprovação
                       </span>
-                      <span className="font-medium text-red-600">{process.rejection_reason}</span>
+                      <span className="font-medium text-red-600">
+                        {rejectionReasons.find((r) => r.id === process.rejection_reason_type)
+                          ?.name ||
+                          process.rejection_reason ||
+                          '-'}
+                      </span>
                     </div>
+                    {process.rejection_reason && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">
+                          Observações Adicionais
+                        </span>
+                        <span className="font-medium text-slate-800">
+                          {process.rejection_reason}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -1420,8 +1452,28 @@ export default function ProcessDetail() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Motivo da reprovação</Label>
+              <Select
+                value={decisionForm.rejection_reason_type}
+                onValueChange={(val) =>
+                  setDecisionForm({ ...decisionForm, rejection_reason_type: val })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o motivo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {rejectionReasons.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Observações adicionais (Opcional)</Label>
               <Textarea
-                placeholder="Justificativa da reprovação..."
+                placeholder="Detalhes adicionais da reprovação..."
                 value={decisionForm.rejection_reason}
                 onChange={(e) =>
                   setDecisionForm({ ...decisionForm, rejection_reason: e.target.value })

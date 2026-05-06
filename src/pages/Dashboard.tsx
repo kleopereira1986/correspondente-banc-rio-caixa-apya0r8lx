@@ -169,6 +169,9 @@ export default function Dashboard() {
       p.id.toLowerCase().includes(search.toLowerCase()),
   )
 
+  const filteredCredit = filtered.filter((p) => p.type === 'credit')
+  const filteredHousing = filtered.filter((p) => p.type === 'housing')
+
   const pendingCount = processes.filter(
     (p) => p.result === 'pending' || p.status === 'Awaiting Registration',
   ).length
@@ -325,9 +328,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Tabs defaultValue="geral" className="w-full space-y-6">
-        <TabsList className="bg-slate-100/50">
-          <TabsTrigger value="geral">Fila Geral</TabsTrigger>
+      <Tabs defaultValue="fila_credito" className="w-full space-y-6">
+        <TabsList className="bg-slate-100/50 flex-wrap h-auto">
+          <TabsTrigger value="fila_credito">Fila de Processos Análise de Crédito</TabsTrigger>
+          <TabsTrigger value="fila_habitacional">Fila de Processos Habitacional</TabsTrigger>
           {isMaster && (
             <>
               <TabsTrigger value="credito">Dashboard de Crédito</TabsTrigger>
@@ -336,17 +340,17 @@ export default function Dashboard() {
           )}
         </TabsList>
 
-        <TabsContent value="geral" className="space-y-6 mt-0">
+        <TabsContent value="fila_credito" className="space-y-6 mt-0">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total de Processos
+                  Total de Processos Análise de Crédito
                 </CardTitle>
                 <FileText className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-slate-800">{processes.length}</div>
+                <div className="text-3xl font-bold text-slate-800">{filteredCredit.length}</div>
               </CardContent>
             </Card>
             <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
@@ -375,7 +379,9 @@ export default function Dashboard() {
 
           <Card className="shadow-sm border-border/50">
             <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
-              <CardTitle className="text-lg text-slate-800">Fila de Processos</CardTitle>
+              <CardTitle className="text-lg text-slate-800">
+                Fila de Processos Análise de Crédito
+              </CardTitle>
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -394,14 +400,13 @@ export default function Dashboard() {
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
                     <TableHead>ID / Cliente</TableHead>
-                    <TableHead className="hidden sm:table-cell">Tipo</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right hidden md:table-cell">Data</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((process) => (
+                  {filteredCredit.map((process) => (
                     <TableRow
                       key={process.id}
                       className="cursor-pointer group"
@@ -412,9 +417,6 @@ export default function Dashboard() {
                           {process.expand?.buyer?.name || 'N/A'}
                         </div>
                         <div className="text-xs text-muted-foreground">{process.id}</div>
-                      </TableCell>
-                      <TableCell className="py-4 hidden sm:table-cell">
-                        {process.type === 'credit' ? 'Crédito' : 'Habitacional'}
                       </TableCell>
                       <TableCell className="py-4 text-right font-medium text-slate-700">
                         {formatCurrency(process.value)}
@@ -427,10 +429,90 @@ export default function Dashboard() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filtered.length === 0 && (
+                  {filteredCredit.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        Nenhum processo encontrado.
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhum processo de análise de crédito encontrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="fila_habitacional" className="space-y-6 mt-0">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="shadow-sm border-border/50 hover:shadow-md transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total de Processos Habitacionais
+                </CardTitle>
+                <FileText className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold text-slate-800">{filteredHousing.length}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-sm border-border/50">
+            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
+              <CardTitle className="text-lg text-slate-800">
+                Fila de Processos Habitacional
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar cliente..."
+                    className="w-full sm:w-[250px] pl-9 h-9"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow>
+                    <TableHead>ID / Cliente</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-right hidden md:table-cell">Data</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredHousing.map((process) => (
+                    <TableRow
+                      key={process.id}
+                      className="cursor-pointer group"
+                      onClick={() => navigate(`/process/${process.id}`)}
+                    >
+                      <TableCell className="py-4">
+                        <div className="font-medium text-slate-800 group-hover:text-primary">
+                          {process.expand?.buyer?.name || 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{process.id}</div>
+                      </TableCell>
+                      <TableCell className="py-4 text-right font-medium text-slate-700">
+                        {formatCurrency(process.value)}
+                      </TableCell>
+                      <TableCell className="py-4 text-center">
+                        {getStatusBadge(process.status, process.result)}
+                      </TableCell>
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
+                        {new Date(process.created).toLocaleDateString('pt-BR')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredHousing.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        Nenhum processo habitacional encontrado.
                       </TableCell>
                     </TableRow>
                   )}

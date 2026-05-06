@@ -209,13 +209,18 @@ export default function ProcessDetail() {
       const fromStatus = process.status || 'Início'
       const fromStep = process.current_step || 'Triagem'
 
-      await updateProcess(process.id, {
+      const payload: any = {
         is_conformity_approved: true,
         analysis_type: analysisType,
         current_step: 'Análise',
-        assigned_analyst: '',
         status: 'Aguardando Análise',
-      })
+      }
+
+      if (process.assigned_analyst) {
+        payload.assigned_analyst = null
+      }
+
+      await updateProcess(process.id, payload)
 
       await createProcessLog({
         process: process.id,
@@ -223,7 +228,7 @@ export default function ProcessDetail() {
         to_status: 'Aguardando Análise',
         from_step: fromStep,
         to_step: 'Análise',
-        changed_by: user?.id,
+        changed_by: user?.id || null,
         note: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       })
 

@@ -14,6 +14,7 @@ import {
   ArrowRight,
   User,
   ClipboardCheck,
+  RefreshCcw,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -38,7 +39,12 @@ export default function CreditAnalysis() {
 
   const stats = {
     aguardando_conformidade: processes.filter((p) => !p.is_conformity_approved),
-    fila_analise: processes.filter((p) => p.is_conformity_approved && !p.result),
+    primeira_analise: processes.filter(
+      (p) => p.is_conformity_approved && !p.result && p.analysis_type === 'first_analysis',
+    ),
+    reavaliacao: processes.filter(
+      (p) => p.is_conformity_approved && !p.result && p.analysis_type === 'reevaluation',
+    ),
     approved: processes.filter((p) => p.result === 'approved'),
     rejected: processes.filter((p) => p.result === 'rejected'),
     conditioned: processes.filter((p) => p.result === 'conditioned'),
@@ -54,11 +60,18 @@ export default function CreditAnalysis() {
       icon: ClipboardCheck,
     },
     {
-      id: 'fila_analise',
-      label: 'Fila para Análise',
-      count: stats.fila_analise.length,
+      id: 'primeira_analise',
+      label: '1ª Análise',
+      count: stats.primeira_analise.length,
       color: 'bg-blue-100 text-blue-700',
       icon: Clock,
+    },
+    {
+      id: 'reavaliacao',
+      label: 'Reavaliação',
+      count: stats.reavaliacao.length,
+      color: 'bg-indigo-100 text-indigo-700',
+      icon: RefreshCcw,
     },
     {
       id: 'approved',
@@ -101,7 +114,7 @@ export default function CreditAnalysis() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
         {cards.map((c) => (
           <Card
             key={c.id}

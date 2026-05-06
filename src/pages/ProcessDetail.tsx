@@ -23,6 +23,8 @@ import {
   File as FileIcon,
   Link as LinkIcon,
   Loader2,
+  FileText,
+  RefreshCcw,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -210,7 +212,7 @@ export default function ProcessDetail() {
       await updateProcess(process.id, {
         is_conformity_approved: true,
         analysis_type: analysisType,
-        current_step: 'Conformidade',
+        current_step: 'Análise',
         assigned_analyst: '',
         status: 'Aguardando Análise',
       })
@@ -220,14 +222,14 @@ export default function ProcessDetail() {
         from_status: fromStatus,
         to_status: 'Aguardando Análise',
         from_step: fromStep,
-        to_step: 'Conformidade',
+        to_step: 'Análise',
         changed_by: user?.id,
         note: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       })
 
       setTriageDialog(false)
       toast({ title: 'Conformidade aprovada. Processo enviado para Fila de Análise.' })
-      loadData()
+      navigate('/credit-analysis')
     } catch (e) {
       toast({ title: 'Erro ao aprovar conformidade', variant: 'destructive' })
     } finally {
@@ -657,9 +659,7 @@ export default function ProcessDetail() {
             process.result !== 'rejected' &&
             (() => {
               const isCredit = process.type === 'credit'
-              const needsConformity =
-                isCredit &&
-                (!process.current_step || process.current_step.toLowerCase() === 'triagem')
+              const needsConformity = isCredit && !process.is_conformity_approved
               const inAnalysis =
                 isCredit &&
                 process.is_conformity_approved &&
@@ -683,17 +683,36 @@ export default function ProcessDetail() {
                             <DialogTitle>Dar Conformidade</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               <Label>Classificação da Análise</Label>
-                              <Select value={analysisType} onValueChange={setAnalysisType}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione a classificação" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="first_analysis">Primeira Análise</SelectItem>
-                                  <SelectItem value="reevaluation">Reavaliação</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <div className="grid grid-cols-2 gap-4">
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    'h-24 flex flex-col gap-2 border-2 transition-all',
+                                    analysisType === 'first_analysis'
+                                      ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                                      : 'bg-white hover:bg-slate-50 text-slate-800',
+                                  )}
+                                  onClick={() => setAnalysisType('first_analysis')}
+                                >
+                                  <FileText className="w-6 h-6" />
+                                  Primeira Análise
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    'h-24 flex flex-col gap-2 border-2 transition-all',
+                                    analysisType === 'reevaluation'
+                                      ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                                      : 'bg-white hover:bg-slate-50 text-slate-800',
+                                  )}
+                                  onClick={() => setAnalysisType('reevaluation')}
+                                >
+                                  <RefreshCcw className="w-6 h-6" />
+                                  Reavaliação
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           <DialogFooter>
@@ -706,7 +725,7 @@ export default function ProcessDetail() {
                             </Button>
                             <Button
                               onClick={handleConformityApproval}
-                              disabled={isLoadingConformity}
+                              disabled={isLoadingConformity || !analysisType}
                             >
                               {isLoadingConformity ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -22,20 +22,40 @@ export function useRealtime(
     let unsubscribeFn: (() => Promise<void>) | undefined
     let cancelled = false
 
-    pb.collection(collectionName)
-      .subscribe('*', (e) => {
-        callbackRef.current(e)
-      })
-      .then((fn) => {
+    let retryTimeout: ReturnType<typeof setTimeout>
+
+    const subscribe = async () => {
+      try {
+        // Subscribe initiates the SSE connection if not active.
+        // It waits for a valid client ID implicitly.
+        const fn = await pb.collection(collectionName).subscribe('*', (e) => {
+          callbackRef.current(e)
+        })
+
         if (cancelled) {
           fn().catch(() => {})
         } else {
           unsubscribeFn = fn
         }
-      })
+      } catch (err: any) {
+        if (cancelled) return
+
+        // Handle "Missing or invalid client id" by retrying.
+        // This ensures the application verifies and waits for a valid
+        // real-time connection ID before establishing the subscription.
+        console.warn(
+          `[useRealtime] Failed to subscribe to ${collectionName}, retrying in 2s...`,
+          err,
+        )
+        retryTimeout = setTimeout(subscribe, 2000)
+      }
+    }
+
+    subscribe()
 
     return () => {
       cancelled = true
+      clearTimeout(retryTimeout)
       if (unsubscribeFn) {
         unsubscribeFn().catch(() => {})
       }

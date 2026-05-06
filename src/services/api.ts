@@ -12,6 +12,8 @@ export const getProcess = (id: string) =>
       'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
   })
 
+export const resetSystemData = () => pb.send('/backend/v1/system/reset', { method: 'POST' })
+
 export const getCreditAnalysisTypes = () =>
   pb.collection('credit_analysis_types').getFullList({ sort: '-created' })
 export const createCreditAnalysisType = (data: any) =>

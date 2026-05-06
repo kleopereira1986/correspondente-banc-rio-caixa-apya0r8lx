@@ -197,7 +197,7 @@ export default function ProcessDetail() {
     }
   }
 
-  const handleConformityApproval = async () => {
+  const handleTriageApproval = async () => {
     if (!process) return
     if (!analysisType) {
       toast({ title: 'Selecione a classificação da análise', variant: 'destructive' })
@@ -207,7 +207,7 @@ export default function ProcessDetail() {
     setIsLoadingConformity(true)
     try {
       const fromStatus = process.status || 'Início'
-      const fromStep = process.current_step || 'Triagem'
+      const fromStep = process.current_step || 'Recepção'
 
       const payload: any = {
         is_conformity_approved: true,
@@ -217,7 +217,7 @@ export default function ProcessDetail() {
       }
 
       if (process.assigned_analyst) {
-        payload.assigned_analyst = ''
+        payload.assigned_analyst = null
       }
 
       await updateProcess(process.id, payload)
@@ -233,10 +233,9 @@ export default function ProcessDetail() {
       })
 
       setTriageDialog(false)
-      toast({ title: 'Conformidade aprovada. Processo enviado para Fila de Análise.' })
-      navigate('/credit-analysis')
+      toast({ title: 'Triagem aprovada. Processo enviado para Fila de Análise.' })
     } catch (e) {
-      toast({ title: 'Erro ao aprovar conformidade', variant: 'destructive' })
+      toast({ title: 'Erro ao aprovar triagem', variant: 'destructive' })
     } finally {
       setIsLoadingConformity(false)
     }
@@ -476,10 +475,10 @@ export default function ProcessDetail() {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
   const creditSteps = [
-    { id: 1, name: 'Triagem', active: true, completed: !!process.analysis_type },
+    { id: 1, name: 'Recepção', active: true, completed: !!process.analysis_type },
     {
       id: 2,
-      name: 'Conformidade',
+      name: 'Triagem',
       active: !!process.analysis_type,
       completed: process.is_conformity_approved,
     },
@@ -520,8 +519,8 @@ export default function ProcessDetail() {
     },
     {
       id: 3,
-      name: 'Conformidade',
-      active: process.current_step === 'Conformidade' || process.status === 'Concluído',
+      name: 'Triagem',
+      active: process.current_step === 'Triagem' || process.status === 'Concluído',
       completed: process.status === 'Concluído',
     },
   ]
@@ -664,7 +663,7 @@ export default function ProcessDetail() {
             process.result !== 'rejected' &&
             (() => {
               const isCredit = process.type === 'credit'
-              const needsConformity = isCredit && !process.is_conformity_approved
+              const needsTriage = isCredit && !process.is_conformity_approved
               const inAnalysis =
                 isCredit &&
                 process.is_conformity_approved &&
@@ -676,16 +675,16 @@ export default function ProcessDetail() {
                     <CardTitle className="text-lg">Ações do Analista</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {needsConformity ? (
+                    {needsTriage ? (
                       <Dialog open={triageDialog} onOpenChange={setTriageDialog}>
                         <DialogTrigger asChild>
                           <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                            <CheckCircle2 className="w-4 h-4 mr-2" /> Dar Conformidade
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Aprovar Triagem
                           </Button>
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Dar Conformidade</DialogTitle>
+                            <DialogTitle>Aprovar Triagem</DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <div className="space-y-3">
@@ -729,7 +728,7 @@ export default function ProcessDetail() {
                               Cancelar
                             </Button>
                             <Button
-                              onClick={handleConformityApproval}
+                              onClick={handleTriageApproval}
                               disabled={isLoadingConformity || !analysisType}
                             >
                               {isLoadingConformity ? (

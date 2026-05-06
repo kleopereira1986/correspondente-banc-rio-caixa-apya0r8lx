@@ -13,7 +13,9 @@ import {
   User,
   ClipboardCheck,
   RefreshCcw,
+  Edit,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function CreditAnalysis() {
   const [processes, setProcesses] = useState<any[]>([])
@@ -39,13 +41,37 @@ export default function CreditAnalysis() {
         !p.is_conformity_approved &&
         p.status !== 'Concluído' &&
         p.result !== 'approved' &&
-        p.result !== 'rejected',
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
+    ),
+    cadastramento: processes.filter(
+      (p) =>
+        p.is_conformity_approved &&
+        p.current_step === 'Cadastramento' &&
+        p.status !== 'Concluído' &&
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
     ),
     primeira_analise: processes.filter(
-      (p) => p.is_conformity_approved && !p.result && p.analysis_type === 'first_analysis',
+      (p) =>
+        p.is_conformity_approved &&
+        p.current_step !== 'Cadastramento' &&
+        p.analysis_type === 'first_analysis' &&
+        p.status !== 'Concluído' &&
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
     ),
     reavaliacao: processes.filter(
-      (p) => p.is_conformity_approved && !p.result && p.analysis_type === 'reevaluation',
+      (p) =>
+        p.is_conformity_approved &&
+        p.current_step !== 'Cadastramento' &&
+        p.analysis_type === 'reevaluation' &&
+        p.status !== 'Concluído' &&
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
     ),
   }
 
@@ -85,6 +111,25 @@ export default function CreditAnalysis() {
                   <Badge variant="outline" className="font-normal text-[10px] bg-slate-50">
                     {proc.expand?.credit_analysis_type?.name || 'Crédito'}
                   </Badge>
+                  {proc.analysis_type && (
+                    <Badge
+                      variant="secondary"
+                      className="font-normal text-[10px] bg-slate-100 text-slate-700"
+                    >
+                      {proc.analysis_type === 'first_analysis' ? '1ª Análise' : 'Reavaliação'}
+                    </Badge>
+                  )}
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'font-normal text-[10px]',
+                      proc.status === 'Pendência'
+                        ? 'bg-secondary text-white border-transparent'
+                        : 'bg-slate-50',
+                    )}
+                  >
+                    {proc.status}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -109,7 +154,7 @@ export default function CreditAnalysis() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="border-2 border-slate-200">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-slate-100 text-slate-700">
@@ -117,6 +162,15 @@ export default function CreditAnalysis() {
             </div>
             <p className="font-semibold text-slate-700 text-sm mt-1">Aguardando Triagem</p>
             <p className="text-2xl font-bold text-slate-900">{stats.triagem.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+          <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+            <div className="p-3 rounded-full bg-emerald-100 text-emerald-700">
+              <Edit className="w-5 h-5" />
+            </div>
+            <p className="font-semibold text-emerald-800 text-sm mt-1">Cadastramento</p>
+            <p className="text-2xl font-bold text-emerald-900">{stats.cadastramento.length}</p>
           </CardContent>
         </Card>
         <Card className="border-2 border-blue-200 bg-blue-50/50">
@@ -139,7 +193,18 @@ export default function CreditAnalysis() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
+        <Card className="shadow-sm border-emerald-200 h-full flex flex-col">
+          <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
+            <CardTitle className="text-lg text-emerald-800 flex items-center gap-2">
+              <Edit className="w-5 h-5" /> Fila: Cadastramento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 flex-1">
+            {renderProcessList(stats.cadastramento, 'Nenhum processo na fila de Cadastramento.')}
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm border-blue-200 h-full flex flex-col">
           <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
             <CardTitle className="text-lg text-blue-800 flex items-center gap-2">

@@ -151,7 +151,7 @@ export default function ProcessDetail() {
   useRealtime('rejection_reasons', () => loadData())
 
   const handleAction = async (
-    action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency',
+    action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency' | 'send_to_analysis',
   ) => {
     if (!process) return
     try {
@@ -176,20 +176,36 @@ export default function ProcessDetail() {
         })
         toast({ title: 'Processo Iniciado' })
       } else if (action === 'claim') {
+        const newStatus =
+          process.current_step === 'Cadastramento' || process.status === 'Aguardando Cadastramento'
+            ? 'Em Cadastramento'
+            : 'Em Análise'
+        const newStep = process.current_step || 'Análise'
         await updateProcess(process.id, {
           assigned_analyst: user?.id,
-          status: 'Em Análise',
-          current_step: 'Análise',
+          status: newStatus,
+          current_step: newStep,
         })
         toast({ title: 'Processo Assumido' })
       } else if (action === 'transfer') {
         if (!transferAnalyst) return
+        const newStatus =
+          process.current_step === 'Cadastramento' || process.status === 'Aguardando Cadastramento'
+            ? 'Em Cadastramento'
+            : 'Em Análise'
+        const newStep = process.current_step || 'Análise'
         await updateProcess(process.id, {
           assigned_analyst: transferAnalyst,
-          status: 'Em Análise',
-          current_step: 'Análise',
+          status: newStatus,
+          current_step: newStep,
         })
         toast({ title: 'Processo Transferido' })
+      } else if (action === 'send_to_analysis') {
+        await updateProcess(process.id, {
+          status: 'Aguardando Análise',
+          current_step: 'Análise',
+        })
+        toast({ title: 'Enviado para Análise' })
       }
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
@@ -211,8 +227,8 @@ export default function ProcessDetail() {
       const payload: any = {
         is_conformity_approved: true,
         analysis_type: analysisType,
-        current_step: 'Análise',
-        status: 'Aguardando Análise',
+        current_step: 'Cadastramento',
+        status: 'Aguardando Cadastramento',
         observations: `Triagem concluída como ${analysisType === 'first_analysis' ? 'Primeira Análise' : 'Reavaliação'}`,
       }
 
@@ -223,7 +239,7 @@ export default function ProcessDetail() {
       await updateProcess(process.id, payload)
 
       setTriageDialog(false)
-      toast({ title: 'Triagem aprovada. Processo enviado para Fila de Análise.' })
+      toast({ title: 'Triagem aprovada. Processo enviado para Fila de Cadastramento.' })
     } catch (e) {
       toast({ title: 'Erro ao aprovar triagem', variant: 'destructive' })
     } finally {
@@ -465,24 +481,47 @@ export default function ProcessDetail() {
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
   const creditSteps = [
-    { id: 1, name: 'Recepção', active: true, completed: !!process.analysis_type },
+    {
+      id: 1,
+      name: 'Recepção',
+      active: true,
+      completed: !!process.analysis_type || process.is_conformity_approved,
+    },
     {
       id: 2,
       name: 'Triagem',
-      active: !!process.analysis_type,
+      active: true,
       completed: process.is_conformity_approved,
     },
     {
       id: 3,
-      name: 'Análise',
+      name: 'Cadastramento',
       active: process.is_conformity_approved,
       completed:
+        process.current_step === 'Análise' ||
+        process.current_step === 'Decisão' ||
+        process.current_step === 'Aprovado' ||
         process.result === 'approved' ||
         process.result === 'rejected' ||
         process.result === 'conditioned',
     },
     {
       id: 4,
+      name: 'Análise',
+      active:
+        process.current_step === 'Análise' ||
+        process.current_step === 'Decisão' ||
+        process.current_step === 'Aprovado' ||
+        process.result === 'approved' ||
+        process.result === 'rejected' ||
+        process.result === 'conditioned',
+      completed:
+        process.result === 'approved' ||
+        process.result === 'rejected' ||
+        process.result === 'conditioned',
+    },
+    {
+      id: 5,
       name: 'Decisão',
       active:
         process.result === 'approved' ||
@@ -654,9 +693,18 @@ export default function ProcessDetail() {
             (() => {
               const isCredit = process.type === 'credit'
               const needsTriage = isCredit && !process.is_conformity_approved
+              const inCadastramento =
+                isCredit &&
+                process.is_conformity_approved &&
+                (process.current_step === 'Cadastramento' ||
+                  process.status === 'Aguardando Cadastramento' ||
+                  process.status === 'Em Cadastramento')
               const inAnalysis =
                 isCredit &&
                 process.is_conformity_approved &&
+                (process.current_step === 'Análise' ||
+                  process.status === 'Aguardando Análise' ||
+                  process.status === 'Em Análise') &&
                 (!process.result || process.result === 'pending')
 
               return (
@@ -730,7 +778,7 @@ export default function ProcessDetail() {
                         </DialogContent>
                       </Dialog>
                     ) : !process.assigned_analyst ? (
-                      inAnalysis || !isCredit ? (
+                      inCadastramento || inAnalysis || !isCredit ? (
                         <Button className="w-full" onClick={() => handleAction('claim')}>
                           Assumir Processo
                         </Button>
@@ -756,6 +804,15 @@ export default function ProcessDetail() {
                         </div>
                         <hr className="my-2" />
 
+                        {inCadastramento && (
+                          <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => handleAction('send_to_analysis')}
+                          >
+                            <ArrowRight className="w-4 h-4 mr-2" /> Enviar para Análise
+                          </Button>
+                        )}
+
                         {(inAnalysis || !isCredit) && (
                           <>
                             <Button
@@ -772,47 +829,52 @@ export default function ProcessDetail() {
                             >
                               <AlertTriangle className="w-4 h-4 mr-2" /> Aprovação Condicionada
                             </Button>
-
-                            <Dialog
-                              open={isPendencyDialogOpen}
-                              onOpenChange={setIsPendencyDialogOpen}
-                            >
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
-                                >
-                                  <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
-                                </Button>
-                              </DialogTrigger>{' '}
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
-                                </DialogHeader>
-                                <Textarea
-                                  placeholder="Descreva a pendência..."
-                                  value={pendencyReason}
-                                  onChange={(e) => setPendencyReason(e.target.value)}
-                                  className="min-h-[100px]"
-                                />
-                                <DialogFooter>
-                                  <Button onClick={() => handleAction('pendency')}>Enviar</Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-
-                            <Button
-                              variant="ghost"
-                              className="w-full text-destructive hover:bg-destructive/10"
-                              onClick={() => setRejectDialog(true)}
-                            >
-                              <XCircle className="w-4 h-4 mr-2" /> Reprovar
-                            </Button>
                           </>
                         )}
+
+                        {(inCadastramento || inAnalysis || !isCredit) && (
+                          <Dialog
+                            open={isPendencyDialogOpen}
+                            onOpenChange={setIsPendencyDialogOpen}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
+                              >
+                                <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
+                              </DialogHeader>
+                              <Textarea
+                                placeholder="Descreva a pendência..."
+                                value={pendencyReason}
+                                onChange={(e) => setPendencyReason(e.target.value)}
+                                className="min-h-[100px]"
+                              />
+                              <DialogFooter>
+                                <Button onClick={() => handleAction('pendency')}>Enviar</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+
+                        {(inAnalysis || !isCredit) && (
+                          <Button
+                            variant="ghost"
+                            className="w-full text-destructive hover:bg-destructive/10"
+                            onClick={() => setRejectDialog(true)}
+                          >
+                            <XCircle className="w-4 h-4 mr-2" /> Reprovar
+                          </Button>
+                        )}
+
                         <Button
                           variant="ghost"
-                          className="w-full text-blue-600 hover:bg-blue-50"
+                          className="w-full text-blue-600 hover:bg-blue-50 mt-2"
                           onClick={() => handleAction('start')}
                         >
                           <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Iniciado

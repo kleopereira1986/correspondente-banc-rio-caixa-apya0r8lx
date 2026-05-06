@@ -78,7 +78,10 @@ export default function ProcessDetail() {
     conditioning_reason: '',
     conditioned_installment_value: '',
     rejection_reason: '',
+    federal_subsidy: '',
+    amortization_system: '',
   })
+  const [approvalFile, setApprovalFile] = useState<File | null>(null)
 
   const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({})
 
@@ -127,7 +130,9 @@ export default function ProcessDetail() {
   useRealtime('credit_document_types', () => loadData())
   useRealtime('process_logs', () => loadData())
 
-  const handleAction = async (action: 'pendency' | 'transfer' | 'claim' | 'start') => {
+  const handleAction = async (
+    action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency',
+  ) => {
     if (!process) return
     try {
       if (action === 'pendency') {
@@ -138,6 +143,13 @@ export default function ProcessDetail() {
         })
         toast({ title: 'Pendência Solicitada' })
         setIsPendencyDialogOpen(false)
+      } else if (action === 'resolve_pendency') {
+        await updateProcess(process.id, {
+          result: 'pending',
+          status: 'Aguardando Conferência',
+          observations: 'Pendência resolvida pelo corretor/cliente',
+        })
+        toast({ title: 'Pendência Marcada como Resolvida' })
       } else if (action === 'start') {
         await updateProcess(process.id, {
           status: 'Processo Iniciado',
@@ -167,20 +179,31 @@ export default function ProcessDetail() {
   const handleDecision = async (action: 'approve' | 'condition' | 'reject') => {
     if (!process) return
     try {
-      const basePayload = {
+      const basePayload: any = {
         status: action === 'condition' ? 'Condicionado' : 'Concluído',
-        current_step: 'Decisão',
+        current_step: action === 'approve' ? 'Aprovado' : 'Decisão',
       }
 
       if (action === 'approve') {
-        await updateProcess(process.id, {
-          ...basePayload,
-          result: 'approved',
-          approved_financing_value: Number(decisionForm.approved_financing_value),
-          approved_installment_value: Number(decisionForm.approved_installment_value),
-          evaluation_expiry_date: decisionForm.evaluation_expiry_date,
-          additional_details: decisionForm.additional_details,
-        })
+        const formData = new FormData()
+        formData.append('status', basePayload.status)
+        formData.append('current_step', basePayload.current_step)
+        formData.append('result', 'approved')
+        formData.append('approved_financing_value', decisionForm.approved_financing_value)
+        formData.append('approved_installment_value', decisionForm.approved_installment_value)
+        formData.append('evaluation_expiry_date', decisionForm.evaluation_expiry_date)
+        formData.append('additional_details', decisionForm.additional_details)
+        if (decisionForm.federal_subsidy) {
+          formData.append('federal_subsidy', decisionForm.federal_subsidy)
+        }
+        if (decisionForm.amortization_system) {
+          formData.append('amortization_system', decisionForm.amortization_system)
+        }
+        if (approvalFile) {
+          formData.append('approval_file', approvalFile)
+        }
+
+        await updateProcess(process.id, formData)
         setApproveDialog(false)
         toast({ title: 'Processo Aprovado' })
       } else if (action === 'condition') {
@@ -242,6 +265,23 @@ export default function ProcessDetail() {
       })
     } finally {
       setUploadingSlots((prev) => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const handleUpdateDocStatus = async (docId: string, status: string) => {
+    try {
+      setUploadingSlots((prev) => ({ ...prev, [docId + '-status']: true }))
+      await updateDocument(docId, { status })
+      toast({ title: 'Status do documento atualizado' })
+      loadData()
+    } catch (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o status.',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploadingSlots((prev) => ({ ...prev, [docId + '-status']: false }))
     }
   }
 
@@ -467,12 +507,21 @@ export default function ProcessDetail() {
       </div>
 
       {process.status === 'Pendência' && !isAnalyst && (
-        <div className="bg-secondary/10 border-l-4 border-secondary p-4 rounded-md flex items-start gap-3">
-          <AlertTriangle className="text-secondary w-5 h-5 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-secondary">Ação Necessária</h4>
-            <p className="text-sm text-slate-700 mt-1">{process.observations}</p>
+        <div className="bg-secondary/10 border-l-4 border-secondary p-4 rounded-md flex items-start gap-3 justify-between">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="text-secondary w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-semibold text-secondary">Ação Necessária</h4>
+              <p className="text-sm text-slate-700 mt-1">{process.observations}</p>
+            </div>
           </div>
+          <Button
+            onClick={() => handleAction('resolve_pendency')}
+            variant="default"
+            className="shrink-0 bg-secondary hover:bg-secondary/90"
+          >
+            Pendência Resolvida
+          </Button>
         </div>
       )}
 
@@ -618,26 +667,55 @@ export default function ProcessDetail() {
                 Histórico de Alterações
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 max-h-64 overflow-y-auto">
+            <CardContent className="pt-4 max-h-96 overflow-y-auto">
               <div className="space-y-4">
-                {logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="text-sm border-l-2 border-primary pl-3 pb-2 relative"
-                  >
-                    <div className="absolute -left-[5px] top-1 w-2 h-2 bg-primary rounded-full"></div>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(log.created).toLocaleString('pt-BR')}
-                    </p>
-                    <p className="font-medium text-slate-800">
-                      {log.from_step || 'Início'} ➔ {log.to_step}
-                    </p>
-                    {log.note && <p className="text-xs text-slate-600 mt-1 italic">"{log.note}"</p>}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Por: {log.expand?.changed_by?.name || 'Sistema'}
-                    </p>
-                  </div>
-                ))}
+                {logs.map((log, index) => {
+                  let durationStr = ''
+                  if (log.from_status === 'Pendência' && index > 0) {
+                    const prevLog = logs.findLast(
+                      (l, i) => i < index && l.to_status === 'Pendência',
+                    )
+                    if (prevLog) {
+                      const diffHours = Math.round(
+                        (new Date(log.created).getTime() - new Date(prevLog.created).getTime()) /
+                          (1000 * 60 * 60),
+                      )
+                      durationStr =
+                        diffHours > 24
+                          ? `(Resolvido em ${Math.floor(diffHours / 24)} dias)`
+                          : `(Resolvido em ${diffHours}h)`
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="text-sm border-l-2 border-primary pl-4 pb-4 relative last:pb-0"
+                    >
+                      <div className="absolute -left-[5px] top-1 w-2 h-2 bg-primary rounded-full ring-4 ring-white"></div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        {new Date(log.created).toLocaleString('pt-BR')}{' '}
+                        {durationStr && <span className="text-amber-600 ml-1">{durationStr}</span>}
+                      </p>
+                      <p className="font-medium text-slate-800 mt-1">
+                        {log.from_status !== log.to_status
+                          ? `${log.from_status || 'Início'} ➔ ${log.to_status}`
+                          : `${log.from_step || 'Início'} ➔ ${log.to_step}`}
+                      </p>
+                      {log.note && (
+                        <p className="text-xs text-slate-600 mt-1 italic bg-slate-100 p-2 rounded">
+                          "{log.note}"
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Por:{' '}
+                        <span className="font-medium">
+                          {log.expand?.changed_by?.name || 'Sistema'}
+                        </span>
+                      </p>
+                    </div>
+                  )
+                })}
                 {logs.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center">
                     Nenhum histórico registrado.
@@ -677,6 +755,41 @@ export default function ProcessDetail() {
                         {formatDate(process.evaluation_expiry_date)}
                       </span>
                     </div>
+                    {process.federal_subsidy > 0 && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">
+                          Subsídio Federal
+                        </span>
+                        <span className="font-medium text-emerald-600">
+                          {formatCurrency(process.federal_subsidy)}
+                        </span>
+                      </div>
+                    )}
+                    {process.amortization_system && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">
+                          Sistema de Amortização
+                        </span>
+                        <span className="font-medium text-slate-800">
+                          {process.amortization_system}
+                        </span>
+                      </div>
+                    )}
+                    {process.approval_file && (
+                      <div>
+                        <span className="text-muted-foreground block text-xs">
+                          Arquivo de Aprovação
+                        </span>
+                        <a
+                          href={pb.files.getURL(process, process.approval_file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline inline-flex items-center text-sm font-medium mt-1"
+                        >
+                          <FileIcon className="w-4 h-4 mr-1" /> Baixar Documento
+                        </a>
+                      </div>
+                    )}
                     {process.additional_details && (
                       <div>
                         <span className="text-muted-foreground block text-xs">
@@ -913,13 +1026,55 @@ export default function ProcessDetail() {
                                 {slotName}
                               </p>
                               {doc && (
-                                <p className="text-xs text-muted-foreground truncate">Enviado</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      'text-[10px] px-1.5 py-0 border-none font-medium',
+                                      doc.status === 'approved'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : doc.status === 'rejected'
+                                          ? 'bg-red-100 text-red-700'
+                                          : 'bg-amber-100 text-amber-700',
+                                    )}
+                                  >
+                                    {doc.status === 'approved'
+                                      ? 'Aprovado'
+                                      : doc.status === 'rejected'
+                                        ? 'Reprovado'
+                                        : 'Em Análise'}
+                                  </Badge>
+                                </div>
                               )}
                             </div>
                           </div>
                           <div className="shrink-0 ml-2 flex items-center gap-1">
                             {doc ? (
                               <>
+                                {isAnalyst && doc.status !== 'approved' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-emerald-600 h-8 w-8"
+                                    onClick={() => handleUpdateDocStatus(doc.id, 'approved')}
+                                    disabled={uploadingSlots[doc.id + '-status']}
+                                    title="Aprovar documento"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                {isAnalyst && doc.status !== 'rejected' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-600 h-8 w-8"
+                                    onClick={() => handleUpdateDocStatus(doc.id, 'rejected')}
+                                    disabled={uploadingSlots[doc.id + '-status']}
+                                    title="Reprovar documento"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </Button>
+                                )}
                                 <a
                                   href={pb.files.getURL(doc, doc.file)}
                                   target="_blank"
@@ -1024,18 +1179,63 @@ export default function ProcessDetail() {
                               <FileIcon className="w-5 h-5" />
                             </div>
                             <div>
-                              <p className="font-medium text-sm text-slate-800">{doc.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm text-slate-800">{doc.name}</p>
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[10px] px-1.5 py-0 border-none font-medium',
+                                    doc.status === 'approved'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : doc.status === 'rejected'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-amber-100 text-amber-700',
+                                  )}
+                                >
+                                  {doc.status === 'approved'
+                                    ? 'Aprovado'
+                                    : doc.status === 'rejected'
+                                      ? 'Reprovado'
+                                      : 'Em Análise'}
+                                </Badge>
+                              </div>
                               <p className="text-xs text-muted-foreground">
                                 Enviado por {doc.expand?.uploaded_by?.name || '-'} em{' '}
                                 {new Date(doc.created).toLocaleDateString('pt-BR')}
                               </p>
                             </div>
                           </div>
-                          <a href={url} target="_blank" rel="noreferrer">
-                            <Button variant="ghost" size="icon">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          </a>
+                          <div className="flex items-center gap-1">
+                            {isAnalyst && doc.status !== 'approved' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-emerald-600 h-8 w-8"
+                                onClick={() => handleUpdateDocStatus(doc.id, 'approved')}
+                                disabled={uploadingSlots[doc.id + '-status']}
+                                title="Aprovar documento"
+                              >
+                                <CheckCircle2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                            {isAnalyst && doc.status !== 'rejected' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600 h-8 w-8"
+                                onClick={() => handleUpdateDocStatus(doc.id, 'rejected')}
+                                disabled={uploadingSlots[doc.id + '-status']}
+                                title="Reprovar documento"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <a href={url} target="_blank" rel="noreferrer">
+                              <Button variant="ghost" size="icon">
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </a>
+                          </div>
                         </div>
                       )
                     })}
@@ -1082,6 +1282,42 @@ export default function ProcessDetail() {
                 onChange={(e) =>
                   setDecisionForm({ ...decisionForm, evaluation_expiry_date: e.target.value })
                 }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Subsídio Federal (Opcional)</Label>
+              <Input
+                type="number"
+                placeholder="Ex: 15000"
+                value={decisionForm.federal_subsidy}
+                onChange={(e) =>
+                  setDecisionForm({ ...decisionForm, federal_subsidy: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Sistema de Amortização (Opcional)</Label>
+              <Select
+                value={decisionForm.amortization_system}
+                onValueChange={(val) =>
+                  setDecisionForm({ ...decisionForm, amortization_system: val })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PRICE">PRICE</SelectItem>
+                  <SelectItem value="SAC">SAC</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Arquivo de Aprovação (Opcional)</Label>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setApprovalFile(e.target.files?.[0] || null)}
               />
             </div>
             <div className="space-y-2">

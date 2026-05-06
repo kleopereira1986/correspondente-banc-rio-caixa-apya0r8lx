@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T01:05:55.072Z",
+  "generatedAt": "2026-05-06T02:19:16.836Z",
   "collections": [
     {
       "name": "users",
@@ -263,6 +263,25 @@
         {
           "name": "housing_finalized_at",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "federal_subsidy",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "amortization_system",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PRICE", "SAC"]
+        },
+        {
+          "name": "approval_file",
+          "type": "file",
           "required": false,
           "system": false
         }

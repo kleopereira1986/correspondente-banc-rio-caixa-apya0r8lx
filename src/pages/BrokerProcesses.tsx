@@ -526,7 +526,15 @@ export default function BrokerProcesses() {
                     : '-'}
                 </TableCell>
                 <TableCell>{getStatusBadge(p.status)}</TableCell>
-                <TableCell>{p.current_step || '-'}</TableCell>
+                <TableCell>
+                  {p.result === 'approved' ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-none">
+                      APROVADO
+                    </Badge>
+                  ) : (
+                    p.current_step || '-'
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
                     {p.type === 'credit' && p.result === 'approved' && (

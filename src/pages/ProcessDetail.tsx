@@ -828,7 +828,7 @@ export default function ProcessDetail() {
                   </CardContent>
                 </Card>
               )
-            })}
+            })()}
 
           <Card className="shadow-sm border-border/50 bg-slate-50">
             <CardHeader className="pb-4 border-b border-border/50">

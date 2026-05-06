@@ -57,8 +57,11 @@ export const deleteCreditDocumentType = (id: string) =>
   pb.collection('credit_document_types').delete(id)
 
 export const createProcess = (data: any) => pb.collection('processes').create(data)
-export const getEngineeringRequests = () =>
-  pb.collection('engineering_requests').getFullList({ sort: '-created' })
+export const getEngineeringRequests = (filterStr?: string) => {
+  const options: any = { sort: '-created' }
+  if (filterStr) options.filter = filterStr
+  return pb.collection('engineering_requests').getFullList(options)
+}
 export const createEngineeringRequest = (data: FormData) =>
   pb.collection('engineering_requests').create(data)
 export const updateEngineeringRequest = (id: string, data: any) =>

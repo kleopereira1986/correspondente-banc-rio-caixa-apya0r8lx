@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T03:26:27.173Z",
+  "generatedAt": "2026-05-06T03:32:39.696Z",
   "collections": [
     {
       "name": "users",
@@ -873,7 +873,12 @@
           "system": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE INDEX `idx_eng_req_requester` ON `engineering_requests` (requester_name)",
+        "CREATE INDEX `idx_eng_req_reg_num` ON `engineering_requests` (registration_number)",
+        "CREATE INDEX `idx_eng_req_engineer` ON `engineering_requests` (engineer_name)",
+        "CREATE INDEX `idx_eng_req_created` ON `engineering_requests` (created)"
+      ]
     },
     {
       "name": "engineering_logs",

@@ -41,13 +41,25 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import { useToast } from '@/hooks/use-toast'
-import { CopyIcon, Eye } from 'lucide-react'
+import { CopyIcon, Eye, Filter, Search, X, CalendarIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function EngineeringRequestsList() {
   const [requests, setRequests] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+
+  // Filter States
+  const [filterRequesterName, setFilterRequesterName] = useState('')
+  const [filterRequesterType, setFilterRequesterType] = useState('all')
+  const [filterEngineerName, setFilterEngineerName] = useState('')
+  const [filterRegistration, setFilterRegistration] = useState('')
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | undefined>()
+  const [filterDateTo, setFilterDateTo] = useState<Date | undefined>()
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   const [boletoDialogOpen, setBoletoDialogOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
@@ -65,10 +77,24 @@ export default function EngineeringRequestsList() {
   const [logs, setLogs] = useState<any[]>([])
   const [isLoadingLogs, setIsLoadingLogs] = useState(false)
 
-  const fetchRequests = async () => {
+  const loadData = async (filters: any) => {
     setIsLoading(true)
     try {
-      const data = await getEngineeringRequests()
+      const conditions = []
+      if (filters.reqName)
+        conditions.push(`requester_name ~ "${filters.reqName.replace(/"/g, '\\"')}"`)
+      if (filters.reqType && filters.reqType !== 'all')
+        conditions.push(`requester_type = "${filters.reqType}"`)
+      if (filters.engName)
+        conditions.push(`engineer_name ~ "${filters.engName.replace(/"/g, '\\"')}"`)
+      if (filters.regNum)
+        conditions.push(`registration_number ~ "${filters.regNum.replace(/"/g, '\\"')}"`)
+      if (filters.dFrom)
+        conditions.push(`created >= "${format(filters.dFrom, 'yyyy-MM-dd')} 00:00:00"`)
+      if (filters.dTo) conditions.push(`created <= "${format(filters.dTo, 'yyyy-MM-dd')} 23:59:59"`)
+
+      const filterStr = conditions.join(' && ')
+      const data = await getEngineeringRequests(filterStr)
       setRequests(data)
     } catch (error) {
       console.error('Error fetching engineering requests:', error)
@@ -77,9 +103,29 @@ export default function EngineeringRequestsList() {
     }
   }
 
+  const fetchRequests = () =>
+    loadData({
+      reqName: filterRequesterName,
+      reqType: filterRequesterType,
+      engName: filterEngineerName,
+      regNum: filterRegistration,
+      dFrom: filterDateFrom,
+      dTo: filterDateTo,
+    })
+
   useEffect(() => {
     fetchRequests()
   }, [])
+
+  const handleClearFilters = () => {
+    setFilterRequesterName('')
+    setFilterRequesterType('all')
+    setFilterEngineerName('')
+    setFilterRegistration('')
+    setFilterDateFrom(undefined)
+    setFilterDateTo(undefined)
+    loadData({ reqType: 'all' })
+  }
 
   const handleStartAnalysis = async (id: string) => {
     try {
@@ -205,6 +251,136 @@ export default function EngineeringRequestsList() {
         </p>
       </div>
 
+      <Card className="bg-slate-50/50">
+        <CardHeader className="py-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="w-5 h-5 text-slate-500" />
+              Filtros de Busca
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setIsFilterOpen(!isFilterOpen)}>
+              {isFilterOpen ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+            </Button>
+          </div>
+        </CardHeader>
+        {isFilterOpen && (
+          <CardContent className="space-y-4 pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Nome do Solicitante</Label>
+                <Input
+                  placeholder="Ex: João da Silva"
+                  value={filterRequesterName}
+                  onChange={(e) => setFilterRequesterName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchRequests()}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tipo de Solicitante</Label>
+                <Select value={filterRequesterType} onValueChange={setFilterRequesterType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="Construtora">Construtora</SelectItem>
+                    <SelectItem value="Parceiro Corretor">Parceiro Corretor</SelectItem>
+                    <SelectItem value="Comprador">Comprador</SelectItem>
+                    <SelectItem value="Vendedor PF">Vendedor PF</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Nome da Empresa/Engenheiro</Label>
+                <Input
+                  placeholder="Ex: Engenharia XYZ"
+                  value={filterEngineerName}
+                  onChange={(e) => setFilterEngineerName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchRequests()}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Matrícula do Imóvel</Label>
+                <Input
+                  placeholder="Ex: 12345"
+                  value={filterRegistration}
+                  onChange={(e) => setFilterRegistration(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchRequests()}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data Inicial (Criação)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !filterDateFrom && 'text-muted-foreground',
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateFrom ? (
+                        format(filterDateFrom, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Selecione...</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateFrom}
+                      onSelect={setFilterDateFrom}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Data Final (Criação)</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'w-full justify-start text-left font-normal',
+                        !filterDateTo && 'text-muted-foreground',
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filterDateTo ? (
+                        format(filterDateTo, 'dd/MM/yyyy')
+                      ) : (
+                        <span>Selecione...</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={filterDateTo}
+                      onSelect={setFilterDateTo}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={handleClearFilters}>
+                <X className="w-4 h-4 mr-2" />
+                Limpar Filtros
+              </Button>
+              <Button onClick={fetchRequests}>
+                <Search className="w-4 h-4 mr-2" />
+                Buscar
+              </Button>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       <Card>
         <CardHeader className="pb-4">
           <CardTitle>Lista de Solicitações</CardTitle>
@@ -246,6 +422,11 @@ export default function EngineeringRequestsList() {
                           <span className="block text-xs text-muted-foreground">
                             {req.requester_cpf}
                           </span>
+                        )}
+                        {req.requester_type === 'Construtora' && (
+                          <Badge variant="outline" className="mt-1 text-[10px]">
+                            Construtora
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">

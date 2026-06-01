@@ -68,6 +68,13 @@ export const createEngineeringRequest = (data: FormData) =>
   pb.collection('engineering_requests').create(data)
 export const updateEngineeringRequest = (id: string, data: any) =>
   pb.collection('engineering_requests').update(id, data)
+export const extractRgData = (data: { fileBase64: string; mimeType: string }) =>
+  pb.send('/backend/v1/documentos/extrair-rg', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  })
+
 export const getEngineeringLogs = (requestId: string) =>
   pb.collection('engineering_logs').getFullList({
     filter: `request="${requestId}"`,

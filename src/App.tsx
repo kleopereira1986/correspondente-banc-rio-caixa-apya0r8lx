@@ -25,6 +25,7 @@ import PublicHousingStatus from './pages/PublicHousingStatus'
 import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
 import CreditAnalysis from './pages/CreditAnalysis'
 import TestingTools from './pages/TestingTools'
+import RgExtraction from './pages/RgExtraction'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/housing-kanban" element={<HousingKanban />} />
             <Route path="/engineering-request" element={<EngineeringRequest />} />
             <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />
+            <Route path="/emissao-ficha-rg" element={<RgExtraction />} />
             <Route path="/testing-tools" element={<TestingTools />} />
           </Route>
           <Route path="*" element={<NotFound />} />

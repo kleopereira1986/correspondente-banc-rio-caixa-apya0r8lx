@@ -38,6 +38,7 @@ import {
   Settings,
   HardHat,
   ClipboardCheck,
+  Scan,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -71,6 +72,7 @@ export default function Layout() {
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
       { title: 'Clientes', url: '#', icon: Users },
+      { title: 'Emissão via RG', url: '/emissao-ficha-rg', icon: Scan },
       { title: 'Solicitar Engenharia', url: '/engineering-request', icon: HardHat },
       { title: 'Processo Habitacional', url: '/housing-kanban', icon: LayoutDashboard },
       ...(user.role === 'master'

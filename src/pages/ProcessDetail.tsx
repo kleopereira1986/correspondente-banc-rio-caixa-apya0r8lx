@@ -99,7 +99,10 @@ export default function ProcessDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const p = await getProcess(id)
+      const p = await pb.collection('processes').getOne(id, {
+        expand:
+          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type',
+      })
       setProcess(p)
 
       // Carregar dependências separadamente para evitar falha geral
@@ -150,6 +153,7 @@ export default function ProcessDetail() {
   useRealtime('process_logs', () => loadData())
   useRealtime('conditioning_reasons', () => loadData())
   useRealtime('rejection_reasons', () => loadData())
+  useRealtime('users', () => loadData())
 
   const handleAction = async (
     action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency' | 'send_to_analysis',
@@ -1087,16 +1091,84 @@ export default function ProcessDetail() {
           )}
 
           <Card className="shadow-sm border-border/50">
-            <CardHeader className="pb-4 border-b border-border/50">
+            <CardHeader className="pb-4 border-b border-border/50 bg-slate-50/50">
               <CardTitle className="text-lg flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" /> Resumo da Operação
+                <FileText className="w-5 h-5 text-primary" /> Resumo da Operação
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 text-sm">
               <div className="divide-y divide-border/50">
+                <div className="p-4 bg-white">
+                  <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Dados do Financiamento
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Tipo de Avaliação</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.credit_analysis_type?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Tipo de Imóvel</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.property_type?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Empreendimento</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.development_type?.name || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Valor de Compra e Venda
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {formatCurrency(process.property_purchase_value)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Valor do Financiamento
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {formatCurrency(process.value)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Subsídio Federal</span>
+                      <span className="font-medium text-slate-800">
+                        {formatCurrency(process.federal_subsidy)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Sistema de Amortização
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.amortization_system || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Analista Atribuído
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.assigned_analyst?.name || 'Não atribuído'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="p-4 bg-slate-50/50">
-                  <h4 className="font-semibold text-slate-700 mb-3">Dados do Cliente</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    1º Proponente
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <span className="text-muted-foreground block text-xs">Nome</span>
                       <span className="font-medium text-slate-800">
@@ -1109,7 +1181,15 @@ export default function ProcessDetail() {
                         {process.expand?.buyer?.cpf || '-'}
                       </span>
                     </div>
-                    <div className="sm:col-span-2">
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Data de Nascimento
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {formatDate(process.expand?.buyer?.birth_date)}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground block text-xs">E-mail</span>
                       <span className="font-medium text-slate-800">
                         {process.expand?.buyer?.email || '-'}
@@ -1121,69 +1201,155 @@ export default function ProcessDetail() {
                         {process.expand?.buyer?.phone || '-'}
                       </span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Estado Civil</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.marital_status || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Renda Bruta</span>
+                      <span className="font-medium text-slate-800">
+                        {formatCurrency(process.expand?.buyer?.income)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Escolaridade</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.buyer?.education || '-'}
+                      </span>
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
+                      <div className="flex flex-col gap-1 bg-white p-2 rounded border">
+                        <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                          36 meses FGTS
+                        </span>
+                        <span className="font-semibold text-xs text-slate-800">
+                          {process.expand?.buyer?.work_history_36_months ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 bg-white p-2 rounded border">
+                        <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                          Possui Dependente
+                        </span>
+                        <span className="font-semibold text-xs text-slate-800">
+                          {process.expand?.buyer?.has_dependents ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 bg-white p-2 rounded border">
+                        <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                          Primeiro Imóvel
+                        </span>
+                        <span className="font-semibold text-xs text-slate-800">
+                          {process.expand?.buyer?.is_first_property ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-1 bg-white p-2 rounded border">
+                        <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                          Declara IR
+                        </span>
+                        <span className="font-semibold text-xs text-slate-800">
+                          {process.expand?.buyer?.declared_tax ? 'Sim' : 'Não'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="p-4 bg-white">
-                  <h4 className="font-semibold text-slate-700 mb-3">Dados da Operação</h4>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <span className="text-muted-foreground block text-xs">Tipo de Avaliação</span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.credit_analysis_type?.name || '-'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">Empreendimento</span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.development_type?.name || '-'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Possui 36 meses FGTS?
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.buyer?.work_history_36_months ? 'Sim' : 'Não'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Possui Dependente?
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.buyer?.has_dependents ? 'Sim' : 'Não'}
-                      </span>
-                    </div>
-                    {process.expand?.buyer?.has_dependents && (
+
+                {process.expand?.buyer_2 && (
+                  <div className="p-4 bg-white">
+                    <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                      2º Proponente
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Nome</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.name || '-'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">CPF</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.cpf || '-'}
+                        </span>
+                      </div>
                       <div>
                         <span className="text-muted-foreground block text-xs">
-                          Observação Dependente
+                          Data de Nascimento
                         </span>
                         <span className="font-medium text-slate-800">
-                          {process.expand?.buyer?.dependents_info || '-'}
+                          {formatDate(process.expand?.buyer_2?.birth_date)}
                         </span>
                       </div>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50/50">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <span className="text-muted-foreground block text-xs">Analista</span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.assigned_analyst?.name || 'Não atribuído'}
-                      </span>
-                    </div>
-                    {process.value > 0 && (
                       <div>
-                        <span className="text-muted-foreground block text-xs">Valor do Imóvel</span>
-                        <span className="font-medium text-emerald-600">
-                          {formatCurrency(process.value)}
+                        <span className="text-muted-foreground block text-xs">E-mail</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.email || '-'}
                         </span>
                       </div>
-                    )}
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Telefone</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.phone || '-'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Estado Civil</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.marital_status || '-'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Renda Bruta</span>
+                        <span className="font-medium text-slate-800">
+                          {formatCurrency(process.expand?.buyer_2?.income)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground block text-xs">Escolaridade</span>
+                        <span className="font-medium text-slate-800">
+                          {process.expand?.buyer_2?.education || '-'}
+                        </span>
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-2 sm:grid-cols-4 gap-4 mt-2">
+                        <div className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
+                          <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                            36 meses FGTS
+                          </span>
+                          <span className="font-semibold text-xs text-slate-800">
+                            {process.expand?.buyer_2?.work_history_36_months ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
+                          <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                            Possui Dependente
+                          </span>
+                          <span className="font-semibold text-xs text-slate-800">
+                            {process.expand?.buyer_2?.has_dependents ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
+                          <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                            Primeiro Imóvel
+                          </span>
+                          <span className="font-semibold text-xs text-slate-800">
+                            {process.expand?.buyer_2?.is_first_property ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
+                          <span className="text-muted-foreground text-[10px] uppercase leading-tight">
+                            Declara IR
+                          </span>
+                          <span className="font-semibold text-xs text-slate-800">
+                            {process.expand?.buyer_2?.declared_tax ? 'Sim' : 'Não'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

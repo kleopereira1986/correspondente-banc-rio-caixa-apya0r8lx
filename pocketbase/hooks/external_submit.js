@@ -1,31 +1,55 @@
-// @deps zod@3.23.8
 routerAdd('POST', '/backend/v1/external-submit', (e) => {
-  const { z } = require('zod')
   const body = e.requestInfo().body || {}
 
-  const schema = z.object({
-    name: z.string().min(1, 'Nome é obrigatório'),
-    email: z.string().email('Email inválido'),
-    cpf: z.string().min(11, 'CPF inválido'),
-    phone: z.string().min(10, 'Telefone inválido'),
-    marital_status: z.string().min(1, 'Estado civil é obrigatório'),
-    income: z.number().min(0, 'Renda inválida'),
-    has_dependents: z.boolean(),
-    work_history_36_months: z.boolean(),
-    broker: z.string().optional(),
-    type: z.enum(['credit', 'housing']).default('credit'),
-  })
+  const errors = {}
 
-  const result = schema.safeParse(body)
-  if (!result.success) {
-    const errors = {}
-    for (const issue of result.error.issues) {
-      errors[issue.path[0]] = new ValidationError(issue.code, issue.message)
-    }
+  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+    errors['name'] = new ValidationError('validation_required', 'Nome é obrigatório')
+  }
+
+  if (!body.email || typeof body.email !== 'string' || !/^\S+@\S+\.\S+$/.test(body.email)) {
+    errors['email'] = new ValidationError('validation_invalid_email', 'Email inválido')
+  }
+
+  if (!body.cpf || typeof body.cpf !== 'string' || body.cpf.length < 11) {
+    errors['cpf'] = new ValidationError('validation_invalid_cpf', 'CPF inválido')
+  }
+
+  if (!body.phone || typeof body.phone !== 'string' || body.phone.length < 10) {
+    errors['phone'] = new ValidationError('validation_invalid_phone', 'Telefone inválido')
+  }
+
+  if (
+    !body.marital_status ||
+    typeof body.marital_status !== 'string' ||
+    body.marital_status.trim() === ''
+  ) {
+    errors['marital_status'] = new ValidationError(
+      'validation_required',
+      'Estado civil é obrigatório',
+    )
+  }
+
+  if (typeof body.income !== 'number' || body.income < 0) {
+    errors['income'] = new ValidationError('validation_invalid_income', 'Renda inválida')
+  }
+
+  if (Object.keys(errors).length > 0) {
     throw new BadRequestError('Dados inválidos', errors)
   }
 
-  const data = result.data
+  const data = {
+    name: body.name,
+    email: body.email,
+    cpf: body.cpf,
+    phone: body.phone,
+    marital_status: body.marital_status,
+    income: body.income,
+    has_dependents: !!body.has_dependents,
+    work_history_36_months: !!body.work_history_36_months,
+    broker: body.broker,
+    type: body.type === 'housing' ? 'housing' : 'credit',
+  }
 
   let userRecord
   try {

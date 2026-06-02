@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-02T21:46:19.440Z",
+  "generatedAt": "2026-06-02T22:09:02.776Z",
   "collections": [
     {
       "name": "users",
@@ -93,6 +93,42 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "is_first_property",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "declared_tax",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "education",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "birth_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -106,7 +142,7 @@
       "apiRules": {
         "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
         "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
-        "create": "@request.auth.id != ''",
+        "create": "",
         "update": "",
         "delete": "@request.auth.role = 'master'"
       },
@@ -309,6 +345,19 @@
         {
           "name": "is_conformity_approved",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "buyer_2",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "property_purchase_value",
+          "type": "number",
           "required": false,
           "system": false
         }

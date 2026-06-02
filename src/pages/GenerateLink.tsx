@@ -16,10 +16,11 @@ import { toast } from 'sonner'
 
 export default function GenerateLink() {
   const { user } = useAuth()
-  const [type, setType] = useState('credit')
+  const [type, setType] = useState('credit-analysis')
+  const [correspondente, setCorrespondente] = useState('CAPITAL CREDITO')
   const [copied, setCopied] = useState(false)
 
-  const generatedLink = `${window.location.origin}/public/formulario?broker=${user?.id || ''}&type=${type}`
+  const generatedLink = `${window.location.origin}/formulario?correspondente=${encodeURIComponent(correspondente)}&usuario=${user?.id || ''}&form=${type}`
 
   const handleCopy = async () => {
     try {
@@ -67,17 +68,28 @@ export default function GenerateLink() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-3 max-w-sm">
-            <Label className="text-slate-700">Tipo de Processo</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="credit">Análise de Crédito</SelectItem>
-                <SelectItem value="housing">Processo Habitacional</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            <div className="space-y-3">
+              <Label className="text-slate-700">Nome do Correspondente</Label>
+              <Input
+                value={correspondente}
+                onChange={(e) => setCorrespondente(e.target.value)}
+                className="h-11"
+                placeholder="Ex: CAPITAL CREDITO"
+              />
+            </div>
+            <div className="space-y-3">
+              <Label className="text-slate-700">Formulário</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credit-analysis">Solicitação de Crédito</SelectItem>
+                  <SelectItem value="housing">Processo Habitacional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-100">

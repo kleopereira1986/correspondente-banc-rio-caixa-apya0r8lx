@@ -26,6 +26,8 @@ import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
 import CreditAnalysis from './pages/CreditAnalysis'
 import TestingTools from './pages/TestingTools'
 import RgExtraction from './pages/RgExtraction'
+import GenerateLink from './pages/GenerateLink'
+import PublicForm from './pages/PublicForm'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -38,6 +40,7 @@ const App = () => (
           <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
           <Route path="/consultar-engenharia/:id" element={<PublicEngineeringStatus />} />
           <Route path="/public/housing/:id" element={<PublicHousingStatus />} />
+          <Route path="/public/formulario" element={<PublicForm />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -56,6 +59,7 @@ const App = () => (
             <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />
             <Route path="/emissao-ficha-rg" element={<RgExtraction />} />
             <Route path="/testing-tools" element={<TestingTools />} />
+            <Route path="/gerar-link" element={<GenerateLink />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

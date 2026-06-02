@@ -39,6 +39,7 @@ import {
   HardHat,
   ClipboardCheck,
   Scan,
+  Link as LinkIcon,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -68,6 +69,7 @@ export default function Layout() {
   if (isInternal) {
     navItems = [
       { title: 'Painel de Controle', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Gerar Link', url: '/gerar-link', icon: LinkIcon },
       { title: 'Análise de Créditos', url: '/credit-analysis', icon: ClipboardCheck },
       { title: 'Processos', url: '/dashboard', icon: FolderOpen },
       { title: 'Tarefas', url: '/tasks', icon: FileText },
@@ -94,6 +96,7 @@ export default function Layout() {
   } else if (isBroker) {
     navItems = [
       { title: 'Painel do Corretor', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Gerar Link', url: '/gerar-link', icon: LinkIcon },
       { title: 'Minhas Solicitações', url: '/tasks', icon: FileText },
       { title: 'Meus Processos', url: '/broker-processes', icon: FolderOpen },
     ]

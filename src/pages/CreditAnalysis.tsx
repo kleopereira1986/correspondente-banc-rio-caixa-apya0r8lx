@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   RefreshCcw,
   Edit,
+  ShieldAlert,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -53,12 +54,22 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
+    aguardando_autorizacao: processes.filter(
+      (p) =>
+        p.is_conformity_approved &&
+        p.status === 'Aguardando Solicitação de Reavaliação' &&
+        p.status !== 'Concluído' &&
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
+    ),
     primeira_analise: processes.filter(
       (p) =>
         p.is_conformity_approved &&
         p.current_step !== 'Cadastramento' &&
         p.analysis_type === 'first_analysis' &&
         p.status !== 'Concluído' &&
+        p.status !== 'Aguardando Solicitação de Reavaliação' &&
         p.result !== 'approved' &&
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
@@ -69,6 +80,7 @@ export default function CreditAnalysis() {
         p.current_step !== 'Cadastramento' &&
         p.analysis_type === 'reevaluation' &&
         p.status !== 'Concluído' &&
+        p.status !== 'Aguardando Solicitação de Reavaliação' &&
         p.result !== 'approved' &&
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
@@ -154,7 +166,7 @@ export default function CreditAnalysis() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <Card className="border-2 border-slate-200">
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-slate-100 text-slate-700">
@@ -171,6 +183,19 @@ export default function CreditAnalysis() {
             </div>
             <p className="font-semibold text-emerald-800 text-sm mt-1">Cadastramento</p>
             <p className="text-2xl font-bold text-emerald-900">{stats.cadastramento.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-2 border-amber-200 bg-amber-50/50">
+          <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+            <div className="p-3 rounded-full bg-amber-100 text-amber-700">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <p className="font-semibold text-amber-800 text-sm mt-1 leading-tight">
+              Autorização Reavaliação
+            </p>
+            <p className="text-2xl font-bold text-amber-900">
+              {stats.aguardando_autorizacao.length}
+            </p>
           </CardContent>
         </Card>
         <Card className="border-2 border-blue-200 bg-blue-50/50">
@@ -193,7 +218,7 @@ export default function CreditAnalysis() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
         <Card className="shadow-sm border-emerald-200 h-full flex flex-col">
           <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
             <CardTitle className="text-lg text-emerald-800 flex items-center gap-2">
@@ -202,6 +227,20 @@ export default function CreditAnalysis() {
           </CardHeader>
           <CardContent className="p-0 flex-1">
             {renderProcessList(stats.cadastramento, 'Nenhum processo na fila de Cadastramento.')}
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-amber-200 h-full flex flex-col">
+          <CardHeader className="bg-amber-50/50 border-b border-amber-100 pb-4">
+            <CardTitle className="text-lg text-amber-800 flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5" /> Fila: Aguardando Autorização
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 flex-1">
+            {renderProcessList(
+              stats.aguardando_autorizacao,
+              'Nenhum processo aguardando autorização.',
+            )}
           </CardContent>
         </Card>
 

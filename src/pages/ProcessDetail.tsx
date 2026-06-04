@@ -26,6 +26,7 @@ import {
   Loader2,
   FileText,
   RefreshCcw,
+  FileSignature,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -156,7 +157,15 @@ export default function ProcessDetail() {
   useRealtime('users', () => loadData())
 
   const handleAction = async (
-    action: 'pendency' | 'transfer' | 'claim' | 'start' | 'resolve_pendency' | 'send_to_analysis',
+    action:
+      | 'pendency'
+      | 'transfer'
+      | 'claim'
+      | 'start'
+      | 'resolve_pendency'
+      | 'send_to_analysis'
+      | 'solicitar_autorizacao_reavaliacao'
+      | 'marcar_autorizacao_solicitada',
   ) => {
     if (!process) return
     try {
@@ -211,6 +220,18 @@ export default function ProcessDetail() {
           current_step: 'Análise',
         })
         toast({ title: 'Enviado para Análise' })
+      } else if (action === 'solicitar_autorizacao_reavaliacao') {
+        await updateProcess(process.id, {
+          status: 'Aguardando Solicitação de Reavaliação',
+          current_step: 'Análise',
+        })
+        toast({ title: 'Autorização de Reavaliação Solicitada' })
+      } else if (action === 'marcar_autorizacao_solicitada') {
+        await updateProcess(process.id, {
+          status: 'Autorização Solicitada',
+          current_step: 'Análise',
+        })
+        toast({ title: 'Autorização Solicitada Registrada' })
       }
     } catch (e) {
       toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
@@ -709,8 +730,14 @@ export default function ProcessDetail() {
                 process.is_conformity_approved &&
                 (process.current_step === 'Análise' ||
                   process.status === 'Aguardando Análise' ||
-                  process.status === 'Em Análise') &&
+                  process.status === 'Em Análise' ||
+                  process.status === 'Aguardando Solicitação de Reavaliação' ||
+                  process.status === 'Autorização Solicitada') &&
                 (!process.result || process.result === 'pending')
+
+              const isWaitingAuthorization =
+                process.status === 'Aguardando Solicitação de Reavaliação'
+              const canAproveReject = (inAnalysis || !isCredit) && !isWaitingAuthorization
 
               return (
                 <Card className="shadow-sm border-border/50 border-t-4 border-t-primary">
@@ -818,7 +845,7 @@ export default function ProcessDetail() {
                           </Button>
                         )}
 
-                        {(inAnalysis || !isCredit) && (
+                        {canAproveReject && (
                           <>
                             <Button
                               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -837,40 +864,62 @@ export default function ProcessDetail() {
                           </>
                         )}
 
-                        {(inCadastramento || inAnalysis || !isCredit) && (
-                          <Dialog
-                            open={isPendencyDialogOpen}
-                            onOpenChange={setIsPendencyDialogOpen}
+                        {inAnalysis && isCredit && !isWaitingAuthorization && (
+                          <Button
+                            variant="outline"
+                            className="w-full border-indigo-500/50 text-indigo-600 hover:bg-indigo-50 mt-2"
+                            onClick={() => handleAction('solicitar_autorizacao_reavaliacao')}
                           >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
-                              >
-                                <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
-                              </DialogHeader>
-                              <Textarea
-                                placeholder="Descreva a pendência..."
-                                value={pendencyReason}
-                                onChange={(e) => setPendencyReason(e.target.value)}
-                                className="min-h-[100px]"
-                              />
-                              <DialogFooter>
-                                <Button onClick={() => handleAction('pendency')}>Enviar</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                            <FileSignature className="w-4 h-4 mr-2" /> Solicitar Autorização de
+                            Reavaliação
+                          </Button>
                         )}
 
-                        {(inAnalysis || !isCredit) && (
+                        {isWaitingAuthorization && (
+                          <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white mt-2"
+                            onClick={() => handleAction('marcar_autorizacao_solicitada')}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" /> Marcar como Autorização
+                            Solicitada
+                          </Button>
+                        )}
+
+                        {(inCadastramento || inAnalysis || !isCredit) &&
+                          !isWaitingAuthorization && (
+                            <Dialog
+                              open={isPendencyDialogOpen}
+                              onOpenChange={setIsPendencyDialogOpen}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full border-secondary/50 text-secondary hover:bg-secondary/10"
+                                >
+                                  <AlertTriangle className="w-4 h-4 mr-2" /> Solicitar Pendência
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
+                                </DialogHeader>
+                                <Textarea
+                                  placeholder="Descreva a pendência..."
+                                  value={pendencyReason}
+                                  onChange={(e) => setPendencyReason(e.target.value)}
+                                  className="min-h-[100px]"
+                                />
+                                <DialogFooter>
+                                  <Button onClick={() => handleAction('pendency')}>Enviar</Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
+
+                        {canAproveReject && (
                           <Button
                             variant="ghost"
-                            className="w-full text-destructive hover:bg-destructive/10"
+                            className="w-full text-destructive hover:bg-destructive/10 mt-2"
                             onClick={() => setRejectDialog(true)}
                           >
                             <XCircle className="w-4 h-4 mr-2" /> Reprovar

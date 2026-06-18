@@ -40,6 +40,7 @@ import {
   ClipboardCheck,
   Scan,
   Link as LinkIcon,
+  Building2,
 } from 'lucide-react'
 
 export default function Layout() {
@@ -77,6 +78,7 @@ export default function Layout() {
       { title: 'Emissão via RG', url: '/emissao-ficha-rg', icon: Scan },
       { title: 'Solicitar Engenharia', url: '/engineering-request', icon: HardHat },
       { title: 'Processo Habitacional', url: '/housing-kanban', icon: LayoutDashboard },
+      { title: 'Construtoras', url: '/construction-companies', icon: Building2 },
       ...(user.role === 'master'
         ? [
             { title: 'Usuários', url: '/users', icon: Users },

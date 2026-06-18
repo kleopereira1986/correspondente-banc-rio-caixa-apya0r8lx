@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T15:40:12.162Z",
+  "generatedAt": "2026-06-18T16:14:04.380Z",
   "collections": [
     {
       "name": "users",
@@ -380,6 +380,13 @@
           "required": false,
           "system": false,
           "collectionRef": "users"
+        },
+        {
+          "name": "construction_company",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "construction_companies"
         }
       ],
       "indexes": [
@@ -1324,6 +1331,82 @@
         {
           "name": "is_active",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "construction_companies",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "create": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "update": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst')",
+        "delete": "@request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "legal_representative",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bank_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bank_agency",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bank_account",
+          "type": "text",
           "required": false,
           "system": false
         },

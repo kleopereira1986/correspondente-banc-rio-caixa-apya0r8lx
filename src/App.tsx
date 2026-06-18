@@ -29,6 +29,7 @@ import TestingTools from './pages/TestingTools'
 import RgExtraction from './pages/RgExtraction'
 import GenerateLink from './pages/GenerateLink'
 import PublicForm from './pages/PublicForm'
+import ConstructionCompanies from './pages/ConstructionCompanies'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -62,6 +63,7 @@ const App = () => (
             <Route path="/emissao-ficha-rg" element={<RgExtraction />} />
             <Route path="/testing-tools" element={<TestingTools />} />
             <Route path="/gerar-link" element={<GenerateLink />} />
+            <Route path="/construction-companies" element={<ConstructionCompanies />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

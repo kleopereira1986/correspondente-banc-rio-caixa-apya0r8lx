@@ -70,6 +70,7 @@ export default function ProcessDetail() {
   const [analysts, setAnalysts] = useState<any[]>([])
   const [transferAnalyst, setTransferAnalyst] = useState('')
   const [logs, setLogs] = useState<any[]>([])
+  const [constructionCompanies, setConstructionCompanies] = useState<any[]>([])
 
   const [approveDialog, setApproveDialog] = useState(false)
   const [conditionDialog, setConditionDialog] = useState(false)
@@ -102,13 +103,13 @@ export default function ProcessDetail() {
     try {
       const p = await pb.collection('processes').getOne(id, {
         expand:
-          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type',
+          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type,construction_company',
       })
       setProcess(p)
 
       // Carregar dependências separadamente para evitar falha geral
       try {
-        const [docs, docTypes, processLogs, condReasons, rejReasons] = await Promise.all([
+        const [docs, docTypes, processLogs, condReasons, rejReasons, ccList] = await Promise.all([
           getDocuments(id).catch(() => []),
           getCreditDocumentTypes().catch(() => []),
           getProcessLogs(id).catch(() => []),
@@ -120,12 +121,17 @@ export default function ProcessDetail() {
             .collection('rejection_reasons')
             .getFullList({ sort: 'name' })
             .catch(() => []),
+          pb
+            .collection('construction_companies')
+            .getFullList({ sort: 'name' })
+            .catch(() => []),
         ])
         setDocuments(docs)
         setCreditDocumentTypes(docTypes)
         setLogs(processLogs)
         setConditioningReasons(condReasons)
         setRejectionReasons(rejReasons)
+        setConstructionCompanies(ccList)
       } catch (err) {
         console.error('Erro ao carregar dependências', err)
       }

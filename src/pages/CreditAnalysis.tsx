@@ -164,20 +164,22 @@ export default function CreditAnalysis() {
   const [companySearch, setCompanySearch] = useState('')
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false)
   const [processToLink, setProcessToLink] = useState<any>(null)
-  
+
   useEffect(() => {
-    pb.collection('construction_companies').getFullList({ sort: 'name' })
-      .then(setCompanies).catch(console.error)
+    pb.collection('construction_companies')
+      .getFullList({ sort: 'name' })
+      .then(setCompanies)
+      .catch(console.error)
   }, [])
 
-  const filteredCompanies = companies.filter(c => 
-    c.name.toLowerCase().includes(companySearch.toLowerCase()) || 
-    c.cnpj.includes(companySearch)
+  const filteredCompanies = companies.filter(
+    (c) =>
+      c.name.toLowerCase().includes(companySearch.toLowerCase()) || c.cnpj.includes(companySearch),
   )
 
   let selectedCompanyName = 'Não vincular construtora'
   if (selectedCompanyId !== 'none') {
-    const c = companies.find(c => c.id === selectedCompanyId)
+    const c = companies.find((c) => c.id === selectedCompanyId)
     if (c) selectedCompanyName = `${c.name} (${c.cnpj})`
   }
 
@@ -226,196 +228,226 @@ export default function CreditAnalysis() {
     }
   }
 
-  let renderedCompanyModal = false;
+  let renderedCompanyModal = false
 
   const renderProcessList = (list: any[], emptyMessage: string) => {
-    const shouldRenderModal = showCompanySelect && !renderedCompanyModal;
-    if (shouldRenderModal) renderedCompanyModal = true;
+    const shouldRenderModal = showCompanySelect && !renderedCompanyModal
+    if (shouldRenderModal) renderedCompanyModal = true
 
     return (
-    <div className="divide-y divide-border/50 relative">
-      {shouldRenderModal && processToLink && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-background rounded-lg shadow-lg w-full max-w-md border flex flex-col animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 pb-4">
-              <h2 className="text-lg font-semibold tracking-tight">Deseja vincular uma construtora?</h2>
-              <p className="text-sm text-muted-foreground mt-2">
-                Selecione uma construtora para vincular a este processo ou continue sem vincular.
-              </p>
-            </div>
-            <div className="p-6 pt-0 flex-1">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                  className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                >
-                  <span className="truncate">{selectedCompanyName}</span>
-                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-50"><path d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819L7.43179 8.56819C7.60753 8.74393 7.89245 8.74393 8.06819 8.56819L10.5682 6.06819C10.7439 5.89245 10.7439 5.60753 10.5682 5.43179C10.3925 5.25605 10.1075 5.25605 9.93179 5.43179L7.75 7.61358L5.56819 5.43179C5.39245 5.25605 5.10753 5.25605 4.93179 5.43179Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
-                </button>
-                {isCompanyDropdownOpen && (
-                  <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-                    <div className="p-2 sticky top-0 bg-popover border-b">
-                      <input
-                        type="text"
-                        placeholder="Buscar construtora..."
-                        value={companySearch}
-                        onChange={(e) => setCompanySearch(e.target.value)}
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      />
-                    </div>
-                    <div className="p-1">
-                      <div
-                        className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => { setSelectedCompanyId('none'); setIsCompanyDropdownOpen(false); setCompanySearch(''); }}
-                      >
-                        Não vincular construtora
-                      </div>
-                      {filteredCompanies.map(c => (
-                        <div
-                          key={c.id}
-                          className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => { setSelectedCompanyId(c.id); setIsCompanyDropdownOpen(false); setCompanySearch(''); }}
-                        >
-                          {c.name} ({c.cnpj})
-                        </div>
-                      ))}
-                      {filteredCompanies.length === 0 && (
-                        <div className="py-6 text-center text-sm text-muted-foreground">Nenhuma construtora encontrada.</div>
-                      )}
-                    </div>
-                  </div>
-                )}
+      <div className="divide-y divide-border/50 relative">
+        {shouldRenderModal && processToLink && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-background rounded-lg shadow-lg w-full max-w-md border flex flex-col animate-in fade-in zoom-in-95 duration-200">
+              <div className="p-6 pb-4">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  Deseja vincular uma construtora?
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Selecione uma construtora para vincular a este processo ou continue sem vincular.
+                </p>
               </div>
-            </div>
-            <div className="p-6 pt-0 flex items-center justify-end space-x-2">
-              <button
-                type="button"
-                onClick={() => { setShowCompanySelect(false); setProcessToLink(null); }}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={submitTransition}
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-              >
-                {selectedCompanyId === 'none' ? 'Continuar sem vincular' : 'Vincular e Continuar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {list.length === 0 ? (
-        <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
-          <CheckCircle2 className="w-10 h-10 text-slate-200 mb-3" />
-          <p className="text-sm">{emptyMessage}</p>
-        </div>
-      ) : (
-        list.map((proc: any) => (
-          <div
-            key={proc.id}
-            className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-          >
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-primary/10 text-primary rounded-lg shrink-0 mt-1">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <Link
-                  to={`/process/${proc.id}`}
-                  className="font-semibold text-slate-800 hover:text-primary transition-colors text-base flex items-center gap-2"
-                >
-                  {proc.expand?.buyer?.name || 'Cliente não informado'}
-                </Link>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {new Date(proc.created).toLocaleDateString('pt-BR')}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5" />
-                    {proc.expand?.assigned_analyst?.name || 'Não atribuído'}
-                  </span>
-                  <Badge variant="outline" className="font-normal text-[10px] bg-slate-50">
-                    {proc.expand?.credit_analysis_type?.name || 'Crédito'}
-                  </Badge>
-                  {proc.analysis_type && (
-                    <Badge
-                      variant="secondary"
-                      className="font-normal text-[10px] bg-slate-100 text-slate-700"
-                    >
-                      {proc.analysis_type === 'first_analysis' ? '1ª Análise' : 'Reavaliação'}
-                    </Badge>
-                  )}
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      'font-normal text-[10px]',
-                      proc.status === 'Pendência'
-                        ? 'bg-secondary text-white border-transparent'
-                        : proc.status === 'Autorização Solicitada'
-                          ? 'bg-amber-100 text-amber-800 border-transparent font-medium'
-                          : 'bg-slate-50',
-                    )}
+              <div className="p-6 pt-0 flex-1">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                   >
-                    {proc.status === 'Autorização Solicitada'
-                      ? 'Aguardando Autorização Gerencial'
-                      : proc.status}
-                  </Badge>
+                    <span className="truncate">{selectedCompanyName}</span>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 15 15"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4 opacity-50"
+                    >
+                      <path
+                        d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819L7.43179 8.56819C7.60753 8.74393 7.89245 8.74393 8.06819 8.56819L10.5682 6.06819C10.7439 5.89245 10.7439 5.60753 10.5682 5.43179C10.3925 5.25605 10.1075 5.25605 9.93179 5.43179L7.75 7.61358L5.56819 5.43179C5.39245 5.25605 5.10753 5.25605 4.93179 5.43179Z"
+                        fill="currentColor"
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                      ></path>
+                    </svg>
+                  </button>
+                  {isCompanyDropdownOpen && (
+                    <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
+                      <div className="p-2 sticky top-0 bg-popover border-b">
+                        <input
+                          type="text"
+                          placeholder="Buscar construtora..."
+                          value={companySearch}
+                          onChange={(e) => setCompanySearch(e.target.value)}
+                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        />
+                      </div>
+                      <div className="p-1">
+                        <div
+                          className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => {
+                            setSelectedCompanyId('none')
+                            setIsCompanyDropdownOpen(false)
+                            setCompanySearch('')
+                          }}
+                        >
+                          Não vincular construtora
+                        </div>
+                        {filteredCompanies.map((c) => (
+                          <div
+                            key={c.id}
+                            className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                            onClick={() => {
+                              setSelectedCompanyId(c.id)
+                              setIsCompanyDropdownOpen(false)
+                              setCompanySearch('')
+                            }}
+                          >
+                            {c.name} ({c.cnpj})
+                          </div>
+                        ))}
+                        {filteredCompanies.length === 0 && (
+                          <div className="py-6 text-center text-sm text-muted-foreground">
+                            Nenhuma construtora encontrada.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col gap-2 shrink-0 items-end">
-              {proc.status === 'Autorização Solicitada' && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    handleAuthorization(proc.id)
+              <div className="p-6 pt-0 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCompanySelect(false)
+                    setProcessToLink(null)
                   }}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
                 >
-                  Informar Autorização Concluída
-                </Button>
-              )}
-              {proc.status === 'Pendência Resolvida' && (
-                <Button
-                  size="sm"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    handleAcknowledgePendency(proc.id)
-                  }}
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={submitTransition}
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
                 >
-                  Pendência Resolvida
-                </Button>
-              )}
-              {proc.result === 'approved' && proc.type === 'credit' && (
-                <Button
-                  size="sm"
-                  className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setTransitionProcess(proc)
-                  }}
-                >
-                  Enviar para Habitacional
-                </Button>
-              )}
-              <Button asChild variant="outline" size="sm" className="group w-full sm:w-auto">
-                <Link to={`/process/${proc.id}`}>
-                  Analisar{' '}
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
+                  {selectedCompanyId === 'none' ? 'Continuar sem vincular' : 'Vincular e Continuar'}
+                </button>
+              </div>
             </div>
           </div>
-        ))
-      )}
-    </div>
-  )
+        )}
+        {list.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+            <CheckCircle2 className="w-10 h-10 text-slate-200 mb-3" />
+            <p className="text-sm">{emptyMessage}</p>
+          </div>
+        ) : (
+          list.map((proc: any) => (
+            <div
+              key={proc.id}
+              className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-primary/10 text-primary rounded-lg shrink-0 mt-1">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <Link
+                    to={`/process/${proc.id}`}
+                    className="font-semibold text-slate-800 hover:text-primary transition-colors text-base flex items-center gap-2"
+                  >
+                    {proc.expand?.buyer?.name || 'Cliente não informado'}
+                  </Link>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {new Date(proc.created).toLocaleDateString('pt-BR')}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <User className="w-3.5 h-3.5" />
+                      {proc.expand?.assigned_analyst?.name || 'Não atribuído'}
+                    </span>
+                    <Badge variant="outline" className="font-normal text-[10px] bg-slate-50">
+                      {proc.expand?.credit_analysis_type?.name || 'Crédito'}
+                    </Badge>
+                    {proc.analysis_type && (
+                      <Badge
+                        variant="secondary"
+                        className="font-normal text-[10px] bg-slate-100 text-slate-700"
+                      >
+                        {proc.analysis_type === 'first_analysis' ? '1ª Análise' : 'Reavaliação'}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'font-normal text-[10px]',
+                        proc.status === 'Pendência'
+                          ? 'bg-secondary text-white border-transparent'
+                          : proc.status === 'Autorização Solicitada'
+                            ? 'bg-amber-100 text-amber-800 border-transparent font-medium'
+                            : 'bg-slate-50',
+                      )}
+                    >
+                      {proc.status === 'Autorização Solicitada'
+                        ? 'Aguardando Autorização Gerencial'
+                        : proc.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 shrink-0 items-end">
+                {proc.status === 'Autorização Solicitada' && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleAuthorization(proc.id)
+                    }}
+                  >
+                    Informar Autorização Concluída
+                  </Button>
+                )}
+                {proc.status === 'Pendência Resolvida' && (
+                  <Button
+                    size="sm"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      handleAcknowledgePendency(proc.id)
+                    }}
+                  >
+                    Pendência Resolvida
+                  </Button>
+                )}
+                {proc.result === 'approved' && proc.type === 'credit' && (
+                  <Button
+                    size="sm"
+                    className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setTransitionProcess(proc)
+                    }}
+                  >
+                    Enviar para Habitacional
+                  </Button>
+                )}
+                <Button asChild variant="outline" size="sm" className="group w-full sm:w-auto">
+                  <Link to={`/process/${proc.id}`}>
+                    Analisar{' '}
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">

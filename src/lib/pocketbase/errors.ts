@@ -22,23 +22,8 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
-
-  if (error.status === 403) return 'Você não tem permissão para realizar esta ação.'
-  if (error.status === 0) return 'Erro de rede. Verifique sua conexão com a internet.'
-
-  if (error.status === 400 && Object.keys(error.response?.data || {}).length === 0) {
-    const msg = error.response?.message
-    if (msg === 'Failed to create record.')
-      return 'Falha ao criar registro. Verifique suas permissões e dados.'
-    if (msg === 'Failed to update record.')
-      return 'Falha ao atualizar registro. Verifique suas permissões e dados.'
-    if (msg === 'Failed to delete record.')
-      return 'Falha ao excluir registro. Verifique suas permissões.'
-    return msg || 'Erro de validação ou permissão. Verifique os dados enviados.'
-  }
-
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'Ocorreu um erro inesperado.'
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }

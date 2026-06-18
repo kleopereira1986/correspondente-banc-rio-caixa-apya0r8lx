@@ -129,6 +129,48 @@ export default function Dashboard() {
     }
   }
 
+  const handleAuthorization = async (procId: string) => {
+    try {
+      await updateProcess(procId, {
+        status: 'Autorização Concluída',
+      })
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: procId,
+          from_status: 'Autorização Solicitada',
+          to_status: 'Autorização Concluída',
+          changed_by: user.id,
+          note: 'Autorização Gerencial confirmada pelo analista no Dashboard.',
+        })
+      }
+      toast({ title: 'Autorização confirmada!' })
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao confirmar autorização', variant: 'destructive' })
+    }
+  }
+
+  const handleAcknowledgePendency = async (procId: string) => {
+    try {
+      await updateProcess(procId, {
+        status: 'Em Cadastramento',
+      })
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: procId,
+          from_status: 'Pendência Resolvida',
+          to_status: 'Em Cadastramento',
+          changed_by: user.id,
+          note: 'Pendência reconhecida como resolvida no Dashboard.',
+        })
+      }
+      toast({ title: 'Pendência reconhecida!' })
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar processo', variant: 'destructive' })
+    }
+  }
+
   const handleCreate = async () => {
     if (!selectedBuyer) return
     await createProcess({
@@ -497,7 +539,36 @@ export default function Dashboard() {
                         {formatCurrency(process.value)}
                       </TableCell>
                       <TableCell className="py-4 text-center min-w-[140px]">
-                        {getStatusBadge(process.status, process.result)}
+                        {process.status === 'Pendência Resolvida' ? (
+                          <Button
+                            size="sm"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md w-full whitespace-nowrap"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAcknowledgePendency(process.id)
+                            }}
+                          >
+                            Pendência Resolvida
+                          </Button>
+                        ) : process.status === 'Autorização Solicitada' ? (
+                          <div className="flex flex-col gap-2 items-center">
+                            <Badge className="bg-amber-100 text-amber-800 border-none font-medium whitespace-nowrap">
+                              Aguardando Autorização Gerencial
+                            </Badge>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full text-xs h-7 whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAuthorization(process.id)
+                              }}
+                            >
+                              Informar Autorização
+                            </Button>
+                          </div>
+                        ) : (
+                          getStatusBadge(process.status, process.result)
+                        )}
                       </TableCell>
                       <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
                         {new Date(process.created).toLocaleString('pt-BR', {
@@ -598,7 +669,36 @@ export default function Dashboard() {
                         {formatCurrency(process.value)}
                       </TableCell>
                       <TableCell className="py-4 text-center min-w-[140px]">
-                        {getStatusBadge(process.status, process.result)}
+                        {process.status === 'Pendência Resolvida' ? (
+                          <Button
+                            size="sm"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md w-full whitespace-nowrap"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAcknowledgePendency(process.id)
+                            }}
+                          >
+                            Pendência Resolvida
+                          </Button>
+                        ) : process.status === 'Autorização Solicitada' ? (
+                          <div className="flex flex-col gap-2 items-center">
+                            <Badge className="bg-amber-100 text-amber-800 border-none font-medium whitespace-nowrap">
+                              Aguardando Autorização Gerencial
+                            </Badge>
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full text-xs h-7 whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAuthorization(process.id)
+                              }}
+                            >
+                              Informar Autorização
+                            </Button>
+                          </div>
+                        ) : (
+                          getStatusBadge(process.status, process.result)
+                        )}
                       </TableCell>
                       <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
                         {new Date(process.created).toLocaleString('pt-BR', {

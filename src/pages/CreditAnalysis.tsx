@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
+import { useAuth } from '@/contexts/auth-context'
 import {
   FileText,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 import { cn } from '@/lib/utils'
 
 export default function CreditAnalysis() {
+  const { user } = useAuth()
   const [processes, setProcesses] = useState<any[]>([])
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
@@ -53,7 +55,7 @@ export default function CreditAnalysis() {
     cadastramento: processes.filter(
       (p) =>
         p.is_conformity_approved &&
-        p.current_step === 'Cadastramento' &&
+        (p.current_step === 'Cadastramento' || p.status === 'Pendência Resolvida') &&
         p.status !== 'Concluído' &&
         p.result !== 'approved' &&
         p.result !== 'rejected' &&
@@ -62,7 +64,8 @@ export default function CreditAnalysis() {
     aguardando_autorizacao: processes.filter(
       (p) =>
         p.is_conformity_approved &&
-        p.status === 'Aguardando Solicitação de Reavaliação' &&
+        (p.status === 'Aguardando Solicitação de Reavaliação' ||
+          p.status === 'Autorização Solicitada') &&
         p.status !== 'Concluído' &&
         p.result !== 'approved' &&
         p.result !== 'rejected' &&
@@ -94,6 +97,44 @@ export default function CreditAnalysis() {
 
   const toggleFilter = (filter: string) => {
     setActiveFilter(activeFilter === filter ? null : filter)
+  }
+
+  const handleAuthorization = async (procId: string) => {
+    try {
+      await pb.collection('processes').update(procId, {
+        status: 'Autorização Concluída',
+      })
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: procId,
+          from_status: 'Autorização Solicitada',
+          to_status: 'Autorização Concluída',
+          changed_by: user.id,
+          note: 'Autorização Gerencial confirmada pelo analista.',
+        })
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  const handleAcknowledgePendency = async (procId: string) => {
+    try {
+      await pb.collection('processes').update(procId, {
+        status: 'Em Cadastramento',
+      })
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: procId,
+          from_status: 'Pendência Resolvida',
+          to_status: 'Em Cadastramento',
+          changed_by: user.id,
+          note: 'Pendência reconhecida como resolvida.',
+        })
+      }
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const renderProcessList = (list: any[], emptyMessage: string) => (
@@ -146,20 +187,50 @@ export default function CreditAnalysis() {
                       'font-normal text-[10px]',
                       proc.status === 'Pendência'
                         ? 'bg-secondary text-white border-transparent'
-                        : 'bg-slate-50',
+                        : proc.status === 'Autorização Solicitada'
+                          ? 'bg-amber-100 text-amber-800 border-transparent font-medium'
+                          : 'bg-slate-50',
                     )}
                   >
-                    {proc.status}
+                    {proc.status === 'Autorização Solicitada'
+                      ? 'Aguardando Autorização Gerencial'
+                      : proc.status}
                   </Badge>
                 </div>
               </div>
             </div>
-            <Button asChild variant="outline" size="sm" className="shrink-0 group">
-              <Link to={`/process/${proc.id}`}>
-                Analisar{' '}
-                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </Button>
+            <div className="flex flex-col gap-2 shrink-0 items-end">
+              {proc.status === 'Autorização Solicitada' && (
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleAuthorization(proc.id)
+                  }}
+                >
+                  Informar Autorização Concluída
+                </Button>
+              )}
+              {proc.status === 'Pendência Resolvida' && (
+                <Button
+                  size="sm"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    handleAcknowledgePendency(proc.id)
+                  }}
+                >
+                  Pendência Resolvida
+                </Button>
+              )}
+              <Button asChild variant="outline" size="sm" className="group w-full sm:w-auto">
+                <Link to={`/process/${proc.id}`}>
+                  Analisar{' '}
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </Button>
+            </div>
           </div>
         ))
       )}

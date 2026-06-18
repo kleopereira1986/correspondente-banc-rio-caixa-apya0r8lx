@@ -1,14 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -29,7 +22,7 @@ import {
   FormControl,
   FormMessage,
 } from '@/components/ui/form'
-import { CheckCircle2, Loader2, ArrowRight, UploadCloud } from 'lucide-react'
+import { CheckCircle2, Loader2, UploadCloud } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 
 const YesNoRadio = ({ name, label, control }: { name: string; label: string; control: any }) => (
@@ -38,9 +31,15 @@ const YesNoRadio = ({ name, label, control }: { name: string; label: string; con
     name={name}
     render={({ field }) => (
       <FormItem className="space-y-2">
-        <FormLabel className="text-slate-700 font-semibold">{label}</FormLabel>
+        <FormLabel className="text-slate-700 font-semibold leading-relaxed block">
+          {label}
+        </FormLabel>
         <FormControl>
-          <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+          <RadioGroup
+            onValueChange={field.onChange}
+            value={field.value}
+            className="flex gap-4 pt-1"
+          >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="no" id={`${name}-no`} />
               <Label htmlFor={`${name}-no`} className="font-normal text-slate-600 cursor-pointer">
@@ -60,54 +59,49 @@ const YesNoRadio = ({ name, label, control }: { name: string; label: string; con
   />
 )
 
-const applyCpfMask = (value: string) => {
-  return value
+const applyCpfMask = (value: string) =>
+  value
     .replace(/\D/g, '')
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})/, '$1-$2')
     .replace(/(-\d{2})\d+?$/, '$1')
-}
-
-const applyPhoneMask = (value: string) => {
-  return value
+const applyPhoneMask = (value: string) =>
+  value
     .replace(/\D/g, '')
     .replace(/(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d)/, '$1-$2')
     .replace(/(-\d{4})\d+?$/, '$1')
-}
-
 const applyCurrencyMask = (value: string) => {
   const numbers = value.replace(/\D/g, '')
   if (!numbers) return ''
-  const amount = parseInt(numbers) / 100
-  return amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return (parseInt(numbers) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
-
 const parseCurrency = (value: string) => {
   const numbers = value.replace(/\D/g, '')
   return numbers ? parseFloat(numbers) / 100 : 0
 }
-
-const applyDateMask = (value: string) => {
-  return value
+const applyDateMask = (value: string) =>
+  value
     .replace(/\D/g, '')
     .replace(/(\d{2})(\d)/, '$1/$2')
     .replace(/(\d{2})(\d)/, '$1/$2')
     .replace(/(\d{4})\d+?$/, '$1')
-}
 
 const BuyerFields = ({
   prefix,
   form,
   marriageRegimes,
+  settings,
 }: {
   prefix: 'buyer1' | 'buyer2'
   form: any
   marriageRegimes: any[]
+  settings: Record<string, boolean>
 }) => {
   const maritalStatus = form.watch(`${prefix}.marital_status`)
   const isMarried = maritalStatus === 'Casado(a)' || maritalStatus === 'União Estável'
+  const isVisible = (key: string) => settings[`buyer.${key}`] !== false
 
   return (
     <div className="space-y-6">
@@ -163,19 +157,21 @@ const BuyerFields = ({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name={`${prefix}.pis`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>PIS/NIS</FormLabel>
-              <FormControl>
-                <Input placeholder="000.00000.00-0" {...field} className="bg-white" />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {isVisible('pis') && (
+          <FormField
+            control={form.control}
+            name={`${prefix}.pis`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PIS/NIS</FormLabel>
+                <FormControl>
+                  <Input placeholder="000.00000.00-0" {...field} className="bg-white" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name={`${prefix}.name`}
@@ -191,74 +187,80 @@ const BuyerFields = ({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name={`${prefix}.birth_date`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Data de nascimento</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="DD/MM/AAAA"
-                  maxLength={10}
-                  {...field}
-                  onChange={(e) => field.onChange(applyDateMask(e.target.value))}
-                  className="bg-white"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name={`${prefix}.education`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Escolaridade</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+        {isVisible('birth_date') && (
+          <FormField
+            control={form.control}
+            name={`${prefix}.birth_date`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data de nascimento</FormLabel>
                 <FormControl>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
+                  <Input
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
+                    {...field}
+                    onChange={(e) => field.onChange(applyDateMask(e.target.value))}
+                    className="bg-white"
+                  />
                 </FormControl>
-                <SelectContent>
-                  <SelectItem value="Fundamental">Ensino Fundamental</SelectItem>
-                  <SelectItem value="Médio">Ensino Médio</SelectItem>
-                  <SelectItem value="Superior">Ensino Superior</SelectItem>
-                  <SelectItem value="Pós-graduação">Pós-graduação</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name={`${prefix}.marital_status`}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Estado civil</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Solteiro(a)">Solteiro(a)</SelectItem>
-                  <SelectItem value="Casado(a)">Casado(a)</SelectItem>
-                  <SelectItem value="Divorciado(a)">Divorciado(a)</SelectItem>
-                  <SelectItem value="Viúvo(a)">Viúvo(a)</SelectItem>
-                  <SelectItem value="União Estável">União Estável</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+        {isVisible('education') && (
+          <FormField
+            control={form.control}
+            name={`${prefix}.education`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Escolaridade</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Fundamental">Ensino Fundamental</SelectItem>
+                    <SelectItem value="Médio">Ensino Médio</SelectItem>
+                    <SelectItem value="Superior">Ensino Superior</SelectItem>
+                    <SelectItem value="Pós-graduação">Pós-graduação</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+        {isVisible('marital_status') && (
+          <FormField
+            control={form.control}
+            name={`${prefix}.marital_status`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estado civil</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Solteiro(a)">Solteiro(a)</SelectItem>
+                    <SelectItem value="Casado(a)">Casado(a)</SelectItem>
+                    <SelectItem value="Divorciado(a)">Divorciado(a)</SelectItem>
+                    <SelectItem value="Viúvo(a)">Viúvo(a)</SelectItem>
+                    <SelectItem value="União Estável">União Estável</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
-        {isMarried && (
+        {isMarried && isVisible('marriage_regime') && (
           <FormField
             control={form.control}
             name={`${prefix}.marriage_regime`}
@@ -325,26 +327,34 @@ const BuyerFields = ({
       </div>
 
       <div className="space-y-4 pt-2">
-        <YesNoRadio
-          control={form.control}
-          name={`${prefix}.fgts_3_years`}
-          label="Possui 3 (três) anos de recolhimento de FGTS?"
-        />
-        <YesNoRadio
-          control={form.control}
-          name={`${prefix}.has_dependents`}
-          label="Tem dependentes?"
-        />
-        <YesNoRadio
-          control={form.control}
-          name={`${prefix}.declared_tax`}
-          label="Declarou imposto de renda?"
-        />
-        <YesNoRadio
-          control={form.control}
-          name={`${prefix}.owns_property`}
-          label="Já possui imóvel próprio como casa ou apartamento?"
-        />
+        {isVisible('fgts_3_years') && (
+          <YesNoRadio
+            control={form.control}
+            name={`${prefix}.fgts_3_years`}
+            label="Possui 3 (três) anos de recolhimento de FGTS?"
+          />
+        )}
+        {isVisible('has_dependents') && (
+          <YesNoRadio
+            control={form.control}
+            name={`${prefix}.has_dependents`}
+            label="Tem dependentes?"
+          />
+        )}
+        {isVisible('declared_tax') && (
+          <YesNoRadio
+            control={form.control}
+            name={`${prefix}.declared_tax`}
+            label="Declarou imposto de renda?"
+          />
+        )}
+        {isVisible('owns_property') && (
+          <YesNoRadio
+            control={form.control}
+            name={`${prefix}.owns_property`}
+            label="Já possui imóvel próprio como casa ou apartamento?"
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
@@ -392,39 +402,70 @@ const BuyerFields = ({
   )
 }
 
-const checklistItems = [
-  { id: 'id_doc', label: 'Carteira de identidade, CPF ou CNH' },
-  {
-    id: 'marital_doc',
-    label:
-      'Prova de estado civil - certidão de nascimento para solteiros ou certidão de casamento para casados, divorciados ou separados',
-  },
-  { id: 'income_doc', label: 'Comprovante de rendimentos' },
-  {
-    id: 'residence_doc',
-    label:
-      'Último comprovante de residência (água, luz, telefone, condomínio, aluguel, fatura cartão, etc)',
-  },
-  {
-    id: 'tax_doc',
-    label: 'Declaração de imposto de renda com o recibo de entrega (se declarou)',
-  },
-  {
-    id: 'work_doc',
-    label:
-      'Carteira de trabalho - baixar a versão digital do documento e enviar arquivo em PDF completo',
-  },
-  {
-    id: 'pact_registry_doc',
-    label:
-      'Registro do pacto (caso seja casado em comunhão/separação de bens e possua pacto antenupcial)',
-  },
-  {
-    id: 'pact_deed_doc',
-    label:
-      'Escritura do pacto (caso seja casado em comunhão/separação de bens e possua pacto antenupcial)',
-  },
-]
+const ChecklistItem = ({
+  doc,
+  form,
+  documentFiles,
+  setDocumentFiles,
+}: {
+  doc: any
+  form: any
+  documentFiles: any
+  setDocumentFiles: any
+}) => {
+  const name = `checklist.${doc.id}`
+  const value = form.watch(name)
+
+  return (
+    <div className="space-y-3 p-5 bg-white rounded-lg border border-slate-200 shadow-sm transition-colors">
+      <YesNoRadio control={form.control} name={name} label={doc.name} />
+      {value === 'yes' && (
+        <div className="pt-3 animate-in fade-in slide-in-from-top-2 duration-300">
+          <Label className="text-sm text-slate-600 mb-2 block font-medium">
+            Anexar arquivo(s):
+          </Label>
+          <Input
+            type="file"
+            multiple
+            onChange={(e) => {
+              if (e.target.files) {
+                setDocumentFiles((prev: any) => ({
+                  ...prev,
+                  [doc.id]: [...(prev[doc.id] || []), ...Array.from(e.target.files!)],
+                }))
+              }
+            }}
+            className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 cursor-pointer h-12 pt-2"
+          />
+          {documentFiles[doc.id]?.length > 0 && (
+            <ul className="mt-3 text-sm text-slate-500 space-y-2">
+              {documentFiles[doc.id].map((f: File, i: number) => (
+                <li
+                  key={i}
+                  className="flex justify-between items-center bg-slate-50 p-2.5 rounded-md border border-slate-100"
+                >
+                  <span className="truncate max-w-[80%] font-medium">{f.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDocumentFiles((prev: any) => ({
+                        ...prev,
+                        [doc.id]: prev[doc.id].filter((_: any, idx: number) => idx !== i),
+                      }))
+                    }}
+                    className="text-red-500 hover:text-red-700 text-xs font-semibold px-2"
+                  >
+                    Remover
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function PublicForm() {
   const [searchParams] = useSearchParams()
@@ -436,10 +477,31 @@ export default function PublicForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [serverError, setServerError] = useState('')
   const [files, setFiles] = useState<File[]>([])
+
   const [marriageRegimes, setMarriageRegimes] = useState<any[]>([])
+  const [documentTypes, setDocumentTypes] = useState<any[]>([])
+  const [formSettings, setFormSettings] = useState<Record<string, boolean>>({})
+  const [documentFiles, setDocumentFiles] = useState<Record<string, File[]>>({})
 
   useEffect(() => {
     pb.collection('marriage_regimes').getFullList().then(setMarriageRegimes).catch(console.error)
+    pb.collection('credit_document_types')
+      .getFullList({ filter: 'is_active = true', sort: '+created' })
+      .then(setDocumentTypes)
+      .catch(console.error)
+    pb.collection('form_settings')
+      .getFullList()
+      .then((res) => {
+        const settingsMap = res.reduce(
+          (acc, curr) => {
+            acc[curr.key] = curr.is_active
+            return acc
+          },
+          {} as Record<string, boolean>,
+        )
+        setFormSettings(settingsMap)
+      })
+      .catch(console.error)
   }, [])
 
   const form = useForm<any>({
@@ -497,6 +559,7 @@ export default function PublicForm() {
   })
 
   const hasBuyer2 = form.watch('has_buyer2')
+  const isPropVisible = (key: string) => formSettings[`property.${key}`] !== false
 
   const onSubmit = async (data: any) => {
     setIsLoading(true)
@@ -537,7 +600,8 @@ export default function PublicForm() {
         headers: { 'Content-Type': 'application/json' },
       })
 
-      if (res.processId && files.length > 0) {
+      if (res.processId) {
+        // Complementary general files
         for (const file of files) {
           const fd = new FormData()
           fd.append('process', res.processId)
@@ -546,6 +610,19 @@ export default function PublicForm() {
           fd.append('category', 'Outros')
           fd.append('status', 'pending')
           await pb.collection('documents').create(fd)
+        }
+        // Specific document files
+        for (const [docId, docFiles] of Object.entries(documentFiles)) {
+          const docType = documentTypes.find((d) => d.id === docId)
+          for (const file of docFiles as File[]) {
+            const fd = new FormData()
+            fd.append('process', res.processId)
+            fd.append('file', file)
+            fd.append('name', docType?.name || 'Documento')
+            fd.append('category', docType?.category || '1º Proponente')
+            fd.append('status', 'pending')
+            await pb.collection('documents').create(fd)
+          }
         }
       }
 
@@ -599,12 +676,11 @@ export default function PublicForm() {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
             {serverError && (
-              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg animate-in fade-in zoom-in-95">
+              <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
                 {serverError}
               </div>
             )}
 
-            {/* Property Section */}
             <div className="space-y-6">
               <YesNoRadio
                 control={form.control}
@@ -612,159 +688,179 @@ export default function PublicForm() {
                 label="Possui imóvel definido?"
               />
 
-              <FormField
-                control={form.control}
-                name="property.purchase_value"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-700 font-semibold">
-                      Valor de compra do imóvel
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="R$ 0,00"
-                        className="bg-white h-11"
-                        {...field}
-                        onChange={(e) => field.onChange(applyCurrencyMask(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isPropVisible('purchase_value') && (
+                <FormField
+                  control={form.control}
+                  name="property.purchase_value"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700 font-semibold">
+                        Valor de compra do imóvel
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="R$ 0,00"
+                          className="bg-white h-11"
+                          {...field}
+                          onChange={(e) => field.onChange(applyCurrencyMask(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="property.type_option"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel className="text-slate-700 font-semibold">
-                      Opção de compra é um imóvel:
-                    </FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex flex-wrap gap-4 sm:gap-6"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Usado" id="type-usado" />
-                          <Label htmlFor="type-usado" className="font-normal cursor-pointer">
-                            Usado
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Novo" id="type-novo" />
-                          <Label htmlFor="type-novo" className="font-normal cursor-pointer">
-                            Novo
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Na planta" id="type-planta" />
-                          <Label htmlFor="type-planta" className="font-normal cursor-pointer">
-                            Na planta (Crédito associativo)
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Terreno/Construção" id="type-terreno" />
-                          <Label htmlFor="type-terreno" className="font-normal cursor-pointer">
-                            Terreno/Construção
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Outros" id="type-outros" />
-                          <Label htmlFor="type-outros" className="font-normal cursor-pointer">
-                            Outros
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {isPropVisible('type_option') && (
+                <FormField
+                  control={form.control}
+                  name="property.type_option"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-slate-700 font-semibold">
+                        Opção de compra é um imóvel:
+                      </FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex flex-wrap gap-4 sm:gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Usado" id="type-usado" />
+                            <Label htmlFor="type-usado" className="font-normal cursor-pointer">
+                              Usado
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Novo" id="type-novo" />
+                            <Label htmlFor="type-novo" className="font-normal cursor-pointer">
+                              Novo
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Na planta" id="type-planta" />
+                            <Label htmlFor="type-planta" className="font-normal cursor-pointer">
+                              Na planta (Crédito associativo)
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Terreno/Construção" id="type-terreno" />
+                            <Label htmlFor="type-terreno" className="font-normal cursor-pointer">
+                              Terreno/Construção
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="Outros" id="type-outros" />
+                            <Label htmlFor="type-outros" className="font-normal cursor-pointer">
+                              Outros
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <YesNoRadio
-                control={form.control}
-                name="property.finance_costs"
-                label="Tem interesse em financiar as custas/despesas do processo?"
-              />
+              {isPropVisible('finance_costs') && (
+                <YesNoRadio
+                  control={form.control}
+                  name="property.finance_costs"
+                  label="Tem interesse em financiar as custas/despesas do processo?"
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="property.desired_term"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-700 font-semibold">
-                      Prazo desejado (meses)
-                    </FormLabel>
-                    <FormControl>
-                      <Input placeholder="420" type="number" className="bg-white h-11" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isPropVisible('desired_term') && (
+                <FormField
+                  control={form.control}
+                  name="property.desired_term"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700 font-semibold">
+                        Prazo desejado (meses)
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="420"
+                          type="number"
+                          className="bg-white h-11"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="property.amortization_system"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel className="text-slate-700 font-semibold">
-                      Tipo de amortização
-                    </FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex gap-6"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="PRICE" id="amort-price" />
-                          <Label htmlFor="amort-price" className="font-normal cursor-pointer">
-                            PRICE
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="SAC" id="amort-sac" />
-                          <Label htmlFor="amort-sac" className="font-normal cursor-pointer">
-                            SAC
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {isPropVisible('amortization_system') && (
+                <FormField
+                  control={form.control}
+                  name="property.amortization_system"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className="text-slate-700 font-semibold">
+                        Tipo de amortização
+                      </FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="PRICE" id="amort-price" />
+                            <Label htmlFor="amort-price" className="font-normal cursor-pointer">
+                              PRICE
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="SAC" id="amort-sac" />
+                            <Label htmlFor="amort-sac" className="font-normal cursor-pointer">
+                              SAC
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
 
-              <FormField
-                control={form.control}
-                name="property.observations"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-700 font-semibold">
-                      Observações do imóvel
-                    </FormLabel>
-                    <FormControl>
-                      <Textarea className="bg-white" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isPropVisible('observations') && (
+                <FormField
+                  control={form.control}
+                  name="property.observations"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700 font-semibold">
+                        Observações do imóvel
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea className="bg-white" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             <hr className="border-slate-200" />
 
-            {/* Buyer 1 */}
             <div>
               <h2 className="text-2xl font-bold text-slate-800 mb-6">Comprador 1</h2>
-              <BuyerFields prefix="buyer1" form={form} marriageRegimes={marriageRegimes} />
+              <BuyerFields
+                prefix="buyer1"
+                form={form}
+                marriageRegimes={marriageRegimes}
+                settings={formSettings}
+              />
             </div>
 
             <hr className="border-slate-200" />
 
-            {/* Buyer 2 */}
             {!hasBuyer2 ? (
               <Button
                 type="button"
@@ -786,10 +882,14 @@ export default function PublicForm() {
                     Remover Comprador
                   </Button>
                 </div>
-                <BuyerFields prefix="buyer2" form={form} marriageRegimes={marriageRegimes} />
+                <BuyerFields
+                  prefix="buyer2"
+                  form={form}
+                  marriageRegimes={marriageRegimes}
+                  settings={formSettings}
+                />
               </div>
             )}
-
             {!hasBuyer2 && (
               <p className="text-sm text-slate-500 -mt-8">
                 (adicionar caso tenha mais de uma pessoa participante no processo ou se for casado)
@@ -798,30 +898,34 @@ export default function PublicForm() {
 
             <hr className="border-slate-200" />
 
-            {/* Documentation Checklist */}
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Documentação</h2>
-              <p className="text-slate-600 mb-6">
-                Envie seus documentos (ou do casal) para análise.
-              </p>
-
-              <div className="space-y-6">
-                {checklistItems.map((item) => (
-                  <YesNoRadio
-                    key={item.id}
-                    control={form.control}
-                    name={`checklist.${item.id}`}
-                    label={item.label}
-                  />
-                ))}
+            {/* Dynamic Documentation Checklist */}
+            {documentTypes.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Documentação</h2>
+                <p className="text-slate-600 mb-6">
+                  Indique quais documentos você possui no momento e anexe-os se possível para
+                  agilizar sua análise.
+                </p>
+                <div className="space-y-4">
+                  {documentTypes.map((doc) => (
+                    <ChecklistItem
+                      key={doc.id}
+                      doc={doc}
+                      form={form}
+                      documentFiles={documentFiles}
+                      setDocumentFiles={setDocumentFiles}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* File Upload */}
+            {/* Additional Attachments */}
             <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Anexos</h2>
-              <p className="text-slate-600 mb-6">Envie arquivos complementares se necessário.</p>
-
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Anexos Complementares</h2>
+              <p className="text-slate-600 mb-6">
+                Envie outros arquivos ou evidências complementares se necessário.
+              </p>
               <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 text-center bg-white hover:bg-slate-50 transition-colors">
                 <Input
                   type="file"
@@ -868,13 +972,13 @@ export default function PublicForm() {
               </div>
             </div>
 
-            <div className="pt-8">
+            <div className="pt-8 pb-12">
               <Button
                 type="submit"
                 className="w-full h-14 text-lg font-bold bg-[#1b365d] hover:bg-[#132641] shadow-lg text-white"
                 disabled={isLoading}
               >
-                {isLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : null}
+                {isLoading && <Loader2 className="w-5 h-5 mr-2 animate-spin" />}
                 {isLoading ? 'Enviando...' : 'ENVIAR SOLICITAÇÃO'}
               </Button>
             </div>

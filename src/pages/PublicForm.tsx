@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import {
@@ -97,7 +97,18 @@ const applyDateMask = (value: string) => {
     .replace(/(\d{4})\d+?$/, '$1')
 }
 
-const BuyerFields = ({ prefix, form }: { prefix: 'buyer1' | 'buyer2'; form: any }) => {
+const BuyerFields = ({
+  prefix,
+  form,
+  marriageRegimes,
+}: {
+  prefix: 'buyer1' | 'buyer2'
+  form: any
+  marriageRegimes: any[]
+}) => {
+  const maritalStatus = form.watch(`${prefix}.marital_status`)
+  const isMarried = maritalStatus === 'Casado(a)' || maritalStatus === 'União Estável'
+
   return (
     <div className="space-y-6">
       <div className="flex gap-4 items-center">
@@ -246,6 +257,34 @@ const BuyerFields = ({ prefix, form }: { prefix: 'buyer1' | 'buyer2'; form: any 
             </FormItem>
           )}
         />
+
+        {isMarried && (
+          <FormField
+            control={form.control}
+            name={`${prefix}.marriage_regime`}
+            render={({ field }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Regime de Casamento</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="Selecione o regime..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {marriageRegimes.map((r) => (
+                      <SelectItem key={r.id} value={r.name}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         <FormField
           control={form.control}
           name={`${prefix}.email`}
@@ -397,6 +436,11 @@ export default function PublicForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [serverError, setServerError] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [marriageRegimes, setMarriageRegimes] = useState<any[]>([])
+
+  useEffect(() => {
+    pb.collection('marriage_regimes').getFullList().then(setMarriageRegimes).catch(console.error)
+  }, [])
 
   const form = useForm<any>({
     defaultValues: {
@@ -417,6 +461,7 @@ export default function PublicForm() {
         birth_date: '',
         education: '',
         marital_status: '',
+        marriage_regime: '',
         email: '',
         phone: '',
         fgts_3_years: 'no',
@@ -436,6 +481,7 @@ export default function PublicForm() {
         birth_date: '',
         education: '',
         marital_status: '',
+        marriage_regime: '',
         email: '',
         phone: '',
         fgts_3_years: 'no',
@@ -713,7 +759,7 @@ export default function PublicForm() {
             {/* Buyer 1 */}
             <div>
               <h2 className="text-2xl font-bold text-slate-800 mb-6">Comprador 1</h2>
-              <BuyerFields prefix="buyer1" form={form} />
+              <BuyerFields prefix="buyer1" form={form} marriageRegimes={marriageRegimes} />
             </div>
 
             <hr className="border-slate-200" />
@@ -740,7 +786,7 @@ export default function PublicForm() {
                     Remover Comprador
                   </Button>
                 </div>
-                <BuyerFields prefix="buyer2" form={form} />
+                <BuyerFields prefix="buyer2" form={form} marriageRegimes={marriageRegimes} />
               </div>
             )}
 

@@ -82,6 +82,7 @@ export default function Layout() {
             { title: 'Usuários', url: '/users', icon: Users },
             { title: 'Config. Crédito', url: '/config/credit-analysis', icon: Settings },
             { title: 'Config. Habitacional', url: '/config/housing-stages', icon: Settings },
+            { title: 'Config. Link Captação', url: '/config/capture-link', icon: Settings },
             { title: 'Config. Reprovação', url: '/config/rejection-reasons', icon: Settings },
             { title: 'Ferramentas de Teste', url: '/testing-tools', icon: Settings },
           ]

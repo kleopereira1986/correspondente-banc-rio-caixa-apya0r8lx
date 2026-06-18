@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-04T02:47:17.583Z",
+  "generatedAt": "2026-06-18T14:41:42.227Z",
   "collections": [
     {
       "name": "users",
@@ -127,6 +127,19 @@
         {
           "name": "birth_date",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "real_estate_agency",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "real_estate_agencies"
+        },
+        {
+          "name": "marriage_regime",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -360,6 +373,13 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "last_updated_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": [
@@ -1178,6 +1198,74 @@
         "view": "@request.auth.id != ''",
         "create": "@request.auth.role = 'master'",
         "update": "@request.auth.role = 'master'",
+        "delete": "@request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "real_estate_agencies",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.role = 'master' || @request.auth.role = 'analyst'",
+        "update": "@request.auth.role = 'master' || @request.auth.role = 'analyst'",
+        "delete": "@request.auth.role = 'master'"
+      },
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "marriage_regimes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = 'master' || @request.auth.role = 'analyst'",
+        "update": "@request.auth.role = 'master' || @request.auth.role = 'analyst'",
         "delete": "@request.auth.role = 'master'"
       },
       "fields": [

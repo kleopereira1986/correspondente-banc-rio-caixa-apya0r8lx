@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useRealtime } from '@/hooks/use-realtime'
-import { getProcesses } from '@/services/api'
+import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
 import {
   FileText,
@@ -20,10 +20,15 @@ import { cn } from '@/lib/utils'
 
 export default function CreditAnalysis() {
   const [processes, setProcesses] = useState<any[]>([])
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   const loadData = async () => {
     try {
-      const data = await getProcesses()
+      const data = await pb.collection('processes').getFullList({
+        sort: '-created',
+        expand:
+          'buyer,assigned_analyst,credit_analysis_type,property_type,development_type,last_updated_by',
+      })
       setProcesses(data.filter((p: any) => p.type === 'credit'))
     } catch (e) {
       console.error(e)
@@ -85,6 +90,10 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
+  }
+
+  const toggleFilter = (filter: string) => {
+    setActiveFilter(activeFilter === filter ? null : filter)
   }
 
   const renderProcessList = (list: any[], emptyMessage: string) => (
@@ -162,12 +171,21 @@ export default function CreditAnalysis() {
       <div>
         <h1 className="text-2xl font-bold text-slate-800">Filas de Análise</h1>
         <p className="text-muted-foreground">
-          Gerencie os processos aguardando análise de crédito e reavaliação.
+          Gerencie os processos aguardando análise de crédito e reavaliação. Clique nos cards para
+          filtrar as filas.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <Card className="border-2 border-slate-200">
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md',
+            activeFilter === 'triagem'
+              ? 'border-slate-800 shadow-md bg-slate-50'
+              : 'border-slate-200',
+          )}
+          onClick={() => toggleFilter('triagem')}
+        >
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-slate-100 text-slate-700">
               <ClipboardCheck className="w-5 h-5" />
@@ -176,7 +194,15 @@ export default function CreditAnalysis() {
             <p className="text-2xl font-bold text-slate-900">{stats.triagem.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-emerald-50/50',
+            activeFilter === 'cadastramento'
+              ? 'border-emerald-600 shadow-md bg-emerald-100/50'
+              : 'border-emerald-200',
+          )}
+          onClick={() => toggleFilter('cadastramento')}
+        >
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-emerald-100 text-emerald-700">
               <Edit className="w-5 h-5" />
@@ -185,7 +211,15 @@ export default function CreditAnalysis() {
             <p className="text-2xl font-bold text-emerald-900">{stats.cadastramento.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-amber-200 bg-amber-50/50">
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-amber-50/50',
+            activeFilter === 'aguardando_autorizacao'
+              ? 'border-amber-600 shadow-md bg-amber-100/50'
+              : 'border-amber-200',
+          )}
+          onClick={() => toggleFilter('aguardando_autorizacao')}
+        >
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-amber-100 text-amber-700">
               <ShieldAlert className="w-5 h-5" />
@@ -198,7 +232,15 @@ export default function CreditAnalysis() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-blue-200 bg-blue-50/50">
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-blue-50/50',
+            activeFilter === 'primeira_analise'
+              ? 'border-blue-600 shadow-md bg-blue-100/50'
+              : 'border-blue-200',
+          )}
+          onClick={() => toggleFilter('primeira_analise')}
+        >
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-blue-100 text-blue-700">
               <Clock className="w-5 h-5" />
@@ -207,7 +249,15 @@ export default function CreditAnalysis() {
             <p className="text-2xl font-bold text-blue-900">{stats.primeira_analise.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-2 border-indigo-200 bg-indigo-50/50">
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-indigo-50/50',
+            activeFilter === 'reavaliacao'
+              ? 'border-indigo-600 shadow-md bg-indigo-100/50'
+              : 'border-indigo-200',
+          )}
+          onClick={() => toggleFilter('reavaliacao')}
+        >
           <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
             <div className="p-3 rounded-full bg-indigo-100 text-indigo-700">
               <RefreshCcw className="w-5 h-5" />
@@ -218,53 +268,79 @@ export default function CreditAnalysis() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
-        <Card className="shadow-sm border-emerald-200 h-full flex flex-col">
-          <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
-            <CardTitle className="text-lg text-emerald-800 flex items-center gap-2">
-              <Edit className="w-5 h-5" /> Fila: Cadastramento
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1">
-            {renderProcessList(stats.cadastramento, 'Nenhum processo na fila de Cadastramento.')}
-          </CardContent>
-        </Card>
+      <div
+        className={cn(
+          'grid gap-6 mt-8',
+          activeFilter ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3',
+        )}
+      >
+        {(!activeFilter || activeFilter === 'triagem') && (
+          <Card className="shadow-sm border-slate-200 h-full flex flex-col">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100 pb-4">
+              <CardTitle className="text-lg text-slate-800 flex items-center gap-2">
+                <ClipboardCheck className="w-5 h-5" /> Fila: Triagem
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.triagem, 'Nenhum processo na fila de Triagem.')}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="shadow-sm border-amber-200 h-full flex flex-col">
-          <CardHeader className="bg-amber-50/50 border-b border-amber-100 pb-4">
-            <CardTitle className="text-lg text-amber-800 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5" /> Fila: Aguardando Autorização
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1">
-            {renderProcessList(
-              stats.aguardando_autorizacao,
-              'Nenhum processo aguardando autorização.',
-            )}
-          </CardContent>
-        </Card>
+        {(!activeFilter || activeFilter === 'cadastramento') && (
+          <Card className="shadow-sm border-emerald-200 h-full flex flex-col">
+            <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
+              <CardTitle className="text-lg text-emerald-800 flex items-center gap-2">
+                <Edit className="w-5 h-5" /> Fila: Cadastramento
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.cadastramento, 'Nenhum processo na fila de Cadastramento.')}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="shadow-sm border-blue-200 h-full flex flex-col">
-          <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
-            <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
-              <Clock className="w-5 h-5" /> Fila: 1ª Análise
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1">
-            {renderProcessList(stats.primeira_analise, 'Nenhum processo na fila de 1ª Análise.')}
-          </CardContent>
-        </Card>
+        {(!activeFilter || activeFilter === 'aguardando_autorizacao') && (
+          <Card className="shadow-sm border-amber-200 h-full flex flex-col">
+            <CardHeader className="bg-amber-50/50 border-b border-amber-100 pb-4">
+              <CardTitle className="text-lg text-amber-800 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5" /> Fila: Aguardando Autorização
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(
+                stats.aguardando_autorizacao,
+                'Nenhum processo aguardando autorização.',
+              )}
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="shadow-sm border-indigo-200 h-full flex flex-col">
-          <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 pb-4">
-            <CardTitle className="text-lg text-indigo-800 flex items-center gap-2">
-              <RefreshCcw className="w-5 h-5" /> Fila: Reavaliação
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0 flex-1">
-            {renderProcessList(stats.reavaliacao, 'Nenhum processo na fila de Reavaliação.')}
-          </CardContent>
-        </Card>
+        {(!activeFilter || activeFilter === 'primeira_analise') && (
+          <Card className="shadow-sm border-blue-200 h-full flex flex-col">
+            <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
+              <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
+                <Clock className="w-5 h-5" /> Fila: 1ª Análise
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.primeira_analise, 'Nenhum processo na fila de 1ª Análise.')}
+            </CardContent>
+          </Card>
+        )}
+
+        {(!activeFilter || activeFilter === 'reavaliacao') && (
+          <Card className="shadow-sm border-indigo-200 h-full flex flex-col">
+            <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 pb-4">
+              <CardTitle className="text-lg text-indigo-800 flex items-center gap-2">
+                <RefreshCcw className="w-5 h-5" /> Fila: Reavaliação
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.reavaliacao, 'Nenhum processo na fila de Reavaliação.')}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

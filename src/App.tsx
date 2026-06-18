@@ -24,6 +24,7 @@ import ConfigHousingStages from './pages/ConfigHousingStages'
 import PublicHousingStatus from './pages/PublicHousingStatus'
 import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
 import CreditAnalysis from './pages/CreditAnalysis'
+import ConfigCaptureLink from './pages/ConfigCaptureLink'
 import TestingTools from './pages/TestingTools'
 import RgExtraction from './pages/RgExtraction'
 import GenerateLink from './pages/GenerateLink'
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
             <Route path="/config/housing-stages" element={<ConfigHousingStages />} />
             <Route path="/config/rejection-reasons" element={<ConfigRejectionReasons />} />
+            <Route path="/config/capture-link" element={<ConfigCaptureLink />} />
             <Route path="/housing-kanban" element={<HousingKanban />} />
             <Route path="/engineering-request" element={<EngineeringRequest />} />
             <Route path="/engineering-requests-list" element={<EngineeringRequestsList />} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/contexts/auth-context'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
@@ -42,12 +44,19 @@ const roleLabels: Record<string, string> = {
 export default function UsersPage() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const [activeTab, setActiveTab] = useState('users')
+
   const [users, setUsers] = useState<any[]>([])
+  const [agencies, setAgencies] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isUserDialogOpen, setIsUserDialogOpen] = useState(false)
+  const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<any>(null)
+
+  const [isAgencyDialogOpen, setIsAgencyDialogOpen] = useState(false)
+  const [isAgencyDeleteDialogOpen, setIsAgencyDeleteDialogOpen] = useState(false)
+  const [selectedAgency, setSelectedAgency] = useState<any>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -55,16 +64,19 @@ export default function UsersPage() {
     password: '',
     role: 'buyer',
     cpf: '',
+    real_estate_agency: '',
   })
+  const [agencyName, setAgencyName] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     loadUsers()
+    loadAgencies()
   }, [])
 
   const loadUsers = async () => {
     try {
-      const data = await getUsers()
+      const data = await pb.collection('users').getFullList({ expand: 'real_estate_agency' })
       setUsers(data)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -73,35 +85,61 @@ export default function UsersPage() {
     }
   }
 
+  const loadAgencies = async () => {
+    try {
+      const data = await pb.collection('real_estate_agencies').getFullList()
+      setAgencies(data)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   if (user?.role !== 'master') {
     return <div className="p-8 text-center text-muted-foreground">Acesso negado.</div>
   }
 
-  const handleOpenDialog = (u?: any) => {
+  const handleOpenUserDialog = (u?: any) => {
     setErrors({})
     if (u) {
       setSelectedUser(u)
-      setFormData({ name: u.name, email: u.email, password: '', role: u.role, cpf: u.cpf || '' })
+      setFormData({
+        name: u.name,
+        email: u.email,
+        password: '',
+        role: u.role,
+        cpf: u.cpf || '',
+        real_estate_agency: u.real_estate_agency || '',
+      })
     } else {
       setSelectedUser(null)
-      setFormData({ name: '', email: '', password: '', role: 'buyer', cpf: '' })
+      setFormData({
+        name: '',
+        email: '',
+        password: '',
+        role: 'buyer',
+        cpf: '',
+        real_estate_agency: '',
+      })
     }
-    setIsDialogOpen(true)
+    setIsUserDialogOpen(true)
   }
 
-  const handleSave = async () => {
+  const handleSaveUser = async () => {
     setErrors({})
     try {
+      const dataToUpdate: any = { ...formData }
+      if (!dataToUpdate.password) delete dataToUpdate.password
+      if (dataToUpdate.role !== 'broker') dataToUpdate.real_estate_agency = null
+      else if (!dataToUpdate.real_estate_agency) dataToUpdate.real_estate_agency = null
+
       if (selectedUser) {
-        const dataToUpdate = { ...formData }
-        if (!dataToUpdate.password) delete dataToUpdate.password
         await updateUser(selectedUser.id, dataToUpdate)
         toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso.' })
       } else {
-        await createUser(formData)
+        await createUser(dataToUpdate)
         toast({ title: 'Sucesso', description: 'Usuário criado com sucesso.' })
       }
-      setIsDialogOpen(false)
+      setIsUserDialogOpen(false)
       loadUsers()
     } catch (err) {
       setErrors(extractFieldErrors(err))
@@ -109,85 +147,197 @@ export default function UsersPage() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeleteUser = async () => {
     if (!selectedUser) return
     try {
       await deleteUser(selectedUser.id)
       toast({ title: 'Sucesso', description: 'Usuário removido.' })
-      setIsDeleteDialogOpen(false)
+      setIsUserDeleteDialogOpen(false)
       loadUsers()
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     }
   }
 
+  const handleOpenAgencyDialog = (a?: any) => {
+    setErrors({})
+    if (a) {
+      setSelectedAgency(a)
+      setAgencyName(a.name)
+    } else {
+      setSelectedAgency(null)
+      setAgencyName('')
+    }
+    setIsAgencyDialogOpen(true)
+  }
+
+  const handleSaveAgency = async () => {
+    if (!agencyName.trim()) {
+      setErrors({ name: 'O nome é obrigatório' })
+      return
+    }
+    try {
+      if (selectedAgency) {
+        await pb.collection('real_estate_agencies').update(selectedAgency.id, { name: agencyName })
+        toast({ title: 'Sucesso', description: 'Imobiliária atualizada com sucesso.' })
+      } else {
+        await pb.collection('real_estate_agencies').create({ name: agencyName })
+        toast({ title: 'Sucesso', description: 'Imobiliária criada com sucesso.' })
+      }
+      setIsAgencyDialogOpen(false)
+      loadAgencies()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
+
+  const handleDeleteAgency = async () => {
+    if (!selectedAgency) return
+    try {
+      await pb.collection('real_estate_agencies').delete(selectedAgency.id)
+      toast({ title: 'Sucesso', description: 'Imobiliária removida.' })
+      setIsAgencyDeleteDialogOpen(false)
+      loadAgencies()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in pb-12">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Usuários</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            Configurações de Acesso
+          </h1>
           <p className="text-muted-foreground">
-            Gerencie os usuários do sistema e seus perfis de acesso.
+            Gerencie os usuários do sistema, imobiliárias e perfis de acesso.
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="w-4 h-4 mr-2" /> Novo Usuário
+        <Button
+          onClick={() =>
+            activeTab === 'users' ? handleOpenUserDialog() : handleOpenAgencyDialog()
+          }
+        >
+          <Plus className="w-4 h-4 mr-2" />{' '}
+          {activeTab === 'users' ? 'Novo Usuário' : 'Nova Imobiliária'}
         </Button>
       </div>
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Perfil</TableHead>
-              <TableHead>CPF</TableHead>
-              <TableHead className="w-[100px] text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.name || '-'}</TableCell>
-                <TableCell>{u.email}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className="capitalize">
-                    {roleLabels[u.role] || u.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>{u.cpf || '-'}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(u)}>
-                      <Pencil className="w-4 h-4 text-slate-500" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedUser(u)
-                        setIsDeleteDialogOpen(true)
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {users.length === 0 && !isLoading && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  Nenhum usuário encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="users">Usuários</TabsTrigger>
+          <TabsTrigger value="agencies">Imobiliárias</TabsTrigger>
+        </TabsList>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <TabsContent value="users">
+          <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Perfil</TableHead>
+                  <TableHead>CPF</TableHead>
+                  <TableHead>Imobiliária</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name || '-'}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {roleLabels[u.role] || u.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{u.cpf || '-'}</TableCell>
+                    <TableCell>{u.expand?.real_estate_agency?.name || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleOpenUserDialog(u)}>
+                          <Pencil className="w-4 h-4 text-slate-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setIsUserDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {users.length === 0 && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      Nenhum usuário encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="agencies">
+          <div className="bg-white border rounded-lg shadow-sm overflow-x-auto max-w-4xl">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome da Imobiliária</TableHead>
+                  <TableHead>Criada em</TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {agencies.map((a) => (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.name}</TableCell>
+                    <TableCell>{new Date(a.created).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenAgencyDialog(a)}
+                        >
+                          <Pencil className="w-4 h-4 text-slate-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedAgency(a)
+                            setIsAgencyDeleteDialogOpen(true)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {agencies.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                      Nenhuma imobiliária encontrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{selectedUser ? 'Editar Usuário' : 'Novo Usuário'}</DialogTitle>
@@ -245,17 +395,37 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
+            {formData.role === 'broker' && (
+              <div className="space-y-2">
+                <Label>Imobiliária</Label>
+                <Select
+                  value={formData.real_estate_agency}
+                  onValueChange={(v) => setFormData({ ...formData, real_estate_agency: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a imobiliária..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agencies.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>Salvar</Button>
+            <Button onClick={handleSaveUser}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <Dialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Excluir Usuário</DialogTitle>
@@ -266,10 +436,51 @@ export default function UsersPage() {
             desfeita.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsUserDeleteDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDeleteUser}>
+              Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAgencyDialogOpen} onOpenChange={setIsAgencyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedAgency ? 'Editar Imobiliária' : 'Nova Imobiliária'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome da Imobiliária</Label>
+              <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} />
+              {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAgencyDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveAgency}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAgencyDeleteDialogOpen} onOpenChange={setIsAgencyDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Imobiliária</DialogTitle>
+          </DialogHeader>
+          <p className="text-slate-600 py-4">
+            Tem certeza que deseja remover a imobiliária <strong>{selectedAgency?.name}</strong>?
+            Esta ação não pode ser desfeita e pode afetar os corretores associados.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAgencyDeleteDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAgency}>
               Excluir
             </Button>
           </DialogFooter>

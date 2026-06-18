@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/table'
 import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, UserPlus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { getProcesses, createProcess, getUsers, updateProcess } from '@/services/api'
+import { createProcess, getUsers, updateProcess } from '@/services/api'
 import { useAuth } from '@/contexts/auth-context'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -62,7 +62,11 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const data = await getProcesses()
+      const data = await pb.collection('processes').getFullList({
+        sort: '-created',
+        expand:
+          'buyer,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
+      })
       setProcesses(data)
     } catch (e) {
       console.error(e)
@@ -439,7 +443,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          <Card className="shadow-sm border-border/50">
+          <Card className="shadow-sm border-border/50 overflow-hidden">
             <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
               <CardTitle className="text-lg text-slate-800">
                 Fila de Processos Análise de Crédito
@@ -457,14 +461,17 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <Table>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[1000px]">
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
                     <TableHead>ID / Cliente</TableHead>
+                    <TableHead>Corretor Parceiro</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right hidden md:table-cell">Data</TableHead>
+                    <TableHead className="text-right">Data/Hora Criação</TableHead>
+                    <TableHead className="text-right">Última Atualização</TableHead>
+                    <TableHead>Atualizado Por</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -474,26 +481,44 @@ export default function Dashboard() {
                       className="cursor-pointer group"
                       onClick={() => navigate(`/process/${process.id}`)}
                     >
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 min-w-[200px]">
                         <div className="font-medium text-slate-800 group-hover:text-primary">
                           {process.expand?.buyer?.name || 'N/A'}
                         </div>
                         <div className="text-xs text-muted-foreground">{process.id}</div>
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-slate-700">
+                      <TableCell className="py-4 min-w-[180px]">
+                        <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">
                         {formatCurrency(process.value)}
                       </TableCell>
-                      <TableCell className="py-4 text-center">
+                      <TableCell className="py-4 text-center min-w-[140px]">
                         {getStatusBadge(process.status, process.result)}
                       </TableCell>
-                      <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
-                        {new Date(process.created).toLocaleDateString('pt-BR')}
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                        {new Date(process.created).toLocaleString('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </TableCell>
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                        {new Date(process.updated).toLocaleString('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </TableCell>
+                      <TableCell className="py-4 text-sm min-w-[150px]">
+                        {process.expand?.last_updated_by?.name || '-'}
                       </TableCell>
                     </TableRow>
                   ))}
                   {filteredCredit.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum processo de análise de crédito encontrado.
                       </TableCell>
                     </TableRow>
@@ -519,7 +544,7 @@ export default function Dashboard() {
             </Card>
           </div>
 
-          <Card className="shadow-sm border-border/50">
+          <Card className="shadow-sm border-border/50 overflow-hidden">
             <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
               <CardTitle className="text-lg text-slate-800">
                 Fila de Processos Habitacional
@@ -537,14 +562,17 @@ export default function Dashboard() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <Table>
+            <CardContent className="p-0 overflow-x-auto">
+              <Table className="min-w-[1000px]">
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
                     <TableHead>ID / Cliente</TableHead>
+                    <TableHead>Corretor Parceiro</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right hidden md:table-cell">Data</TableHead>
+                    <TableHead className="text-right">Data/Hora Criação</TableHead>
+                    <TableHead className="text-right">Última Atualização</TableHead>
+                    <TableHead>Atualizado Por</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -554,26 +582,44 @@ export default function Dashboard() {
                       className="cursor-pointer group"
                       onClick={() => navigate(`/process/${process.id}`)}
                     >
-                      <TableCell className="py-4">
+                      <TableCell className="py-4 min-w-[200px]">
                         <div className="font-medium text-slate-800 group-hover:text-primary">
                           {process.expand?.buyer?.name || 'N/A'}
                         </div>
                         <div className="text-xs text-muted-foreground">{process.id}</div>
                       </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-slate-700">
+                      <TableCell className="py-4 min-w-[180px]">
+                        <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">
                         {formatCurrency(process.value)}
                       </TableCell>
-                      <TableCell className="py-4 text-center">
+                      <TableCell className="py-4 text-center min-w-[140px]">
                         {getStatusBadge(process.status, process.result)}
                       </TableCell>
-                      <TableCell className="py-4 text-right text-muted-foreground text-sm hidden md:table-cell">
-                        {new Date(process.created).toLocaleDateString('pt-BR')}
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                        {new Date(process.created).toLocaleString('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </TableCell>
+                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                        {new Date(process.updated).toLocaleString('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </TableCell>
+                      <TableCell className="py-4 text-sm min-w-[150px]">
+                        {process.expand?.last_updated_by?.name || '-'}
                       </TableCell>
                     </TableRow>
                   ))}
                   {filteredHousing.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Nenhum processo habitacional encontrado.
                       </TableCell>
                     </TableRow>

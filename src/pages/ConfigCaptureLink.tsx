@@ -1,11 +1,19 @@
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Pencil, Trash2, Check, X, Plus } from 'lucide-react'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -24,8 +32,10 @@ export default function ConfigCaptureLink() {
   // Documentos Exigidos
   const [documents, setDocuments] = useState<any[]>([])
   const [newDoc, setNewDoc] = useState('')
+  const [newDocCategory, setNewDocCategory] = useState('1º Proponente')
   const [editingDocId, setEditingDocId] = useState<string | null>(null)
   const [editDocName, setEditDocName] = useState('')
+  const [editDocCategory, setEditDocCategory] = useState('')
 
   const loadData = async () => {
     try {
@@ -38,7 +48,11 @@ export default function ConfigCaptureLink() {
       setFields(f)
       setDocuments(d)
     } catch (e) {
-      toast({ title: 'Erro ao carregar configurações', variant: 'destructive' })
+      toast({
+        title: 'Erro ao carregar configurações',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -57,7 +71,7 @@ export default function ConfigCaptureLink() {
       setNewRegime('')
       toast({ title: 'Criado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -68,7 +82,7 @@ export default function ConfigCaptureLink() {
       setEditingRegimeId(null)
       toast({ title: 'Atualizado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      toast({ title: 'Erro ao atualizar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -78,7 +92,7 @@ export default function ConfigCaptureLink() {
       await pb.collection('marriage_regimes').delete(id)
       toast({ title: 'Excluído com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -88,7 +102,11 @@ export default function ConfigCaptureLink() {
       await pb.collection('form_settings').update(id, { is_active: active })
       toast({ title: 'Campo atualizado' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar campo', variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar campo',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -98,7 +116,11 @@ export default function ConfigCaptureLink() {
       await pb.collection('credit_document_types').update(id, { is_active: active })
       toast({ title: 'Documento atualizado' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar documento', variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar documento',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -107,22 +129,24 @@ export default function ConfigCaptureLink() {
     try {
       await pb
         .collection('credit_document_types')
-        .create({ name: newDoc, category: '1º Proponente', is_active: true })
+        .create({ name: newDoc, category: newDocCategory, is_active: true })
       setNewDoc('')
       toast({ title: 'Criado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   const handleUpdateDoc = async (id: string) => {
     if (!editDocName.trim()) return
     try {
-      await pb.collection('credit_document_types').update(id, { name: editDocName })
+      await pb
+        .collection('credit_document_types')
+        .update(id, { name: editDocName, category: editDocCategory })
       setEditingDocId(null)
       toast({ title: 'Atualizado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      toast({ title: 'Erro ao atualizar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -132,7 +156,7 @@ export default function ConfigCaptureLink() {
       await pb.collection('credit_document_types').delete(id)
       toast({ title: 'Excluído com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -163,14 +187,24 @@ export default function ConfigCaptureLink() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
+                  className="flex-1"
                   placeholder="Adicionar novo documento..."
                   value={newDoc}
                   onChange={(e) => setNewDoc(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateDoc()}
+                  onKeyDown={(e) => e.key === 'Enter' && newDoc.trim() && handleCreateDoc()}
                 />
-                <Button onClick={handleCreateDoc}>
+                <Select value={newDocCategory} onValueChange={setNewDocCategory}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1º Proponente">1º Proponente</SelectItem>
+                    <SelectItem value="2º Proponente / Conjuge">2º Proponente / Conjuge</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={handleCreateDoc} disabled={!newDoc.trim()}>
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -181,30 +215,46 @@ export default function ConfigCaptureLink() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white hover:bg-slate-50 transition-colors gap-3"
                   >
                     {editingDocId === doc.id ? (
-                      <div className="flex items-center gap-2 flex-1">
+                      <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full">
                         <Input
                           autoFocus
                           value={editDocName}
                           onChange={(e) => setEditDocName(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleUpdateDoc(doc.id)}
-                          className="h-8"
+                          onKeyDown={(e) =>
+                            e.key === 'Enter' && editDocName.trim() && handleUpdateDoc(doc.id)
+                          }
+                          className="h-8 flex-1"
                         />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-green-600"
-                          onClick={() => handleUpdateDoc(doc.id)}
-                        >
-                          <Check className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => setEditingDocId(null)}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
+                        <Select value={editDocCategory} onValueChange={setEditDocCategory}>
+                          <SelectTrigger className="h-8 w-full sm:w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1º Proponente">1º Proponente</SelectItem>
+                            <SelectItem value="2º Proponente / Conjuge">
+                              2º Proponente / Conjuge
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <div className="flex gap-1 self-end sm:self-auto">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-green-600"
+                            onClick={() => handleUpdateDoc(doc.id)}
+                            disabled={!editDocName.trim()}
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => setEditingDocId(null)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -213,9 +263,12 @@ export default function ConfigCaptureLink() {
                             checked={doc.is_active}
                             onCheckedChange={(val) => handleToggleDoc(doc.id, val)}
                           />
-                          <span className="text-sm font-medium text-slate-800 leading-relaxed">
-                            {doc.name}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-medium text-slate-800 leading-relaxed">
+                              {doc.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">{doc.category}</span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
                           <Button
@@ -225,6 +278,7 @@ export default function ConfigCaptureLink() {
                             onClick={() => {
                               setEditingDocId(doc.id)
                               setEditDocName(doc.name)
+                              setEditDocCategory(doc.category || '1º Proponente')
                             }}
                           >
                             <Pencil className="w-4 h-4" />
@@ -294,9 +348,9 @@ export default function ConfigCaptureLink() {
                   placeholder="Adicionar novo..."
                   value={newRegime}
                   onChange={(e) => setNewRegime(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRegime()}
+                  onKeyDown={(e) => e.key === 'Enter' && newRegime.trim() && handleCreateRegime()}
                 />
-                <Button onClick={handleCreateRegime}>
+                <Button onClick={handleCreateRegime} disabled={!newRegime.trim()}>
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -312,7 +366,11 @@ export default function ConfigCaptureLink() {
                           autoFocus
                           value={editRegimeName}
                           onChange={(e) => setEditRegimeName(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleUpdateRegime(item.id)}
+                          onKeyDown={(e) =>
+                            e.key === 'Enter' &&
+                            editRegimeName.trim() &&
+                            handleUpdateRegime(item.id)
+                          }
                           className="h-8"
                         />
                         <Button
@@ -320,6 +378,7 @@ export default function ConfigCaptureLink() {
                           variant="ghost"
                           className="h-8 w-8 text-green-600"
                           onClick={() => handleUpdateRegime(item.id)}
+                          disabled={!editRegimeName.trim()}
                         >
                           <Check className="w-4 h-4" />
                         </Button>

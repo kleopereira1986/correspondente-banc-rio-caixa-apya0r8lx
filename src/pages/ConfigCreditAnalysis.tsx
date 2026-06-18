@@ -1,22 +1,6 @@
 import { useState, useEffect } from 'react'
-import {
-  getCreditAnalysisTypes,
-  createCreditAnalysisType,
-  updateCreditAnalysisType,
-  deleteCreditAnalysisType,
-  getPropertyTypes,
-  createPropertyType,
-  updatePropertyType,
-  deletePropertyType,
-  getDevelopmentTypes,
-  createDevelopmentType,
-  updateDevelopmentType,
-  deleteDevelopmentType,
-  getCreditDocumentTypes,
-  createCreditDocumentType,
-  updateCreditDocumentType,
-  deleteCreditDocumentType,
-} from '@/services/api'
+import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -47,28 +31,10 @@ export default function ConfigCreditAnalysis() {
         <div className="space-y-6">
           <ConfigSection
             title="Tipos de Análise de Crédito"
-            fetchFn={getCreditAnalysisTypes}
-            createFn={createCreditAnalysisType}
-            updateFn={updateCreditAnalysisType}
-            deleteFn={deleteCreditAnalysisType}
-            realtimeKey="credit_analysis_types"
+            collectionName="credit_analysis_types"
           />
-          <ConfigSection
-            title="Tipo de Imóvel"
-            fetchFn={getPropertyTypes}
-            createFn={createPropertyType}
-            updateFn={updatePropertyType}
-            deleteFn={deletePropertyType}
-            realtimeKey="property_types"
-          />
-          <ConfigSection
-            title="Tipos de Empreendimentos"
-            fetchFn={getDevelopmentTypes}
-            createFn={createDevelopmentType}
-            updateFn={updateDevelopmentType}
-            deleteFn={deleteDevelopmentType}
-            realtimeKey="development_types"
-          />
+          <ConfigSection title="Tipo de Imóvel" collectionName="property_types" />
+          <ConfigSection title="Tipos de Empreendimentos" collectionName="development_types" />
         </div>
       </div>
     </div>
@@ -86,10 +52,10 @@ function ConfigDocumentSection() {
 
   const loadData = async () => {
     try {
-      const data = await getCreditDocumentTypes()
+      const data = await pb.collection('credit_document_types').getFullList()
       setItems(data)
     } catch (e) {
-      toast({ title: 'Erro ao carregar', variant: 'destructive' })
+      toast({ title: 'Erro ao carregar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -101,32 +67,36 @@ function ConfigDocumentSection() {
   const handleCreate = async () => {
     if (!newItemName.trim()) return
     try {
-      await createCreditDocumentType({ name: newItemName, category: newCategory })
+      await pb
+        .collection('credit_document_types')
+        .create({ name: newItemName, category: newCategory, is_active: true })
       setNewItemName('')
       toast({ title: 'Criado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return
     try {
-      await updateCreditDocumentType(id, { name: editName, category: editCategory })
+      await pb
+        .collection('credit_document_types')
+        .update(id, { name: editName, category: editCategory })
       setEditingId(null)
       toast({ title: 'Atualizado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      toast({ title: 'Erro ao atualizar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Deseja realmente excluir este item?')) return
     try {
-      await deleteCreditDocumentType(id)
+      await pb.collection('credit_document_types').delete(id)
       toast({ title: 'Excluído com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -153,7 +123,7 @@ function ConfigDocumentSection() {
               <SelectItem value="2º Proponente / Conjuge">2º Proponente / Conjuge</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} disabled={!newItemName.trim()}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>
@@ -244,7 +214,7 @@ function ConfigDocumentSection() {
   )
 }
 
-function ConfigSection({ title, fetchFn, createFn, updateFn, deleteFn, realtimeKey }: any) {
+function ConfigSection({ title, collectionName }: { title: string; collectionName: string }) {
   const { toast } = useToast()
   const [items, setItems] = useState<any[]>([])
   const [newItemName, setNewItemName] = useState('')
@@ -253,47 +223,47 @@ function ConfigSection({ title, fetchFn, createFn, updateFn, deleteFn, realtimeK
 
   const loadData = async () => {
     try {
-      const data = await fetchFn()
+      const data = await pb.collection(collectionName).getFullList()
       setItems(data)
     } catch (e) {
-      toast({ title: 'Erro ao carregar', variant: 'destructive' })
+      toast({ title: 'Erro ao carregar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   useEffect(() => {
     loadData()
   }, [])
-  useRealtime(realtimeKey, () => loadData())
+  useRealtime(collectionName, () => loadData())
 
   const handleCreate = async () => {
     if (!newItemName.trim()) return
     try {
-      await createFn({ name: newItemName })
+      await pb.collection(collectionName).create({ name: newItemName })
       setNewItemName('')
       toast({ title: 'Criado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   const handleUpdate = async (id: string) => {
     if (!editName.trim()) return
     try {
-      await updateFn(id, { name: editName })
+      await pb.collection(collectionName).update(id, { name: editName })
       setEditingId(null)
       toast({ title: 'Atualizado com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao atualizar', variant: 'destructive' })
+      toast({ title: 'Erro ao atualizar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Deseja realmente excluir este item?')) return
     try {
-      await deleteFn(id)
+      await pb.collection(collectionName).delete(id)
       toast({ title: 'Excluído com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao excluir', variant: 'destructive' })
+      toast({ title: 'Erro ao excluir', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -310,7 +280,7 @@ function ConfigSection({ title, fetchFn, createFn, updateFn, deleteFn, realtimeK
             onChange={(e) => setNewItemName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
-          <Button onClick={handleCreate}>
+          <Button onClick={handleCreate} disabled={!newItemName.trim()}>
             <Plus className="w-4 h-4" />
           </Button>
         </div>

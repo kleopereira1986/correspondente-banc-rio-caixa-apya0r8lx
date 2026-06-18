@@ -22,6 +22,7 @@ import PublicEngineeringStatus from './pages/PublicEngineeringStatus'
 import HousingKanban from './pages/HousingKanban'
 import ConfigHousingStages from './pages/ConfigHousingStages'
 import PublicHousingStatus from './pages/PublicHousingStatus'
+import PublicConstructionDashboard from './pages/PublicConstructionDashboard'
 import ConfigRejectionReasons from './pages/ConfigRejectionReasons'
 import CreditAnalysis from './pages/CreditAnalysis'
 import ConfigCaptureLink from './pages/ConfigCaptureLink'
@@ -42,6 +43,7 @@ const App = () => (
           <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
           <Route path="/consultar-engenharia/:id" element={<PublicEngineeringStatus />} />
           <Route path="/public/housing/:id" element={<PublicHousingStatus />} />
+          <Route path="/public/construtora/:id" element={<PublicConstructionDashboard />} />
           <Route path="/formulario" element={<PublicForm />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />

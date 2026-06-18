@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Pencil, Trash2, Plus, Search, Building2 } from 'lucide-react'
+import { Pencil, Trash2, Plus, Search, Building2, Link as LinkIcon } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function ConstructionCompanies() {
@@ -202,6 +202,22 @@ export default function ConstructionCompanies() {
                   <TableCell>{c.legal_representative || '-'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/public/construtora/${c.id}`,
+                          )
+                          toast({
+                            title: 'Link copiado!',
+                            description: 'Link do dashboard externo copiado.',
+                          })
+                        }}
+                        title="Copiar Link do Dashboard"
+                      >
+                        <LinkIcon className="w-4 h-4 text-slate-500" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(c)}>
                         <Pencil className="w-4 h-4 text-slate-500" />
                       </Button>

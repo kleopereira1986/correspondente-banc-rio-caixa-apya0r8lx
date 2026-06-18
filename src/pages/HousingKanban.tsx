@@ -11,6 +11,7 @@ import {
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
+import pb from '@/lib/pocketbase/client'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -122,19 +123,32 @@ export default function HousingKanban() {
     if (!credProc) return
     try {
       const firstStep = stages[0]?.name || 'Montagem de Pasta'
-      await createProcess({
+
+      const updatedObservations = notes
+        ? `${credProc.observations ? credProc.observations + '\n\n' : ''}Nota da Importação: ${notes}`
+        : credProc.observations
+
+      await updateProcess(credProc.id, {
         type: 'housing',
-        buyer: credProc.buyer,
-        broker: credProc.broker,
         current_step: firstStep,
         status: 'Nova Solicitação',
-        observations: `Importado da Análise de Crédito ${credProc.id}\n${notes}`,
-        assigned_analyst: user?.role === 'analyst' ? user.id : undefined,
-        credit_analysis_type: credProc.credit_analysis_type,
-        development_type: credProc.development_type,
-        value: credProc.approved_financing_value || credProc.value,
+        observations: updatedObservations,
+        assigned_analyst: user?.role === 'analyst' ? user.id : credProc.assigned_analyst,
       })
-      toast({ title: 'Processo habitacional importado' })
+
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: credProc.id,
+          from_step: credProc.current_step || '',
+          to_step: firstStep,
+          from_status: credProc.status || '',
+          to_status: 'Nova Solicitação',
+          changed_by: user.id,
+          note: 'Processo transferido da Análise de Crédito para Habitacional.',
+        })
+      }
+
+      toast({ title: 'Processo habitacional importado com sucesso' })
       setImportDialogOpen(false)
       setNotes('')
       setSelectedCredit('')

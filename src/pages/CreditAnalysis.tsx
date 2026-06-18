@@ -16,13 +16,27 @@ import {
   RefreshCcw,
   Edit,
   ShieldAlert,
+  CheckCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/hooks/use-toast'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
 
 export default function CreditAnalysis() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+
+  const [firstHousingStage, setFirstHousingStage] = useState<string>('Montagem de Pasta')
+  const [transitionProcess, setTransitionProcess] = useState<any>(null)
 
   const loadData = async () => {
     try {
@@ -39,6 +53,12 @@ export default function CreditAnalysis() {
 
   useEffect(() => {
     loadData()
+    pb.collection('housing_stages')
+      .getFullList({ sort: 'order' })
+      .then((stages) => {
+        if (stages.length > 0) setFirstHousingStage(stages[0].name)
+      })
+      .catch(console.error)
   }, [])
 
   useRealtime('processes', () => loadData())
@@ -93,6 +113,7 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
+    aprovados: processes.filter((p) => p.result === 'approved' && p.type === 'credit'),
   }
 
   const toggleFilter = (filter: string) => {
@@ -134,6 +155,36 @@ export default function CreditAnalysis() {
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleTransitionToHousing = async () => {
+    if (!transitionProcess) return
+    try {
+      await pb.collection('processes').update(transitionProcess.id, {
+        type: 'housing',
+        current_step: firstHousingStage,
+        status: 'Nova Solicitação',
+      })
+
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: transitionProcess.id,
+          from_step: transitionProcess.current_step || '',
+          to_step: firstHousingStage,
+          from_status: transitionProcess.status || '',
+          to_status: 'Nova Solicitação',
+          changed_by: user.id,
+          note: 'Processo transferido da Análise de Crédito para Habitacional.',
+        })
+      }
+
+      toast({ title: 'Processo transferido para o fluxo Habitacional com sucesso.' })
+      setTransitionProcess(null)
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro ao transferir processo.', variant: 'destructive' })
     }
   }
 
@@ -224,6 +275,18 @@ export default function CreditAnalysis() {
                   Pendência Resolvida
                 </Button>
               )}
+              {proc.result === 'approved' && proc.type === 'credit' && (
+                <Button
+                  size="sm"
+                  className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setTransitionProcess(proc)
+                  }}
+                >
+                  Enviar para Habitacional
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm" className="group w-full sm:w-auto">
                 <Link to={`/process/${proc.id}`}>
                   Analisar{' '}
@@ -247,7 +310,7 @@ export default function CreditAnalysis() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Card
           className={cn(
             'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md',
@@ -337,6 +400,23 @@ export default function CreditAnalysis() {
             <p className="text-2xl font-bold text-indigo-900">{stats.reavaliacao.length}</p>
           </CardContent>
         </Card>
+        <Card
+          className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-teal-50/50',
+            activeFilter === 'aprovados'
+              ? 'border-teal-600 shadow-md bg-teal-100/50'
+              : 'border-teal-200',
+          )}
+          onClick={() => toggleFilter('aprovados')}
+        >
+          <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+            <div className="p-3 rounded-full bg-teal-100 text-teal-700">
+              <CheckCircle className="w-5 h-5" />
+            </div>
+            <p className="font-semibold text-teal-800 text-sm mt-1">Aprovados</p>
+            <p className="text-2xl font-bold text-teal-900">{stats.aprovados.length}</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div
@@ -412,7 +492,46 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
+
+        {(!activeFilter || activeFilter === 'aprovados') && (
+          <Card className="shadow-sm border-teal-200 h-full flex flex-col">
+            <CardHeader className="bg-teal-50/50 border-b border-teal-100 pb-4">
+              <CardTitle className="text-lg text-teal-800 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" /> Fila: Aprovados
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.aprovados, 'Nenhum processo aprovado.')}
+            </CardContent>
+          </Card>
+        )}
       </div>
+
+      <Dialog
+        open={!!transitionProcess}
+        onOpenChange={(open) => !open && setTransitionProcess(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Transferir para Habitacional</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja enviar este processo aprovado para o fluxo Habitacional? Ele
+              será movido para a etapa "<strong>{firstHousingStage}</strong>".
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setTransitionProcess(null)}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              onClick={handleTransitionToHousing}
+            >
+              Confirmar Transferência
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

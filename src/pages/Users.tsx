@@ -3,6 +3,7 @@ import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/contexts/auth-context'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   Table,
   TableBody,
@@ -29,7 +30,7 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { Pencil, Trash2, Plus, Check } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { Label } from '@/components/ui/label'
 
@@ -74,9 +75,15 @@ export default function UsersPage() {
     loadAgencies()
   }, [])
 
+  useRealtime('users', () => {
+    loadUsers()
+  })
+
   const loadUsers = async () => {
     try {
-      const data = await pb.collection('users').getFullList({ expand: 'real_estate_agency' })
+      const data = await pb
+        .collection('users')
+        .getFullList({ expand: 'real_estate_agency', sort: '-created' })
       setUsers(data)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -97,6 +104,9 @@ export default function UsersPage() {
   if (user?.role !== 'master') {
     return <div className="p-8 text-center text-muted-foreground">Acesso negado.</div>
   }
+
+  const approvedUsers = users.filter((u) => u.is_approved)
+  const pendingUsers = users.filter((u) => !u.is_approved)
 
   const handleOpenUserDialog = (u?: any) => {
     setErrors({})
@@ -136,11 +146,10 @@ export default function UsersPage() {
         await updateUser(selectedUser.id, dataToUpdate)
         toast({ title: 'Sucesso', description: 'Usuário atualizado com sucesso.' })
       } else {
-        await createUser(dataToUpdate)
+        await createUser({ ...dataToUpdate, is_approved: true })
         toast({ title: 'Sucesso', description: 'Usuário criado com sucesso.' })
       }
       setIsUserDialogOpen(false)
-      loadUsers()
     } catch (err) {
       setErrors(extractFieldErrors(err))
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -153,7 +162,15 @@ export default function UsersPage() {
       await deleteUser(selectedUser.id)
       toast({ title: 'Sucesso', description: 'Usuário removido.' })
       setIsUserDeleteDialogOpen(false)
-      loadUsers()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
+
+  const handleApproveUser = async (userId: string) => {
+    try {
+      await pb.collection('users').update(userId, { is_approved: true })
+      toast({ title: 'Sucesso', description: 'Usuário aprovado com sucesso.' })
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     }
@@ -211,13 +228,14 @@ export default function UsersPage() {
             Configurações de Acesso
           </h1>
           <p className="text-muted-foreground">
-            Gerencie os usuários do sistema, imobiliárias e perfis de acesso.
+            Gerencie os usuários do sistema, imobiliárias e aprovações.
           </p>
         </div>
         <Button
           onClick={() =>
             activeTab === 'users' ? handleOpenUserDialog() : handleOpenAgencyDialog()
           }
+          className={activeTab === 'pending' ? 'hidden' : ''}
         >
           <Plus className="w-4 h-4 mr-2" />{' '}
           {activeTab === 'users' ? 'Novo Usuário' : 'Nova Imobiliária'}
@@ -225,8 +243,16 @@ export default function UsersPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="users">Usuários</TabsTrigger>
+        <TabsList className="mb-4 overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="users">Usuários Ativos</TabsTrigger>
+          <TabsTrigger value="pending" className="relative">
+            Aprovações Pendentes
+            {pendingUsers.length > 0 && (
+              <Badge variant="destructive" className="ml-2 px-1.5 py-0.5 text-[10px] leading-none">
+                {pendingUsers.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="agencies">Imobiliárias</TabsTrigger>
         </TabsList>
 
@@ -244,7 +270,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((u) => (
+                {approvedUsers.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name || '-'}</TableCell>
                     <TableCell>{u.email}</TableCell>
@@ -274,10 +300,75 @@ export default function UsersPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {users.length === 0 && !isLoading && (
+                {approvedUsers.length === 0 && !isLoading && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      Nenhum usuário encontrado.
+                      Nenhum usuário ativo encontrado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Perfil Solicitado</TableHead>
+                  <TableHead>Data do Cadastro</TableHead>
+                  <TableHead className="w-[200px] text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingUsers.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name || '-'}</TableCell>
+                    <TableCell>{u.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {roleLabels[u.role] || u.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{new Date(u.created).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 hover:text-green-700 h-8 px-2"
+                          onClick={() => handleApproveUser(u.id)}
+                        >
+                          <Check className="w-4 h-4 mr-1" /> Aprovar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:text-red-700 h-8 px-2"
+                          onClick={() => {
+                            setSelectedUser(u)
+                            setIsUserDeleteDialogOpen(true)
+                          }}
+                        >
+                          Rejeitar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {pendingUsers.length === 0 && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="bg-slate-100 p-3 rounded-full mb-3">
+                          <Check className="w-6 h-6 text-slate-400" />
+                        </div>
+                        <p>Nenhuma aprovação pendente no momento.</p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )}
@@ -428,10 +519,15 @@ export default function UsersPage() {
       <Dialog open={isUserDeleteDialogOpen} onOpenChange={setIsUserDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Excluir Usuário</DialogTitle>
+            <DialogTitle>
+              {!selectedUser?.is_approved ? 'Rejeitar Solicitação' : 'Excluir Usuário'}
+            </DialogTitle>
           </DialogHeader>
           <p className="text-slate-600 py-4">
-            Tem certeza que deseja remover o usuário{' '}
+            Tem certeza que deseja{' '}
+            {!selectedUser?.is_approved
+              ? 'rejeitar a solicitação e remover o usuário'
+              : 'remover o usuário'}{' '}
             <strong>{selectedUser?.name || selectedUser?.email}</strong>? Esta ação não pode ser
             desfeita.
           </p>
@@ -440,7 +536,7 @@ export default function UsersPage() {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDeleteUser}>
-              Excluir
+              {!selectedUser?.is_approved ? 'Rejeitar e Excluir' : 'Excluir'}
             </Button>
           </DialogFooter>
         </DialogContent>

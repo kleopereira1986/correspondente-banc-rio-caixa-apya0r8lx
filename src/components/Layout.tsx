@@ -55,6 +55,10 @@ export default function Layout() {
     return <Outlet />
   }
 
+  if (!user.is_approved) {
+    return <Navigate to="/pending-approval" replace />
+  }
+
   if (location.pathname === '/') {
     if (user.role === 'master' || user.role === 'analyst' || user.role === 'broker') {
       return <Navigate to="/dashboard" replace />

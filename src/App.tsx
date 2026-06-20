@@ -9,6 +9,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import CustomerPortal from './pages/CustomerPortal'
 import ProcessDetail from './pages/ProcessDetail'
+import PendingApproval from './pages/PendingApproval'
 import PublicOnboarding from './pages/PublicOnboarding'
 import Tasks from './pages/Tasks'
 import TaskDetail from './pages/TaskDetail'
@@ -41,6 +42,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/public/onboarding/:id" element={<PublicOnboarding />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
           <Route path="/public/solicitacao-engenharia" element={<PublicEngineeringRequest />} />
           <Route path="/consultar-engenharia/:id" element={<PublicEngineeringStatus />} />
           <Route path="/public/housing/:id" element={<PublicHousingStatus />} />

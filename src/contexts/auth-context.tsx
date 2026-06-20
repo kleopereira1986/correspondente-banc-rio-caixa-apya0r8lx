@@ -10,6 +10,7 @@ export interface User {
   email: string
   role: Role
   avatar?: string
+  is_approved: boolean
 }
 
 interface AuthContextType {
@@ -39,7 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password = 'Skip@Pass') => {
     try {
       await pb.collection('users').authWithPassword(email, password)
-      const role = pb.authStore.record?.role as Role | 'broker'
+      const record = pb.authStore.record as unknown as User
+
+      if (!record.is_approved) {
+        navigate('/pending-approval')
+        return { error: null }
+      }
+
+      const role = record.role as Role | 'broker'
       if (role === 'master' || role === 'analyst' || role === 'broker') {
         navigate('/dashboard')
       } else {

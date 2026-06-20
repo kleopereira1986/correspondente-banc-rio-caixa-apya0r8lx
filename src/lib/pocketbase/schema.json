@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T16:47:59.830Z",
+  "generatedAt": "2026-06-20T14:37:39.463Z",
   "collections": [
     {
       "name": "users",
@@ -9,7 +9,7 @@
         "view": "",
         "create": "",
         "update": "",
-        "delete": "id = @request.auth.id"
+        "delete": "id = @request.auth.id || @request.auth.role = 'master'"
       },
       "fields": [
         {
@@ -140,6 +140,12 @@
         {
           "name": "marriage_regime",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "is_approved",
+          "type": "bool",
           "required": false,
           "system": false
         }

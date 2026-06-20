@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Landmark, ShieldCheck } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { Link } from 'react-router-dom'
 
 export default function Index() {
   const { login } = useAuth()
@@ -14,18 +15,21 @@ export default function Index() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (presetEmail?: string) => {
-    const e = presetEmail || email
-    const p = presetEmail ? 'Skip@Pass' : password
-    if (!e || !p) {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email || !password) {
       toast({ title: 'Erro', description: 'Preencha email e senha.', variant: 'destructive' })
       return
     }
     setLoading(true)
-    const { error } = await login(e, p)
+    const { error } = await login(email, password)
     setLoading(false)
     if (error) {
-      toast({ title: 'Erro', description: 'Credenciais inválidas.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: 'Credenciais inválidas ou pendente de aprovação.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -72,82 +76,53 @@ export default function Index() {
                 Insira suas credenciais para continuar
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">E-mail</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="nome@exemplo.com.br"
-                    className="h-11"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Senha</Label>
+            <CardContent>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="nome@exemplo.com.br"
+                      className="h-11"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
                   </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    className="h-11"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Senha</Label>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="h-11"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <Button
-                  className="w-full h-11 text-base font-semibold shadow-md"
-                  onClick={() => handleLogin()}
-                  disabled={loading}
-                >
-                  Entrar
-                </Button>
-              </div>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground font-medium">
-                    Acesso Rápido (Demonstração)
-                  </span>
-                </div>
-              </div>
+                <div className="space-y-4">
+                  <Button type="submit" className="w-full h-11 text-base" disabled={loading}>
+                    {loading ? 'Entrando...' : 'Entrar'}
+                  </Button>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="border-primary/20 hover:bg-primary/5 hover:text-primary text-xs"
-                  onClick={() => handleLogin('kleopereira1986@gmail.com')}
-                >
-                  Master
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-primary/20 hover:bg-primary/5 hover:text-primary text-xs"
-                  onClick={() => handleLogin('analista@caixa.gov.br')}
-                >
-                  Analista
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground text-xs"
-                  onClick={() => handleLogin('roberto@email.com')}
-                >
-                  Comprador
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-secondary/30 hover:bg-secondary/10 hover:text-secondary-foreground text-xs"
-                  onClick={() => handleLogin('juliana@email.com')}
-                >
-                  Vendedor
-                </Button>
-              </div>
+                  <div className="text-center pt-2">
+                    <Link to="/register" className="w-full block">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 text-base font-medium border-primary/20 text-primary hover:bg-primary/5"
+                        type="button"
+                      >
+                        FAÇA SEU CADASTRO
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>

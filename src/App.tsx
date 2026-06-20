@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/contexts/auth-context'
 import Layout from './components/Layout'
 import Index from './pages/Index'
+import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import CustomerPortal from './pages/CustomerPortal'
 import ProcessDetail from './pages/ProcessDetail'
@@ -45,6 +46,7 @@ const App = () => (
           <Route path="/public/housing/:id" element={<PublicHousingStatus />} />
           <Route path="/public/construtora/:id" element={<PublicConstructionDashboard />} />
           <Route path="/formulario" element={<PublicForm />} />
+          <Route path="/register" element={<Register />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />

@@ -408,28 +408,6 @@ export default function BrokerProcesses() {
             Acompanhe suas avaliações de crédito e financiamentos.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setStep(1)
-            setFormData({
-              buyerId: '',
-              buyerName: '',
-              buyerCpf: '',
-              buyerPhone: '',
-              buyerEmail: '',
-              creditAnalysisType: '',
-              propertyType: '',
-              value: '',
-              developmentType: '',
-              workHistory36Months: 'false',
-              hasDependents: 'false',
-              dependentsInfo: '',
-            })
-            setIsDialogOpen(true)
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" /> Cadastrar Novo Cliente
-        </Button>
       </div>
 
       <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">

@@ -7,6 +7,7 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import Profile from './pages/Profile'
 import CustomerPortal from './pages/CustomerPortal'
 import ProcessDetail from './pages/ProcessDetail'
 import PendingApproval from './pages/PendingApproval'
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/credit-analysis" element={<CreditAnalysis />} />
             <Route path="/portal" element={<CustomerPortal />} />

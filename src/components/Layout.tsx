@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import pb from '@/lib/pocketbase/client'
 import {
   Bell,
   LayoutDashboard,
@@ -186,9 +187,13 @@ export default function Layout() {
                   <div className="flex items-center gap-2 hover:bg-slate-50 p-1 pr-3 rounded-full transition-colors border border-transparent hover:border-border/50">
                     <Avatar className="w-8 h-8 border border-primary/20">
                       <AvatarImage
-                        src={`https://img.usecurling.com/ppl/thumbnail?seed=${user.id}`}
+                        src={
+                          user.avatar
+                            ? pb.files.getURL(user as any, user.avatar, { thumb: '100x100' })
+                            : `https://img.usecurling.com/ppl/thumbnail?seed=${user.id}`
+                        }
                       />
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                      <AvatarFallback className="bg-primary/10 text-primary font-medium uppercase">
                         {user.name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
@@ -205,8 +210,10 @@ export default function Layout() {
                 <DropdownMenuContent align="end" className="w-56 animate-in slide-in-from-top-2">
                   <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">
-                    <User className="w-4 h-4 mr-2" /> Meu Perfil
+                  <DropdownMenuItem className="cursor-pointer" asChild>
+                    <Link to="/profile" className="flex items-center w-full">
+                      <User className="w-4 h-4 mr-2" /> Meu Perfil
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="cursor-pointer text-destructive focus:text-destructive"

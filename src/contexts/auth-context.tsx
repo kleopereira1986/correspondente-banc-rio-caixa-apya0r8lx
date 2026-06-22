@@ -12,6 +12,8 @@ export interface User {
   avatar?: string
   is_approved: boolean
   real_estate_agency?: string
+  phone?: string
+  cpf?: string
 }
 
 interface AuthContextType {

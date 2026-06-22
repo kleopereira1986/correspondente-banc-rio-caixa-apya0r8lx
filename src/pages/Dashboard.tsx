@@ -311,40 +311,42 @@ export default function Dashboard() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-auto shadow-sm">
-                <UserPlus className="mr-2 h-4 w-4" /> Cadastrar Novo Cliente
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Nome Completo</Label>
-                  <Input
-                    value={newClientName}
-                    onChange={(e) => setNewClientName(e.target.value)}
-                    placeholder="Ex: João da Silva"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email (Opcional)</Label>
-                  <Input
-                    type="email"
-                    value={newClientEmail}
-                    onChange={(e) => setNewClientEmail(e.target.value)}
-                    placeholder="Ex: joao@email.com"
-                  />
-                </div>
-                <Button onClick={handleCreateClient} className="w-full">
-                  Cadastrar
+          {!isBroker && (
+            <Dialog open={isNewClientOpen} onOpenChange={setIsNewClientOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto shadow-sm">
+                  <UserPlus className="mr-2 h-4 w-4" /> Cadastrar Novo Cliente
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Nome Completo</Label>
+                    <Input
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      placeholder="Ex: João da Silva"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email (Opcional)</Label>
+                    <Input
+                      type="email"
+                      value={newClientEmail}
+                      onChange={(e) => setNewClientEmail(e.target.value)}
+                      placeholder="Ex: joao@email.com"
+                    />
+                  </div>
+                  <Button onClick={handleCreateClient} className="w-full">
+                    Cadastrar
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
 
           {!isBroker && (
             <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>

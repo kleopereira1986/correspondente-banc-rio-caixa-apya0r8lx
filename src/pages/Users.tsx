@@ -40,6 +40,7 @@ const roleLabels: Record<string, string> = {
   buyer: 'Comprador',
   seller: 'Vendedor',
   broker: 'Corretor Parceiro',
+  real_estate_agency: 'Imobiliária',
 }
 
 export default function UsersPage() {
@@ -487,7 +488,7 @@ export default function UsersPage() {
                 </SelectContent>
               </Select>
             </div>
-            {formData.role === 'broker' && (
+            {(formData.role === 'broker' || formData.role === 'real_estate_agency') && (
               <div className="space-y-2">
                 <Label>Imobiliária</Label>
                 <Select

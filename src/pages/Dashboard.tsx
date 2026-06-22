@@ -47,6 +47,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const isMaster = user?.role === 'master'
+  const isBroker = user?.role === 'broker'
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -345,50 +346,52 @@ export default function Dashboard() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto shadow-sm">
-                <Plus className="mr-2 h-4 w-4" /> Novo Processo
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Iniciar Novo Processo</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Tipo de Processo</Label>
-                  <Select value={newType} onValueChange={setNewType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="credit">Análise de Crédito</SelectItem>
-                      <SelectItem value="housing">Esteira Habitacional</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Cliente (Comprador)</Label>
-                  <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleCreate} className="w-full">
-                  Criar Processo
+          {!isBroker && (
+            <Dialog open={isNewOpen} onOpenChange={setIsNewOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto shadow-sm">
+                  <Plus className="mr-2 h-4 w-4" /> Novo Processo
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Iniciar Novo Processo</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Tipo de Processo</Label>
+                    <Select value={newType} onValueChange={setNewType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="credit">Análise de Crédito</SelectItem>
+                        <SelectItem value="housing">Esteira Habitacional</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cliente (Comprador)</Label>
+                    <Select value={selectedBuyer} onValueChange={setSelectedBuyer}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleCreate} className="w-full">
+                    Criar Processo
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
       </div>
 

@@ -70,6 +70,7 @@ export default function ProcessDetail() {
 
   const [resolvePendencyDialog, setResolvePendencyDialog] = useState(false)
   const [resolvePendencyNote, setResolvePendencyNote] = useState('')
+  const [isResolvingPendency, setIsResolvingPendency] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysts, setAnalysts] = useState<any[]>([])
   const [transferAnalyst, setTransferAnalyst] = useState('')
@@ -289,30 +290,27 @@ export default function ProcessDetail() {
       return
     }
 
+    setIsResolvingPendency(true)
     try {
-      await updateProcess(process.id, {
-        result: 'pending',
-        status: 'Aguardando Conferência',
-        observations: 'Pendência resolvida pelo corretor/cliente',
-        last_updated_by: user?.id,
+      await pb.send(`/backend/v1/processes/${process.id}/resolve-pendency`, {
+        method: 'POST',
+        body: JSON.stringify({ note: resolvePendencyNote }),
+        headers: { 'Content-Type': 'application/json' },
       })
 
-      await createProcessLog({
-        process: process.id,
-        from_step: process.current_step,
-        to_step: process.current_step,
-        from_status: process.status,
-        to_status: 'Aguardando Conferência',
-        changed_by: user?.id,
-        note: resolvePendencyNote,
-      })
-
-      toast({ title: 'Pendência Marcada como Resolvida' })
+      toast({ title: 'Pendência resolvida com sucesso!' })
       setResolvePendencyDialog(false)
       setResolvePendencyNote('')
       loadData()
-    } catch (e) {
-      toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao salvar resolução. Por favor, tente novamente.',
+        description: e.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsResolvingPendency(false)
     }
   }
 
@@ -692,48 +690,60 @@ export default function ProcessDetail() {
         </div>
       </div>
 
-      {process.status === 'Pendência' && !isAnalyst && (
-        <div className="bg-secondary/10 border-l-4 border-secondary p-4 rounded-md flex items-start gap-3 justify-between">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="text-secondary w-5 h-5 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="font-semibold text-secondary">Ação Necessária</h4>
-              <p className="text-sm text-slate-700 mt-1">{process.observations}</p>
-            </div>
-          </div>
-          <Dialog open={resolvePendencyDialog} onOpenChange={setResolvePendencyDialog}>
-            <DialogTrigger asChild>
-              <Button variant="default" className="shrink-0 bg-secondary hover:bg-secondary/90">
-                Resolver Pendência
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Resolver Pendência</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>O que foi feito para resolver?</Label>
-                  <Textarea
-                    placeholder="Descreva as ações realizadas..."
-                    value={resolvePendencyNote}
-                    onChange={(e) => setResolvePendencyNote(e.target.value)}
-                    className="min-h-[100px]"
-                  />
-                </div>
+      {(process.status === 'Pendência' || process.current_step === 'Cadastramento') &&
+        !isAnalyst && (
+          <div className="bg-secondary/10 border-l-4 border-secondary p-4 rounded-md flex items-start gap-3 justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="text-secondary w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-secondary">Ação Necessária</h4>
+                <p className="text-sm text-slate-700 mt-1">
+                  {process.observations ||
+                    'Por favor, complete as ações necessárias ou resolva as pendências do processo.'}
+                </p>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setResolvePendencyDialog(false)}>
-                  Cancelar
+            </div>
+            <Dialog open={resolvePendencyDialog} onOpenChange={setResolvePendencyDialog}>
+              <DialogTrigger asChild>
+                <Button variant="default" className="shrink-0 bg-secondary hover:bg-secondary/90">
+                  Resolver Pendência
                 </Button>
-                <Button onClick={handleResolvePendency} disabled={!resolvePendencyNote.trim()}>
-                  Confirmar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      )}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Resolver Pendência</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>O que foi feito para resolver? (Descrição da Resolução)</Label>
+                    <Textarea
+                      placeholder="Descreva as ações realizadas..."
+                      value={resolvePendencyNote}
+                      onChange={(e) => setResolvePendencyNote(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setResolvePendencyDialog(false)}
+                    disabled={isResolvingPendency}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleResolvePendency}
+                    disabled={!resolvePendencyNote.trim() || isResolvingPendency}
+                  >
+                    {isResolvingPendency ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Salvar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
 
       <Card className="shadow-sm border-border/50 overflow-hidden">
         <div className="p-6 bg-slate-50 border-b border-border/50">

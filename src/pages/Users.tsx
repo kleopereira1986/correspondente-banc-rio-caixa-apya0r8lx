@@ -139,7 +139,8 @@ export default function UsersPage() {
     try {
       const dataToUpdate: any = { ...formData }
       if (!dataToUpdate.password) delete dataToUpdate.password
-      if (dataToUpdate.role !== 'broker') dataToUpdate.real_estate_agency = null
+      if (dataToUpdate.role !== 'broker' && dataToUpdate.role !== 'real_estate_agency')
+        dataToUpdate.real_estate_agency = null
       else if (!dataToUpdate.real_estate_agency) dataToUpdate.real_estate_agency = null
 
       if (selectedUser) {

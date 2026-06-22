@@ -1231,29 +1231,65 @@ export default function ProcessDetail() {
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
-                      <span className="text-muted-foreground block text-xs">Tipo de Avaliação</span>
+                      <span className="text-muted-foreground block text-xs">
+                        Possui imóvel definido?
+                      </span>
                       <span className="font-medium text-slate-800">
-                        {process.expand?.credit_analysis_type?.name || '-'}
+                        {typeof process.has_defined_property === 'boolean'
+                          ? process.has_defined_property
+                            ? 'Sim'
+                            : 'Não'
+                          : 'Não informado'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground block text-xs">Tipo de Imóvel</span>
+                      <span className="text-muted-foreground block text-xs">
+                        Valor de compra do imóvel
+                      </span>
                       <span className="font-medium text-slate-800">
-                        {process.expand?.property_type?.name || '-'}
+                        {process.property_purchase_value
+                          ? formatCurrency(process.property_purchase_value)
+                          : 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Opção de compra é um imóvel
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.property_type?.name || 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Financiar custas/despesas?
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {typeof process.finance_costs === 'boolean'
+                          ? process.finance_costs
+                            ? 'Sim'
+                            : 'Não'
+                          : 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">
+                        Prazo desejado (meses)
+                      </span>
+                      <span className="font-medium text-slate-800">
+                        {process.desired_term || 'Não informado'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-xs">Tipo de Avaliação</span>
+                      <span className="font-medium text-slate-800">
+                        {process.expand?.credit_analysis_type?.name || 'Não informado'}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-xs">Empreendimento</span>
                       <span className="font-medium text-slate-800">
-                        {process.expand?.development_type?.name || '-'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Valor de Compra e Venda
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {formatCurrency(process.property_purchase_value)}
+                        {process.expand?.development_type?.name || 'Não informado'}
                       </span>
                     </div>
                     <div>
@@ -1261,13 +1297,15 @@ export default function ProcessDetail() {
                         Valor do Financiamento
                       </span>
                       <span className="font-medium text-slate-800">
-                        {formatCurrency(process.value)}
+                        {process.value ? formatCurrency(process.value) : 'Não informado'}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-xs">Subsídio Federal</span>
                       <span className="font-medium text-slate-800">
-                        {formatCurrency(process.federal_subsidy)}
+                        {process.federal_subsidy
+                          ? formatCurrency(process.federal_subsidy)
+                          : 'Não informado'}
                       </span>
                     </div>
                     <div>
@@ -1275,7 +1313,7 @@ export default function ProcessDetail() {
                         Sistema de Amortização
                       </span>
                       <span className="font-medium text-slate-800">
-                        {process.amortization_system || '-'}
+                        {process.amortization_system || 'Não informado'}
                       </span>
                     </div>
                     <div>
@@ -1284,6 +1322,14 @@ export default function ProcessDetail() {
                       </span>
                       <span className="font-medium text-slate-800">
                         {process.expand?.assigned_analyst?.name || 'Não atribuído'}
+                      </span>
+                    </div>
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <span className="text-muted-foreground block text-xs">
+                        Observação do imóvel
+                      </span>
+                      <span className="font-medium text-slate-800 break-words">
+                        {process.property_observations || 'Não informado'}
                       </span>
                     </div>
                   </div>

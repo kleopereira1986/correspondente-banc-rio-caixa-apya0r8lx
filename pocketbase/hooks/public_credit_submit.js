@@ -102,14 +102,29 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
     processRecord.set('value', val)
     processRecord.set('property_purchase_value', val)
     processRecord.set('amortization_system', property.amortization_system || '')
+    processRecord.set(
+      'has_defined_property',
+      property.has_property === 'sim' || property.has_property === 'yes',
+    )
+    processRecord.set(
+      'finance_costs',
+      property.finance_costs === 'sim' || property.finance_costs === 'yes',
+    )
+    processRecord.set('desired_term', Number(property.desired_term) || 0)
+    processRecord.set('property_observations', property.observations || '')
+
+    try {
+      if (property.type_option) {
+        const propType = txApp.findFirstRecordByData('property_types', 'name', property.type_option)
+        if (propType) {
+          processRecord.set('property_type', propType.id)
+        }
+      }
+    } catch (_) {}
 
     let obs = `Correspondente: ${body.correspondente || 'N/A'}\n`
-    obs += `Imóvel Definido: ${property.has_property ? 'Sim' : 'Não'}\n`
     obs += `Opção: ${property.type_option || 'N/A'}\n`
-    obs += `Financiar Custas: ${property.finance_costs ? 'Sim' : 'Não'}\n`
-    obs += `Prazo: ${property.desired_term || 0} meses\n`
 
-    if (property.observations) obs += `\nObs Imóvel: ${property.observations}\n`
     if (b1.observations) obs += `\nObs Comprador 1: ${b1.observations}\n`
     if (b2 && b2.observations) obs += `\nObs Comprador 2: ${b2.observations}\n`
 

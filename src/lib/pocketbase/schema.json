@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T20:41:02.612Z",
+  "generatedAt": "2026-06-22T20:56:25.015Z",
   "collections": [
     {
       "name": "users",
@@ -393,6 +393,30 @@
           "required": false,
           "system": false,
           "collectionRef": "construction_companies"
+        },
+        {
+          "name": "has_defined_property",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "finance_costs",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desired_term",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "property_observations",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

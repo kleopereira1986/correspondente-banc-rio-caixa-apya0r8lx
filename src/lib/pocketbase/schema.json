@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T04:40:44.038Z",
+  "generatedAt": "2026-06-22T15:01:06.441Z",
   "collections": [
     {
       "name": "users",
@@ -43,7 +43,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["master", "analyst", "buyer", "seller", "broker"]
+          "selectValues": ["master", "analyst", "buyer", "seller", "broker", "real_estate_agency"]
         },
         {
           "name": "cpf",
@@ -159,8 +159,8 @@
       "name": "processes",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
-        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id)",
+        "list": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id || (@request.auth.role = 'real_estate_agency' && broker.real_estate_agency = @request.auth.real_estate_agency))",
+        "view": "@request.auth.id != '' && (@request.auth.role = 'master' || @request.auth.role = 'analyst' || buyer = @request.auth.id || seller = @request.auth.id || broker = @request.auth.id || (@request.auth.role = 'real_estate_agency' && broker.real_estate_agency = @request.auth.real_estate_agency))",
         "create": "",
         "update": "",
         "delete": "@request.auth.role = 'master'"

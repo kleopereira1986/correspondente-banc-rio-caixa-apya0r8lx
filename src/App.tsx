@@ -16,6 +16,9 @@ import TaskDetail from './pages/TaskDetail'
 import NotFound from './pages/NotFound'
 import Users from './pages/Users'
 import BrokerProcesses from './pages/BrokerProcesses'
+import AgencyDashboard from './pages/AgencyDashboard'
+import AgencyBrokers from './pages/AgencyBrokers'
+import AgencyProcesses from './pages/AgencyProcesses'
 import ConfigCreditAnalysis from './pages/ConfigCreditAnalysis'
 import EngineeringRequest from './pages/EngineeringRequest'
 import PublicEngineeringRequest from './pages/PublicEngineeringRequest'
@@ -59,6 +62,9 @@ const App = () => (
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/users" element={<Users />} />
             <Route path="/broker-processes" element={<BrokerProcesses />} />
+            <Route path="/agency/dashboard" element={<AgencyDashboard />} />
+            <Route path="/agency/brokers" element={<AgencyBrokers />} />
+            <Route path="/agency/processes" element={<AgencyProcesses />} />
             <Route path="/config/credit-analysis" element={<ConfigCreditAnalysis />} />
             <Route path="/config/housing-stages" element={<ConfigHousingStages />} />
             <Route path="/config/rejection-reasons" element={<ConfigRejectionReasons />} />

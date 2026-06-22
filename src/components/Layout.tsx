@@ -62,6 +62,8 @@ export default function Layout() {
   if (location.pathname === '/') {
     if (user.role === 'master' || user.role === 'analyst' || user.role === 'broker') {
       return <Navigate to="/dashboard" replace />
+    } else if (user.role === 'real_estate_agency') {
+      return <Navigate to="/agency/dashboard" replace />
     } else {
       return <Navigate to="/portal" replace />
     }
@@ -69,6 +71,7 @@ export default function Layout() {
 
   const isInternal = user.role === 'master' || user.role === 'analyst'
   const isBroker = user.role === 'broker'
+  const isAgency = user.role === 'real_estate_agency'
 
   let navItems = []
   if (isInternal) {
@@ -99,6 +102,12 @@ export default function Layout() {
         icon: FileText,
       },
       { title: 'Relatórios', url: '#', icon: FileText },
+    ]
+  } else if (isAgency) {
+    navItems = [
+      { title: 'Dashboard', url: '/agency/dashboard', icon: LayoutDashboard },
+      { title: 'Meus Corretores', url: '/agency/brokers', icon: Users },
+      { title: 'Processos da Agência', url: '/agency/processes', icon: FolderOpen },
     ]
   } else if (isBroker) {
     navItems = [
@@ -158,9 +167,11 @@ export default function Layout() {
               <h2 className="font-semibold text-lg text-slate-800 hidden sm:block">
                 {isInternal
                   ? 'Área do Correspondente'
-                  : isBroker
-                    ? 'Portal do Parceiro'
-                    : 'Portal do Cliente'}
+                  : isAgency
+                    ? 'Painel da Imobiliária'
+                    : isBroker
+                      ? 'Portal do Parceiro'
+                      : 'Portal do Cliente'}
               </h2>
             </div>
 

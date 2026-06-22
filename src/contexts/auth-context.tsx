@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { useNavigate } from 'react-router-dom'
 import pb from '@/lib/pocketbase/client'
 
-export type Role = 'master' | 'analyst' | 'buyer' | 'seller'
+export type Role = 'master' | 'analyst' | 'buyer' | 'seller' | 'broker' | 'real_estate_agency'
 
 export interface User {
   id: string
@@ -11,6 +11,7 @@ export interface User {
   role: Role
   avatar?: string
   is_approved: boolean
+  real_estate_agency?: string
 }
 
 interface AuthContextType {
@@ -47,9 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: null }
       }
 
-      const role = record.role as Role | 'broker'
+      const role = record.role as Role
       if (role === 'master' || role === 'analyst' || role === 'broker') {
         navigate('/dashboard')
+      } else if (role === 'real_estate_agency') {
+        navigate('/agency/dashboard')
       } else {
         navigate('/portal')
       }

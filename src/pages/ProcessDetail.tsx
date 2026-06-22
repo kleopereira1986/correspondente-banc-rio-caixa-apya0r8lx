@@ -39,6 +39,7 @@ import {
   getUsers,
   getCreditDocumentTypes,
   getProcessLogs,
+  createProcessLog,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -66,6 +67,9 @@ export default function ProcessDetail() {
   const [creditDocumentTypes, setCreditDocumentTypes] = useState<any[]>([])
   const [pendencyReason, setPendencyReason] = useState('')
   const [isPendencyDialogOpen, setIsPendencyDialogOpen] = useState(false)
+
+  const [resolvePendencyDialog, setResolvePendencyDialog] = useState(false)
+  const [resolvePendencyNote, setResolvePendencyNote] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [analysts, setAnalysts] = useState<any[]>([])
   const [transferAnalyst, setTransferAnalyst] = useState('')
@@ -184,12 +188,7 @@ export default function ProcessDetail() {
         toast({ title: 'Pendência Solicitada' })
         setIsPendencyDialogOpen(false)
       } else if (action === 'resolve_pendency') {
-        await updateProcess(process.id, {
-          result: 'pending',
-          status: 'Aguardando Conferência',
-          observations: 'Pendência resolvida pelo corretor/cliente',
-        })
-        toast({ title: 'Pendência Marcada como Resolvida' })
+        // Handled by handleResolvePendency
       } else if (action === 'start') {
         await updateProcess(process.id, {
           status: 'Processo Iniciado',
@@ -276,6 +275,44 @@ export default function ProcessDetail() {
       toast({ title: 'Erro ao aprovar triagem', variant: 'destructive' })
     } finally {
       setIsLoadingConformity(false)
+    }
+  }
+
+  const handleResolvePendency = async () => {
+    if (!process) return
+    if (!resolvePendencyNote.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha a descrição da resolução.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      await updateProcess(process.id, {
+        result: 'pending',
+        status: 'Aguardando Conferência',
+        observations: 'Pendência resolvida pelo corretor/cliente',
+        last_updated_by: user?.id,
+      })
+
+      await createProcessLog({
+        process: process.id,
+        from_step: process.current_step,
+        to_step: process.current_step,
+        from_status: process.status,
+        to_status: 'Aguardando Conferência',
+        changed_by: user?.id,
+        note: resolvePendencyNote,
+      })
+
+      toast({ title: 'Pendência Marcada como Resolvida' })
+      setResolvePendencyDialog(false)
+      setResolvePendencyNote('')
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro', description: 'Não foi possível atualizar.', variant: 'destructive' })
     }
   }
 
@@ -664,13 +701,37 @@ export default function ProcessDetail() {
               <p className="text-sm text-slate-700 mt-1">{process.observations}</p>
             </div>
           </div>
-          <Button
-            onClick={() => handleAction('resolve_pendency')}
-            variant="default"
-            className="shrink-0 bg-secondary hover:bg-secondary/90"
-          >
-            Pendência Resolvida
-          </Button>
+          <Dialog open={resolvePendencyDialog} onOpenChange={setResolvePendencyDialog}>
+            <DialogTrigger asChild>
+              <Button variant="default" className="shrink-0 bg-secondary hover:bg-secondary/90">
+                Resolver Pendência
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Resolver Pendência</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>O que foi feito para resolver?</Label>
+                  <Textarea
+                    placeholder="Descreva as ações realizadas..."
+                    value={resolvePendencyNote}
+                    onChange={(e) => setResolvePendencyNote(e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setResolvePendencyDialog(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleResolvePendency} disabled={!resolvePendencyNote.trim()}>
+                  Confirmar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

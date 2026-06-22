@@ -8,6 +8,8 @@ import {
   getCreditAnalysisTypes,
   getPropertyTypes,
   getDevelopmentTypes,
+  updateProcess,
+  createProcessLog,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useToast } from '@/hooks/use-toast'
@@ -21,6 +23,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -56,6 +59,9 @@ export default function BrokerProcesses() {
   const [housingNotes, setHousingNotes] = useState('')
   const [selectedProcessId, setSelectedProcessId] = useState('')
   const [housingDialogOpen, setHousingDialogOpen] = useState(false)
+
+  const [resolvePendencyDialog, setResolvePendencyDialog] = useState(false)
+  const [resolvePendencyNote, setResolvePendencyNote] = useState('')
 
   const [formData, setFormData] = useState({
     buyerId: '',
@@ -363,6 +369,47 @@ export default function BrokerProcesses() {
     </div>
   )
 
+  const handleResolvePendency = async () => {
+    if (!selectedProcessId) return
+    if (!resolvePendencyNote.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha a descrição da resolução.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const p = processes.find((proc) => proc.id === selectedProcessId)
+
+      await updateProcess(selectedProcessId, {
+        result: 'pending',
+        status: 'Aguardando Conferência',
+        observations: 'Pendência resolvida pelo corretor/cliente',
+        last_updated_by: user?.id,
+      })
+
+      if (p) {
+        await createProcessLog({
+          process: p.id,
+          from_step: p.current_step,
+          to_step: p.current_step,
+          from_status: p.status,
+          to_status: 'Aguardando Conferência',
+          changed_by: user?.id,
+          note: resolvePendencyNote,
+        })
+      }
+
+      toast({ title: 'Sucesso', description: 'Pendência resolvida com sucesso.' })
+      setResolvePendencyDialog(false)
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    }
+  }
+
   const handleStartHousing = async () => {
     try {
       const p = processes.find((x) => x.id === selectedProcessId)
@@ -464,6 +511,20 @@ export default function BrokerProcesses() {
                         Iniciar Habitacional
                       </Button>
                     )}
+                    {p.status === 'Pendência' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                        onClick={() => {
+                          setSelectedProcessId(p.id)
+                          setResolvePendencyNote('')
+                          setResolvePendencyDialog(true)
+                        }}
+                      >
+                        Resolver Pendência
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" asChild>
                       <Link to={`/process/${p.id}`}>
                         <Eye className="w-4 h-4 mr-2" /> Ver Detalhes
@@ -535,6 +596,33 @@ export default function BrokerProcesses() {
               Cancelar
             </Button>
             <Button onClick={handleStartHousing}>Iniciar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resolvePendencyDialog} onOpenChange={setResolvePendencyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resolver Pendência</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>O que foi feito para resolver?</Label>
+              <Textarea
+                placeholder="Descreva as ações realizadas..."
+                value={resolvePendencyNote}
+                onChange={(e) => setResolvePendencyNote(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResolvePendencyDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleResolvePendency} disabled={!resolvePendencyNote.trim()}>
+              Confirmar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

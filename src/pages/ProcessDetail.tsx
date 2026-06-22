@@ -1278,6 +1278,7 @@ export default function ProcessDetail() {
                         })
 
                         input.value = ''
+                        btn.disabled = true
                         toast({ title: 'Observação registrada com sucesso!' })
                         window.dispatchEvent(new CustomEvent('observation_added'))
                       } catch (error) {

@@ -2,11 +2,8 @@ routerAdd(
   'POST',
   '/backend/v1/process-logs/manual',
   (e) => {
-    const body = e.requestInfo().body || {}
-    const processId = body.process
-    const note = body.note
-
-    if (!processId || !note) {
+    const body = e.requestInfo().body
+    if (!body || !body.process || !body.note) {
       return e.badRequestError('Process ID and note are required')
     }
 
@@ -15,26 +12,31 @@ routerAdd(
       return e.unauthorizedError('Auth required')
     }
 
+    let processRecord
     try {
-      const processRecord = $app.findRecordById('processes', processId)
-
-      const logCollection = $app.findCollectionByNameOrId('process_logs')
-      const log = new Record(logCollection)
-
-      log.set('process', processId)
-      log.set('changed_by', userId)
-      log.set('note', note)
-      log.set('from_status', processRecord.getString('status'))
-      log.set('to_status', processRecord.getString('status'))
-      log.set('from_step', processRecord.getString('current_step'))
-      log.set('to_step', processRecord.getString('current_step'))
-
-      $app.save(log)
-
-      return e.json(200, { success: true, id: log.id })
-    } catch (err) {
-      return e.badRequestError('Processo não encontrado ou erro ao salvar: ' + err.message)
+      processRecord = $app.findRecordById('processes', body.process)
+    } catch (_) {
+      return e.notFoundError('Process not found')
     }
+
+    const rule = processRecord.collection().viewRule
+    if (rule) {
+      const canAccess = $app.canAccessRecord(processRecord, e.requestInfo(), rule)
+      if (!canAccess) {
+        return e.forbiddenError('Not allowed to access this process')
+      }
+    }
+
+    const collection = $app.findCollectionByNameOrId('process_logs')
+    const record = new Record(collection)
+
+    record.set('process', body.process)
+    record.set('note', body.note)
+    record.set('changed_by', userId)
+
+    $app.save(record)
+
+    return e.json(200, { success: true })
   },
   $apis.requireAuth(),
 )

@@ -81,8 +81,12 @@ export default function CreditAnalysis() {
       p.result !== 'conditioned',
   )
 
-  const checkProcessPendency = (processId: string) => {
-    const processDocs = documents.filter((d) => d.process === processId)
+  const checkProcessPendency = (process: any) => {
+    if (process.status === 'Aguardando Conferência' || process.status === 'Pendência Resolvida') {
+      return false
+    }
+
+    const processDocs = documents.filter((d) => d.process === process.id)
     const latestDocsByCategory = new Map<string, any>()
 
     for (const doc of processDocs) {
@@ -92,14 +96,16 @@ export default function CreditAnalysis() {
       }
     }
 
-    return Array.from(latestDocsByCategory.values()).some(
+    const hasPendingDocs = Array.from(latestDocsByCategory.values()).some(
       (d) => d.status === 'pending' || d.status === 'rejected',
     )
+
+    return hasPendingDocs || process.status === 'Pendência'
   }
 
-  const cadastramentoComPendencia = cadastramentoBase.filter((p) => checkProcessPendency(p.id))
+  const cadastramentoComPendencia = cadastramentoBase.filter((p) => checkProcessPendency(p))
 
-  const cadastramentoSemPendencia = cadastramentoBase.filter((p) => !checkProcessPendency(p.id))
+  const cadastramentoSemPendencia = cadastramentoBase.filter((p) => !checkProcessPendency(p))
 
   const stats = {
     triagem: processes.filter(

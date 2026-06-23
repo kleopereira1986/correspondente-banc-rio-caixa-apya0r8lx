@@ -235,13 +235,105 @@ export default function Dashboard() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
   }
 
+  const uniqueAgencies = Array.from(
+    new Set(
+      processes.map((p) => p.expand?.broker?.expand?.real_estate_agency?.name).filter(Boolean),
+    ),
+  ) as string[]
+
+  const uniqueBrokers = Array.from(
+    new Set(processes.map((p) => p.expand?.broker?.name).filter(Boolean)),
+  ) as string[]
+
   const filtered = processes.filter(
     (p) =>
       p.expand?.buyer?.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.id.toLowerCase().includes(search.toLowerCase()),
   )
 
-  const filteredCredit = filtered.filter((p) => p.type === 'credit')
+  const filteredCredit = filtered.filter((p) => {
+    if (p.type !== 'credit') return false
+
+    if (
+      agencyFilter !== 'all' &&
+      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+    )
+      return false
+    if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
+
+    if (
+      expiryDateStart &&
+      (!p.evaluation_expiry_date || new Date(p.evaluation_expiry_date) < new Date(expiryDateStart))
+    )
+      return false
+    if (
+      expiryDateEnd &&
+      (!p.evaluation_expiry_date || new Date(p.evaluation_expiry_date) > new Date(expiryDateEnd))
+    )
+      return false
+
+    if (evalDateStart && new Date(p.created) < new Date(evalDateStart)) return false
+    if (evalDateEnd && new Date(p.created) > new Date(evalDateEnd + 'T23:59:59')) return false
+
+    if (valueMin && p.value < Number(valueMin)) return false
+    if (valueMax && p.value > Number(valueMax)) return false
+
+    return true
+  })
+
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    try {
+      setIsExporting(true)
+      const headers = [
+        'ID',
+        'Cliente',
+        'Corretor',
+        'Imobiliária',
+        'Valor',
+        'Status',
+        'Validade Avaliação',
+        'Data Criação',
+        'Última Atualização',
+        'Atualizado Por',
+      ]
+      const rows = filteredCredit.map((p) => [
+        p.id,
+        p.expand?.buyer?.name || 'N/A',
+        p.expand?.broker?.name || '-',
+        p.expand?.broker?.expand?.real_estate_agency?.name || '',
+        formatCurrency(p.value),
+        p.status,
+        p.evaluation_expiry_date
+          ? new Date(p.evaluation_expiry_date).toLocaleDateString('pt-BR')
+          : '-',
+        new Date(p.created).toLocaleString('pt-BR'),
+        new Date(p.updated).toLocaleString('pt-BR'),
+        p.expand?.last_updated_by?.name || '-',
+      ])
+
+      const res = await pb.send(`/backend/v1/export/${format}`, {
+        method: 'POST',
+        body: JSON.stringify({ headers, rows }),
+      })
+
+      const csvContent = typeof res === 'string' ? res : ''
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `export_${format}_${Date.now()}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast({ title: 'Exportação concluída com sucesso!' })
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro na exportação', variant: 'destructive' })
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const filteredHousing = filtered.filter((p) => p.type === 'housing')
 
   const pendingCount = processes.filter(

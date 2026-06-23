@@ -80,6 +80,17 @@ export default function ProcessDetail() {
   const [approveDialog, setApproveDialog] = useState(false)
   const [conditionDialog, setConditionDialog] = useState(false)
   const [rejectDialog, setRejectDialog] = useState(false)
+  const [editResultDialog, setEditResultDialog] = useState(false)
+  const [editResultForm, setEditResultForm] = useState({
+    result: 'approved',
+    approved_financing_value: '',
+    approved_installment_value: '',
+    federal_subsidy: '',
+    amortization_system: '',
+    evaluation_expiry_date: '',
+    conditioning_reason_type: '',
+    rejection_reason_type: '',
+  })
   const [conditioningReasons, setConditioningReasons] = useState<any[]>([])
   const [rejectionReasons, setRejectionReasons] = useState<any[]>([])
   const [decisionForm, setDecisionForm] = useState({
@@ -313,6 +324,78 @@ export default function ProcessDetail() {
       })
     } finally {
       setIsResolvingPendency(false)
+    }
+  }
+
+  const openEditResult = () => {
+    setEditResultForm({
+      result: process.result || 'approved',
+      approved_financing_value: process.approved_financing_value?.toString() || '',
+      approved_installment_value: process.approved_installment_value?.toString() || '',
+      federal_subsidy: process.federal_subsidy?.toString() || '',
+      amortization_system: process.amortization_system || '',
+      evaluation_expiry_date: process.evaluation_expiry_date
+        ? String(process.evaluation_expiry_date).substring(0, 10)
+        : '',
+      conditioning_reason_type: process.conditioning_reason_type || '',
+      rejection_reason_type: process.rejection_reason_type || '',
+    })
+    setEditResultDialog(true)
+  }
+
+  const handleEditResult = async () => {
+    if (!process) return
+    try {
+      const from_status = process.status || ''
+      let to_status = process.status || ''
+      let to_current_step = process.current_step || ''
+
+      if (editResultForm.result === 'approved') {
+        to_status = 'Concluído'
+        to_current_step = 'Aprovado'
+      } else if (editResultForm.result === 'conditioned') {
+        to_status = 'Condicionado'
+        to_current_step = 'Decisão'
+      } else if (editResultForm.result === 'rejected') {
+        to_status = 'Concluído'
+        to_current_step = 'Decisão'
+      } else if (editResultForm.result === 'pending') {
+        to_status = 'Pendência'
+        to_current_step = 'Análise'
+      }
+
+      const payload: any = {
+        result: editResultForm.result,
+        status: to_status,
+        current_step: to_current_step,
+        approved_financing_value: editResultForm.approved_financing_value || null,
+        approved_installment_value: editResultForm.approved_installment_value || null,
+        federal_subsidy: editResultForm.federal_subsidy || null,
+        amortization_system: editResultForm.amortization_system || '',
+        evaluation_expiry_date: editResultForm.evaluation_expiry_date || null,
+        conditioning_reason_type: editResultForm.conditioning_reason_type || '',
+        rejection_reason_type: editResultForm.rejection_reason_type || '',
+      }
+
+      await updateProcess(process.id, payload)
+
+      await createProcessLog({
+        process: process.id,
+        from_status,
+        to_status,
+        changed_by: user?.id,
+        note: `Result manually edited by user ${user?.name || 'Unknown'}`,
+      })
+
+      toast({ title: 'Resultado editado com sucesso!' })
+      setEditResultDialog(false)
+      loadData()
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar o resultado.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -1140,8 +1223,13 @@ export default function ProcessDetail() {
 
           {process.result && process.result !== 'pending' && (
             <Card className="shadow-sm border-border/50 bg-slate-50">
-              <CardHeader className="pb-4 border-b border-border/50">
+              <CardHeader className="pb-4 border-b border-border/50 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">Resultado da Análise</CardTitle>
+                {isAnalyst && process.result === 'approved' && (
+                  <Button variant="outline" size="sm" onClick={openEditResult}>
+                    Editar Resultado
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="pt-4">
                 {process.result === 'approved' && (
@@ -2029,6 +2117,156 @@ export default function ProcessDetail() {
               Cancelar
             </Button>
             <Button onClick={() => handleDecision('condition')}>Registrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editResultDialog} onOpenChange={setEditResultDialog}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Resultado da Análise</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Resultado</Label>
+              <Select
+                value={editResultForm.result}
+                onValueChange={(val) => setEditResultForm({ ...editResultForm, result: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o resultado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Aprovado</SelectItem>
+                  <SelectItem value="conditioned">Condicionado</SelectItem>
+                  <SelectItem value="rejected">Reprovado</SelectItem>
+                  <SelectItem value="pending">Pendência</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {editResultForm.result === 'approved' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Valor Aprovado de Financiamento</Label>
+                  <Input
+                    type="number"
+                    value={editResultForm.approved_financing_value}
+                    onChange={(e) =>
+                      setEditResultForm({
+                        ...editResultForm,
+                        approved_financing_value: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor Aprovado de Parcela</Label>
+                  <Input
+                    type="number"
+                    value={editResultForm.approved_installment_value}
+                    onChange={(e) =>
+                      setEditResultForm({
+                        ...editResultForm,
+                        approved_installment_value: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de vencimento da Avaliação</Label>
+                  <Input
+                    type="date"
+                    value={editResultForm.evaluation_expiry_date}
+                    onChange={(e) =>
+                      setEditResultForm({
+                        ...editResultForm,
+                        evaluation_expiry_date: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Subsídio Federal (Opcional)</Label>
+                  <Input
+                    type="number"
+                    value={editResultForm.federal_subsidy}
+                    onChange={(e) =>
+                      setEditResultForm({ ...editResultForm, federal_subsidy: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sistema de Amortização (Opcional)</Label>
+                  <Select
+                    value={editResultForm.amortization_system}
+                    onValueChange={(val) =>
+                      setEditResultForm({ ...editResultForm, amortization_system: val })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRICE">PRICE</SelectItem>
+                      <SelectItem value="SAC">SAC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            {editResultForm.result === 'conditioned' && (
+              <div className="space-y-2">
+                <Label>Motivo do condicionamento</Label>
+                <Select
+                  value={editResultForm.conditioning_reason_type}
+                  onValueChange={(val) =>
+                    setEditResultForm({ ...editResultForm, conditioning_reason_type: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o motivo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conditioningReasons.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {editResultForm.result === 'rejected' && (
+              <div className="space-y-2">
+                <Label>Motivo da reprovação</Label>
+                <Select
+                  value={editResultForm.rejection_reason_type}
+                  onValueChange={(val) =>
+                    setEditResultForm({ ...editResultForm, rejection_reason_type: val })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o motivo..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rejectionReasons.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditResultDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditResult}>Salvar Alterações</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

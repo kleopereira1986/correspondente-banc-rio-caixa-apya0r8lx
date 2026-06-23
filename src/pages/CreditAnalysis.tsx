@@ -49,7 +49,8 @@ export default function CreditAnalysis() {
       setProcesses(data.filter((p: any) => p.type === 'credit'))
 
       const docs = await pb.collection('documents').getFullList({
-        fields: 'id,process,status',
+        fields: 'id,process,status,category,created',
+        sort: '-created',
       })
       setDocuments(docs)
     } catch (e) {
@@ -80,15 +81,25 @@ export default function CreditAnalysis() {
       p.result !== 'conditioned',
   )
 
-  const cadastramentoComPendencia = cadastramentoBase.filter((p) => {
-    const processDocs = documents.filter((d) => d.process === p.id)
-    return processDocs.some((d) => d.status === 'pending' || d.status === 'rejected')
-  })
+  const checkProcessPendency = (processId: string) => {
+    const processDocs = documents.filter((d) => d.process === processId)
+    const latestDocsByCategory = new Map<string, any>()
 
-  const cadastramentoSemPendencia = cadastramentoBase.filter((p) => {
-    const processDocs = documents.filter((d) => d.process === p.id)
-    return !processDocs.some((d) => d.status === 'pending' || d.status === 'rejected')
-  })
+    for (const doc of processDocs) {
+      const key = doc.category || doc.id
+      if (!latestDocsByCategory.has(key)) {
+        latestDocsByCategory.set(key, doc)
+      }
+    }
+
+    return Array.from(latestDocsByCategory.values()).some(
+      (d) => d.status === 'pending' || d.status === 'rejected',
+    )
+  }
+
+  const cadastramentoComPendencia = cadastramentoBase.filter((p) => checkProcessPendency(p.id))
+
+  const cadastramentoSemPendencia = cadastramentoBase.filter((p) => !checkProcessPendency(p.id))
 
   const stats = {
     triagem: processes.filter(

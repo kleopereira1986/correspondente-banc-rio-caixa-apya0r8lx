@@ -51,6 +51,16 @@ export default function Dashboard() {
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [agencyFilter, setAgencyFilter] = useState('all')
+  const [brokerFilter, setBrokerFilter] = useState('all')
+  const [expiryDateStart, setExpiryDateStart] = useState('')
+  const [expiryDateEnd, setExpiryDateEnd] = useState('')
+  const [evalDateStart, setEvalDateStart] = useState('')
+  const [evalDateEnd, setEvalDateEnd] = useState('')
+  const [valueMin, setValueMin] = useState('')
+  const [valueMax, setValueMax] = useState('')
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [isNewOpen, setIsNewOpen] = useState(false)
   const [newType, setNewType] = useState('credit')
   const [clients, setClients] = useState<any[]>([])
@@ -491,107 +501,258 @@ export default function Dashboard() {
           </div>
 
           <Card className="shadow-sm border-border/50 overflow-hidden">
-            <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/50">
-              <CardTitle className="text-lg text-slate-800">
-                Fila de Processos Análise de Crédito
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar cliente..."
-                    className="w-full sm:w-[250px] pl-9 h-9"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+            <CardHeader className="pb-3 flex flex-col gap-4 border-b border-border/50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardTitle className="text-lg text-slate-800">
+                  Fila de Processos Análise de Crédito
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Buscar cliente..."
+                      className="w-full sm:w-[200px] pl-9 h-9"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    Filtros
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => handleExport('pdf')}
+                    disabled={isExporting}
+                  >
+                    <FileDown className="h-4 w-4 mr-2 text-red-500" />
+                    Exportar PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => handleExport('excel')}
+                    disabled={isExporting}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" />
+                    Exportar Excel
+                  </Button>
                 </div>
               </div>
+
+              {showAdvancedFilters && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-slate-50 border rounded-md text-sm animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-slate-700">Imobiliária</label>
+                    <Select value={agencyFilter} onValueChange={setAgencyFilter}>
+                      <SelectTrigger className="h-9 bg-white">
+                        <SelectValue placeholder="Todas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as Imobiliárias</SelectItem>
+                        {uniqueAgencies.map((a) => (
+                          <SelectItem key={a} value={a}>
+                            {a}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-slate-700">Corretor</label>
+                    <Select value={brokerFilter} onValueChange={setBrokerFilter}>
+                      <SelectTrigger className="h-9 bg-white">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Corretores</SelectItem>
+                        {uniqueBrokers.map((b) => (
+                          <SelectItem key={b} value={b}>
+                            {b}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-slate-700">Validade da Avaliação</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        className="h-9 bg-white"
+                        value={expiryDateStart}
+                        onChange={(e) => setExpiryDateStart(e.target.value)}
+                      />
+                      <Input
+                        type="date"
+                        className="h-9 bg-white"
+                        value={expiryDateEnd}
+                        onChange={(e) => setExpiryDateEnd(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-medium text-slate-700">
+                      Data de Avaliação (Criação)
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="date"
+                        className="h-9 bg-white"
+                        value={evalDateStart}
+                        onChange={(e) => setEvalDateStart(e.target.value)}
+                      />
+                      <Input
+                        type="date"
+                        className="h-9 bg-white"
+                        value={evalDateEnd}
+                        onChange={(e) => setEvalDateEnd(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 lg:col-span-2">
+                    <label className="font-medium text-slate-700">Valor Aprovado (R$)</label>
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        type="number"
+                        placeholder="Mínimo"
+                        className="h-9 bg-white"
+                        value={valueMin}
+                        onChange={(e) => setValueMin(e.target.value)}
+                      />
+                      <span className="text-muted-foreground">-</span>
+                      <Input
+                        type="number"
+                        placeholder="Máximo"
+                        className="h-9 bg-white"
+                        value={valueMax}
+                        onChange={(e) => setValueMax(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-end justify-end lg:col-span-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setAgencyFilter('all')
+                        setBrokerFilter('all')
+                        setExpiryDateStart('')
+                        setExpiryDateEnd('')
+                        setEvalDateStart('')
+                        setEvalDateEnd('')
+                        setValueMin('')
+                        setValueMax('')
+                      }}
+                    >
+                      Limpar Filtros
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
-              <Table className="min-w-[1000px]">
+              <Table className="min-w-[1200px]">
                 <TableHeader className="bg-slate-50/50">
                   <TableRow>
                     <TableHead>ID / Cliente</TableHead>
-                    <TableHead>Corretor Parceiro</TableHead>
+                    <TableHead>Corretor / Imobiliária</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead className="text-center">Status</TableHead>
+                    <TableHead className="text-center">Validade Avaliação</TableHead>
                     <TableHead className="text-right">Data/Hora Criação</TableHead>
                     <TableHead className="text-right">Última Atualização</TableHead>
                     <TableHead>Atualizado Por</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCredit.map((process) => (
-                    <TableRow
-                      key={process.id}
-                      className="cursor-pointer group"
-                      onClick={() => navigate(`/process/${process.id}`)}
-                    >
-                      <TableCell className="py-4 min-w-[200px]">
-                        <div className="font-medium text-slate-800 group-hover:text-primary">
-                          {process.expand?.buyer?.name || 'N/A'}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{process.id}</div>
-                      </TableCell>
-                      <TableCell className="py-4 min-w-[180px]">
-                        <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
-                        </div>
-                      </TableCell>
-                      <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">
-                        {formatCurrency(process.value)}
-                      </TableCell>
-                      <TableCell className="py-4 text-center min-w-[140px]">
-                        {process.status === 'Pendência Resolvida' ? (
-                          <Button
-                            size="sm"
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md w-full whitespace-nowrap"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleAcknowledgePendency(process.id)
-                            }}
-                          >
-                            Pendência Resolvida
-                          </Button>
-                        ) : process.status === 'Autorização Solicitada' ? (
-                          <div className="flex flex-col gap-2 items-center">
-                            <Badge className="bg-amber-100 text-amber-800 border-none font-medium whitespace-nowrap">
-                              Aguardando Autorização Gerencial
-                            </Badge>
-                            <Button
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full text-xs h-7 whitespace-nowrap"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleAuthorization(process.id)
-                              }}
-                            >
-                              Informar Autorização
-                            </Button>
-                          </div>
-                        ) : (
-                          getStatusBadge(process.status, process.result)
-                        )}
-                      </TableCell>
-                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
-                        {new Date(process.created).toLocaleString('pt-BR', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
-                      </TableCell>
-                      <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
-                        {new Date(process.updated).toLocaleString('pt-BR', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
-                      </TableCell>
-                      <TableCell className="py-4 text-sm min-w-[150px]">
-                        {process.expand?.last_updated_by?.name || '-'}
+                  {filteredCredit.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                        Nenhum processo encontrado com os filtros atuais.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredCredit.map((process) => (
+                      <TableRow
+                        key={process.id}
+                        className="cursor-pointer group"
+                        onClick={() => navigate(`/process/${process.id}`)}
+                      >
+                        <TableCell className="py-4 min-w-[200px]">
+                          <div className="font-medium text-slate-800 group-hover:text-primary">
+                            {process.expand?.buyer?.name || 'N/A'}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{process.id}</div>
+                        </TableCell>
+                        <TableCell className="py-4 min-w-[180px]">
+                          <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">
+                          {formatCurrency(process.value)}
+                        </TableCell>
+                        <TableCell className="py-4 text-center min-w-[140px]">
+                          {process.status === 'Pendência Resolvida' ? (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse shadow-md w-full whitespace-nowrap"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAcknowledgePendency(process.id)
+                              }}
+                            >
+                              Pendência Resolvida
+                            </Button>
+                          ) : process.status === 'Autorização Solicitada' ? (
+                            <div className="flex flex-col gap-2 items-center">
+                              <Badge className="bg-amber-100 text-amber-800 border-none font-medium whitespace-nowrap">
+                                Aguardando Autorização Gerencial
+                              </Badge>
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm w-full text-xs h-7 whitespace-nowrap"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAuthorization(process.id)
+                                }}
+                              >
+                                Informar Autorização
+                              </Button>
+                            </div>
+                          ) : (
+                            getStatusBadge(process.status, process.result)
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                          {new Date(process.created).toLocaleString('pt-BR', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
+                        </TableCell>
+                        <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
+                          {new Date(process.updated).toLocaleString('pt-BR', {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
+                        </TableCell>
+                        <TableCell className="py-4 text-sm min-w-[150px]">
+                          {process.expand?.last_updated_by?.name || '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                   {filteredCredit.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">

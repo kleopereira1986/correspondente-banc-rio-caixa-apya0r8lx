@@ -33,6 +33,7 @@ export default function CreditAnalysis() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [processes, setProcesses] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
 
   const [firstHousingStage, setFirstHousingStage] = useState<string>('Montagem de Pasta')
@@ -46,6 +47,11 @@ export default function CreditAnalysis() {
           'buyer,assigned_analyst,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data.filter((p: any) => p.type === 'credit'))
+
+      const docs = await pb.collection('documents').getFullList({
+        fields: 'id,process,status',
+      })
+      setDocuments(docs)
     } catch (e) {
       console.error(e)
     }
@@ -62,6 +68,27 @@ export default function CreditAnalysis() {
   }, [])
 
   useRealtime('processes', () => loadData())
+  useRealtime('documents', () => loadData())
+
+  const cadastramentoBase = processes.filter(
+    (p) =>
+      p.is_conformity_approved &&
+      (p.current_step === 'Cadastramento' || p.status === 'Pendência Resolvida') &&
+      p.status !== 'Concluído' &&
+      p.result !== 'approved' &&
+      p.result !== 'rejected' &&
+      p.result !== 'conditioned',
+  )
+
+  const cadastramentoComPendencia = cadastramentoBase.filter((p) => {
+    const processDocs = documents.filter((d) => d.process === p.id)
+    return processDocs.some((d) => d.status === 'pending' || d.status === 'rejected')
+  })
+
+  const cadastramentoSemPendencia = cadastramentoBase.filter((p) => {
+    const processDocs = documents.filter((d) => d.process === p.id)
+    return !processDocs.some((d) => d.status === 'pending' || d.status === 'rejected')
+  })
 
   const stats = {
     triagem: processes.filter(
@@ -72,15 +99,9 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
-    cadastramento: processes.filter(
-      (p) =>
-        p.is_conformity_approved &&
-        (p.current_step === 'Cadastramento' || p.status === 'Pendência Resolvida') &&
-        p.status !== 'Concluído' &&
-        p.result !== 'approved' &&
-        p.result !== 'rejected' &&
-        p.result !== 'conditioned',
-    ),
+    cadastramento: cadastramentoBase,
+    cadastramento_com_pendencia: cadastramentoComPendencia,
+    cadastramento_sem_pendencia: cadastramentoSemPendencia,
     aguardando_autorizacao: processes.filter(
       (p) =>
         p.is_conformity_approved &&
@@ -477,23 +498,87 @@ export default function CreditAnalysis() {
             <p className="text-2xl font-bold text-slate-900">{stats.triagem.length}</p>
           </CardContent>
         </Card>
-        <Card
-          className={cn(
-            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-emerald-50/50',
-            activeFilter === 'cadastramento'
-              ? 'border-emerald-600 shadow-md bg-emerald-100/50'
-              : 'border-emerald-200',
-          )}
-          onClick={() => toggleFilter('cadastramento')}
-        >
-          <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
-            <div className="p-3 rounded-full bg-emerald-100 text-emerald-700">
-              <Edit className="w-5 h-5" />
+        {user?.role === 'master' || user?.role === 'analyst' ? (
+          <Card
+            className={cn(
+              'border-2 transition-all hover:-translate-y-1 hover:shadow-md bg-emerald-50/50 flex flex-col overflow-hidden',
+              activeFilter === 'cadastramento' ||
+                activeFilter === 'cadastramento_sem_pendencia' ||
+                activeFilter === 'cadastramento_com_pendencia'
+                ? 'border-emerald-600 shadow-md'
+                : 'border-emerald-200',
+            )}
+          >
+            <div
+              className={cn(
+                'flex-1 p-3 flex flex-col items-center justify-center text-center gap-1 cursor-pointer transition-colors',
+                activeFilter === 'cadastramento' ? 'bg-emerald-100/50' : 'hover:bg-emerald-100/30',
+              )}
+              onClick={() => toggleFilter('cadastramento')}
+            >
+              <div className="p-2 rounded-full bg-emerald-100 text-emerald-700">
+                <Edit className="w-4 h-4" />
+              </div>
+              <p className="font-semibold text-emerald-800 text-sm">Cadastramento</p>
+              {stats.cadastramento_com_pendencia.length === 0 && (
+                <p className="text-2xl font-bold text-emerald-900 leading-none mt-1">
+                  {stats.cadastramento.length}
+                </p>
+              )}
             </div>
-            <p className="font-semibold text-emerald-800 text-sm mt-1">Cadastramento</p>
-            <p className="text-2xl font-bold text-emerald-900">{stats.cadastramento.length}</p>
-          </CardContent>
-        </Card>
+            {stats.cadastramento_com_pendencia.length > 0 && (
+              <div className="flex border-t border-emerald-200/50 mt-auto">
+                <div
+                  className={cn(
+                    'flex-1 py-1.5 px-1 text-center cursor-pointer transition-colors hover:bg-emerald-100',
+                    activeFilter === 'cadastramento_sem_pendencia' ? 'bg-emerald-200' : '',
+                  )}
+                  onClick={() => toggleFilter('cadastramento_sem_pendencia')}
+                >
+                  <p className="text-[10px] text-emerald-700 font-medium leading-tight">
+                    Sem Pendência
+                  </p>
+                  <p className="text-base font-bold text-emerald-900 leading-tight">
+                    {stats.cadastramento_sem_pendencia.length}
+                  </p>
+                </div>
+                <div className="w-[1px] bg-emerald-200/50"></div>
+                <div
+                  className={cn(
+                    'flex-1 py-1.5 px-1 text-center cursor-pointer transition-colors hover:bg-red-100',
+                    activeFilter === 'cadastramento_com_pendencia' ? 'bg-red-200' : '',
+                  )}
+                  onClick={() => toggleFilter('cadastramento_com_pendencia')}
+                >
+                  <p className="text-[10px] text-red-700 font-medium leading-tight">
+                    Com Pendência
+                  </p>
+                  <p className="text-base font-bold text-red-900 leading-tight">
+                    {stats.cadastramento_com_pendencia.length}
+                  </p>
+                </div>
+              </div>
+            )}
+          </Card>
+        ) : (
+          <Card
+            className={cn(
+              'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-emerald-50/50',
+              activeFilter === 'cadastramento'
+                ? 'border-emerald-600 shadow-md bg-emerald-100/50'
+                : 'border-emerald-200',
+            )}
+            onClick={() => toggleFilter('cadastramento')}
+          >
+            <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+              <div className="p-3 rounded-full bg-emerald-100 text-emerald-700">
+                <Edit className="w-5 h-5" />
+              </div>
+              <p className="font-semibold text-emerald-800 text-sm mt-1">Cadastramento</p>
+              <p className="text-2xl font-bold text-emerald-900">{stats.cadastramento.length}</p>
+            </CardContent>
+          </Card>
+        )}
         <Card
           className={cn(
             'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-amber-50/50',
@@ -587,15 +672,30 @@ export default function CreditAnalysis() {
           </Card>
         )}
 
-        {(!activeFilter || activeFilter === 'cadastramento') && (
+        {(!activeFilter ||
+          activeFilter === 'cadastramento' ||
+          activeFilter === 'cadastramento_sem_pendencia' ||
+          activeFilter === 'cadastramento_com_pendencia') && (
           <Card className="shadow-sm border-emerald-200 h-full flex flex-col">
             <CardHeader className="bg-emerald-50/50 border-b border-emerald-100 pb-4">
               <CardTitle className="text-lg text-emerald-800 flex items-center gap-2">
-                <Edit className="w-5 h-5" /> Fila: Cadastramento
+                <Edit className="w-5 h-5" /> Fila: Cadastramento{' '}
+                {activeFilter === 'cadastramento_sem_pendencia'
+                  ? '(Sem Pendência)'
+                  : activeFilter === 'cadastramento_com_pendencia'
+                    ? '(Com Pendência)'
+                    : ''}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0 flex-1">
-              {renderProcessList(stats.cadastramento, 'Nenhum processo na fila de Cadastramento.')}
+              {renderProcessList(
+                activeFilter === 'cadastramento_sem_pendencia'
+                  ? stats.cadastramento_sem_pendencia
+                  : activeFilter === 'cadastramento_com_pendencia'
+                    ? stats.cadastramento_com_pendencia
+                    : stats.cadastramento,
+                'Nenhum processo na fila de Cadastramento.',
+              )}
             </CardContent>
           </Card>
         )}

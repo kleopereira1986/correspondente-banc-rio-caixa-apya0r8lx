@@ -12,7 +12,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { FileText, CheckCircle2, Clock, AlertCircle, Plus, Search, UserPlus } from 'lucide-react'
+import {
+  FileText,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Plus,
+  Search,
+  UserPlus,
+  Filter,
+  FileOutput,
+  FileSpreadsheet,
+} from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { createProcess, getUsers, updateProcess } from '@/services/api'
 import { useAuth } from '@/contexts/auth-context'
@@ -263,20 +274,23 @@ export default function Dashboard() {
 
     if (
       expiryDateStart &&
-      (!p.evaluation_expiry_date || new Date(p.evaluation_expiry_date) < new Date(expiryDateStart))
+      (!p.evaluation_expiry_date ||
+        new Date(p.evaluation_expiry_date) < new Date(expiryDateStart + 'T00:00:00'))
     )
       return false
     if (
       expiryDateEnd &&
-      (!p.evaluation_expiry_date || new Date(p.evaluation_expiry_date) > new Date(expiryDateEnd))
+      (!p.evaluation_expiry_date ||
+        new Date(p.evaluation_expiry_date) > new Date(expiryDateEnd + 'T23:59:59'))
     )
       return false
 
-    if (evalDateStart && new Date(p.created) < new Date(evalDateStart)) return false
-    if (evalDateEnd && new Date(p.created) > new Date(evalDateEnd + 'T23:59:59')) return false
+    if (evalDateStart && new Date(p.updated) < new Date(evalDateStart + 'T00:00:00')) return false
+    if (evalDateEnd && new Date(p.updated) > new Date(evalDateEnd + 'T23:59:59')) return false
 
-    if (valueMin && p.value < Number(valueMin)) return false
-    if (valueMax && p.value > Number(valueMax)) return false
+    const approvedValue = p.approved_financing_value || 0
+    if (valueMin && approvedValue < Number(valueMin)) return false
+    if (valueMax && approvedValue > Number(valueMax)) return false
 
     return true
   })
@@ -289,43 +303,97 @@ export default function Dashboard() {
         'Cliente',
         'Corretor',
         'Imobiliária',
-        'Valor',
+        'Valor Aprovado',
         'Status',
         'Validade Avaliação',
         'Data Criação',
         'Última Atualização',
-        'Atualizado Por',
       ]
       const rows = filteredCredit.map((p) => [
         p.id,
         p.expand?.buyer?.name || 'N/A',
         p.expand?.broker?.name || '-',
-        p.expand?.broker?.expand?.real_estate_agency?.name || '',
-        formatCurrency(p.value),
+        p.expand?.broker?.expand?.real_estate_agency?.name || '-',
+        formatCurrency(p.approved_financing_value || 0),
         p.status,
-        p.evaluation_expiry_date
+        p.result !== 'pending' && p.evaluation_expiry_date
           ? new Date(p.evaluation_expiry_date).toLocaleDateString('pt-BR')
-          : '-',
+          : '',
         new Date(p.created).toLocaleString('pt-BR'),
         new Date(p.updated).toLocaleString('pt-BR'),
-        p.expand?.last_updated_by?.name || '-',
       ])
 
-      const res = await pb.send(`/backend/v1/export/${format}`, {
-        method: 'POST',
-        body: JSON.stringify({ headers, rows }),
-      })
+      if (format === 'excel') {
+        const csvContent =
+          '\uFEFF' +
+          [headers.join(';')]
+            .concat(
+              rows.map((row) =>
+                row
+                  .map((cell) => {
+                    const cellStr = (cell || '').toString().replace(/"/g, '""')
+                    return `"${cellStr}"`
+                  })
+                  .join(';'),
+              ),
+            )
+            .join('\n')
 
-      const csvContent = typeof res === 'string' ? res : ''
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `export_${format}_${Date.now()}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      toast({ title: 'Exportação concluída com sucesso!' })
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `exportacao_credito_${Date.now()}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast({ title: 'Exportação concluída com sucesso!' })
+      } else if (format === 'pdf') {
+        const printWindow = window.open('', '_blank')
+        if (!printWindow) {
+          toast({
+            title: 'Erro ao gerar PDF',
+            description: 'Habilite pop-ups para este site.',
+            variant: 'destructive',
+          })
+          return
+        }
+
+        const html = `
+          <html>
+            <head>
+              <title>Exportação de Processos</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f4f4f4; }
+                h1 { font-size: 18px; }
+              </style>
+            </head>
+            <body>
+              <h1>Fila de Processos - Análise de Crédito</h1>
+              <p>Gerado em: ${new Date().toLocaleString('pt-BR')}</p>
+              <table>
+                <thead>
+                  <tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr>
+                </thead>
+                <tbody>
+                  ${rows
+                    .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`)
+                    .join('')}
+                </tbody>
+              </table>
+              <script>
+                window.onload = () => { window.print(); window.close(); }
+              </script>
+            </body>
+          </html>
+        `
+        printWindow.document.write(html)
+        printWindow.document.close()
+        toast({ title: 'PDF gerado com sucesso!' })
+      }
     } catch (e) {
       console.error(e)
       toast({ title: 'Erro na exportação', variant: 'destructive' })
@@ -615,20 +683,7 @@ export default function Dashboard() {
                     className="h-9"
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      className="h-4 w-4 mr-2"
-                    >
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
+                    <Filter className="h-4 w-4 mr-2" />
                     Filtros
                   </Button>
                   <Button
@@ -638,24 +693,8 @@ export default function Dashboard() {
                     onClick={() => handleExport('pdf')}
                     disabled={isExporting}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      className="h-4 w-4 mr-2 text-red-500"
-                    >
-                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                      <path d="M12 18v-6" />
-                      <path d="m9 15 3 3 3-3" />
-                    </svg>
-                    Exportar PDF
+                    <FileOutput className="h-4 w-4 mr-2 text-red-500" />
+                    Gerar PDF
                   </Button>
                   <Button
                     variant="outline"
@@ -664,26 +703,8 @@ export default function Dashboard() {
                     onClick={() => handleExport('excel')}
                     disabled={isExporting}
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      className="h-4 w-4 mr-2 text-emerald-500"
-                    >
-                      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-                      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-                      <path d="M8 13h2" />
-                      <path d="M14 13h2" />
-                      <path d="M8 17h2" />
-                      <path d="M14 17h2" />
-                    </svg>
-                    Exportar Excel
+                    <FileSpreadsheet className="h-4 w-4 mr-2 text-emerald-500" />
+                    Gerar Excel
                   </Button>
                 </div>
               </div>
@@ -740,9 +761,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="font-medium text-slate-700">
-                      Data de Avaliação (Criação)
-                    </label>
+                    <label className="font-medium text-slate-700">Data de Avaliação</label>
                     <div className="flex gap-2">
                       <Input
                         type="date"
@@ -873,6 +892,11 @@ export default function Dashboard() {
                           ) : (
                             getStatusBadge(process.status, process.result)
                           )}
+                        </TableCell>
+                        <TableCell className="py-4 text-center text-sm whitespace-nowrap">
+                          {process.result !== 'pending' && process.evaluation_expiry_date
+                            ? new Date(process.evaluation_expiry_date).toLocaleDateString('pt-BR')
+                            : ''}
                         </TableCell>
                         <TableCell className="py-4 text-right text-muted-foreground text-sm whitespace-nowrap">
                           {new Date(process.created).toLocaleString('pt-BR', {

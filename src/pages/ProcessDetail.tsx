@@ -97,6 +97,8 @@ export default function ProcessDetail() {
   const [approvalFile, setApprovalFile] = useState<File | null>(null)
 
   const [uploadingSlots, setUploadingSlots] = useState<Record<string, boolean>>({})
+  const [manualNote, setManualNote] = useState('')
+  const [isSubmittingNote, setIsSubmittingNote] = useState(false)
   const [triageDialog, setTriageDialog] = useState(false)
   const [analysisType, setAnalysisType] = useState('')
   const [isLoadingConformity, setIsLoadingConformity] = useState(false)
@@ -437,6 +439,30 @@ export default function ProcessDetail() {
       })
     } finally {
       setUploadingSlots((prev) => ({ ...prev, [docId + '-status']: false }))
+    }
+  }
+
+  const handleManualNoteSubmit = async () => {
+    if (!manualNote.trim() || !process) return
+    setIsSubmittingNote(true)
+    try {
+      await pb.send('/backend/v1/process-logs/manual', {
+        method: 'POST',
+        body: JSON.stringify({ process: process.id, note: manualNote.trim() }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      setManualNote('')
+      toast({ title: 'Observação registrada com sucesso!' })
+      loadData()
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: 'Erro ao registrar',
+        description: 'Ocorreu um erro ao salvar sua observação.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingNote(false)
     }
   }
 
@@ -1023,8 +1049,27 @@ export default function ProcessDetail() {
                 Histórico de Alterações
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-4 max-h-96 overflow-y-auto">
-              <div className="space-y-4">
+            <CardContent className="pt-4 flex flex-col gap-4">
+              <div className="flex flex-col gap-3 border-b border-border/50 pb-4">
+                <Textarea
+                  placeholder="Adicione uma observação manual ao histórico..."
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  className="min-h-[80px]"
+                  disabled={isSubmittingNote}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleManualNoteSubmit}
+                    disabled={!manualNote.trim() || isSubmittingNote}
+                  >
+                    {isSubmittingNote ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Registrar Observação
+                  </Button>
+                </div>
+              </div>
+
+              <div className="max-h-96 overflow-y-auto pr-2 space-y-4">
                 {logs.map((log, index) => {
                   let durationStr = ''
                   if (log.from_status === 'Pendência' && index > 0) {
@@ -1043,6 +1088,9 @@ export default function ProcessDetail() {
                     }
                   }
 
+                  const isPureNote =
+                    !log.from_status && !log.to_status && !log.from_step && !log.to_step
+
                   return (
                     <div
                       key={log.id}
@@ -1053,14 +1101,23 @@ export default function ProcessDetail() {
                         {new Date(log.created).toLocaleString('pt-BR')}{' '}
                         {durationStr && <span className="text-amber-600 ml-1">{durationStr}</span>}
                       </p>
-                      <p className="font-medium text-slate-800 mt-1">
-                        {log.from_status !== log.to_status
-                          ? `${log.from_status || 'Início'} ➔ ${log.to_status}`
-                          : `${log.from_step || 'Início'} ➔ ${log.to_step}`}
-                      </p>
+
+                      {!isPureNote && (
+                        <p className="font-medium text-slate-800 mt-1">
+                          {log.from_status !== log.to_status
+                            ? `${log.from_status || 'Início'} ➔ ${log.to_status}`
+                            : `${log.from_step || 'Início'} ➔ ${log.to_step}`}
+                        </p>
+                      )}
+
                       {log.note && (
-                        <p className="text-xs text-slate-600 mt-1 italic bg-slate-100 p-2 rounded">
-                          "{log.note}"
+                        <p
+                          className={cn(
+                            'text-slate-600 mt-1 bg-slate-100 p-2 rounded whitespace-pre-wrap',
+                            isPureNote ? 'text-sm not-italic' : 'text-xs italic',
+                          )}
+                        >
+                          {isPureNote ? log.note : `"${log.note}"`}
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
@@ -1216,212 +1273,6 @@ export default function ProcessDetail() {
             </Card>
           )}
 
-          <Card className="shadow-sm border-border/50 mb-6">
-            <CardHeader className="pb-4 border-b border-border/50 bg-slate-50/50">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-primary"
-                >
-                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" x2="8" y1="13" y2="13" />
-                  <line x1="16" x2="8" y1="17" y2="17" />
-                  <line x1="10" x2="8" y1="9" y2="9" />
-                </svg>
-                Histórico de Alterações (Observações)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 flex flex-col gap-4">
-              <div className="flex flex-col gap-3 border-b border-border/50 pb-4">
-                <textarea
-                  id="manual-observation-input"
-                  placeholder="Escreva uma observação..."
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  onChange={(e) => {
-                    const btn = document.getElementById('btn-registrar-obs') as HTMLButtonElement
-                    if (btn) btn.disabled = !e.target.value.trim()
-                  }}
-                />
-                <div className="flex justify-end">
-                  <button
-                    id="btn-registrar-obs"
-                    disabled
-                    onClick={async (e) => {
-                      const btn = e.currentTarget as HTMLButtonElement
-                      const input = document.getElementById(
-                        'manual-observation-input',
-                      ) as HTMLTextAreaElement
-                      const note = input.value.trim()
-                      if (!note) return
-
-                      btn.disabled = true
-                      const originalText = btn.innerText
-                      btn.innerText = 'Salvando...'
-
-                      try {
-                        const pb = (await import('@/lib/pocketbase/client')).default
-                        const { toast } = await import('@/hooks/use-toast')
-
-                        await pb.send('/backend/v1/process-logs/manual', {
-                          method: 'POST',
-                          body: JSON.stringify({ process: process.id, note: note }),
-                          headers: { 'Content-Type': 'application/json' },
-                        })
-
-                        input.value = ''
-                        btn.disabled = true
-                        toast({ title: 'Observação registrada com sucesso!' })
-                        window.dispatchEvent(new CustomEvent('observation_added'))
-                      } catch (error) {
-                        const { toast } = await import('@/hooks/use-toast')
-                        toast({
-                          title: 'Erro ao registrar',
-                          description: 'Ocorreu um erro ao salvar sua observação.',
-                          variant: 'destructive',
-                        })
-                        btn.disabled = false
-                      } finally {
-                        btn.innerText = originalText
-                      }
-                    }}
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
-                  >
-                    Registrar Observação
-                  </button>
-                </div>
-              </div>
-
-              <div id="manual-observations-list" className="flex flex-col gap-3">
-                <span className="text-sm text-muted-foreground italic hidden" id="manual-obs-empty">
-                  Nenhuma observação manual registrada.
-                </span>
-              </div>
-            </CardContent>
-
-            <span
-              className="hidden"
-              ref={(el) => {
-                if (!el) return
-                let isFetching = false
-                let unsub: (() => void) | null = null
-
-                const loadObs = async () => {
-                  if (isFetching) return
-                  isFetching = true
-                  try {
-                    const pb = (await import('@/lib/pocketbase/client')).default
-                    const logs = await pb.collection('process_logs').getFullList({
-                      filter: `process = "${process.id}" && note != ""`,
-                      sort: '-created',
-                      expand: 'changed_by',
-                    })
-                    const listEl = document.getElementById('manual-observations-list')
-                    const emptyEl = document.getElementById('manual-obs-empty')
-                    if (!listEl) return
-
-                    Array.from(listEl.children).forEach((c) => {
-                      if (c.id !== 'manual-obs-empty') c.remove()
-                    })
-
-                    if (logs.length === 0) {
-                      if (emptyEl) emptyEl.classList.remove('hidden')
-                    } else {
-                      if (emptyEl) emptyEl.classList.add('hidden')
-                      const { format } = await import('date-fns')
-                      logs.forEach((log) => {
-                        const div = document.createElement('div')
-                        div.className =
-                          'p-3 rounded-md bg-slate-50 border border-border/50 text-sm flex flex-col gap-1'
-
-                        const header = document.createElement('div')
-                        header.className =
-                          'flex justify-between items-center text-xs text-muted-foreground mb-2'
-
-                        const author = document.createElement('span')
-                        author.className =
-                          'font-medium text-slate-700 bg-slate-200/50 px-2 py-0.5 rounded'
-                        author.textContent = log.expand?.changed_by?.name || 'Sistema'
-
-                        const date = document.createElement('span')
-                        date.textContent = format(new Date(log.created), 'dd/MM/yyyy HH:mm')
-
-                        header.appendChild(author)
-                        header.appendChild(date)
-
-                        const content = document.createElement('p')
-                        content.className = 'text-slate-800 whitespace-pre-wrap leading-relaxed'
-                        content.textContent = log.note
-
-                        div.appendChild(header)
-                        div.appendChild(content)
-                        listEl.appendChild(div)
-                      })
-                    }
-                  } catch {
-                    /* intentionally ignored */
-                  } finally {
-                    isFetching = false
-                  }
-                }
-
-                loadObs()
-
-                import('@/lib/pocketbase/client').then(({ default: pb }) => {
-                  pb.collection('process_logs')
-                    .subscribe('*', (e) => {
-                      if (
-                        e.action === 'create' &&
-                        e.record.process === process.id &&
-                        e.record.note
-                      ) {
-                        loadObs()
-                      }
-                    })
-                    .then((fn) => {
-                      unsub = fn
-                    })
-                    .catch(() => {})
-                })
-
-                window.addEventListener('observation_added', loadObs)
-
-                return () => {
-                  window.removeEventListener('observation_added', loadObs)
-                  if (unsub) unsub()
-                }
-              }}
-            />
-
-            {/* Oculta os campos de E-mail duplicados ou hardcoded antigos e garante a visibilidade */}
-            <span
-              className="hidden"
-              ref={() => {
-                setTimeout(() => {
-                  const labels = Array.from(document.querySelectorAll('span.text-xs')).filter(
-                    (l) => l.textContent?.trim() === 'E-mail' || l.textContent?.trim() === 'E-mail',
-                  )
-                  if (labels.length > 1) {
-                    labels.forEach((l) => {
-                      const val = l.nextElementSibling
-                      if (val && val.id !== 'injected-email-field') {
-                        l.parentElement?.classList.add('hidden')
-                      }
-                    })
-                  }
-                }, 100)
-              }}
-            />
-          </Card>
-
           <Card className="shadow-sm border-border/50">
             <CardHeader className="pb-4 border-b border-border/50 bg-slate-50/50">
               <CardTitle className="text-lg flex items-center gap-2">
@@ -1561,7 +1412,7 @@ export default function ProcessDetail() {
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-xs">E-mail</span>
-                      <span className="font-medium text-slate-800" id="injected-email-field">
+                      <span className="font-medium text-slate-800">
                         {process.expand?.buyer?.email || 'Não informado'}
                       </span>
                     </div>
@@ -1571,12 +1422,6 @@ export default function ProcessDetail() {
                       </span>
                       <span className="font-medium text-slate-800">
                         {formatDate(process.expand?.buyer?.birth_date)}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">E-mail</span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.buyer?.email || '-'}
                       </span>
                     </div>
                     <div>

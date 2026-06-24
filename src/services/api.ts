@@ -3,13 +3,13 @@ import pb from '@/lib/pocketbase/client'
 export const getProcesses = () =>
   pb.collection('processes').getFullList({
     expand:
-      'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
+      'buyer,buyer_2,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
     sort: '-created',
   })
 export const getProcess = (id: string) =>
   pb.collection('processes').getOne(id, {
     expand:
-      'buyer,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
+      'buyer,buyer_2,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
   })
 
 export const resetSystemData = () => pb.send('/backend/v1/system/reset', { method: 'POST' })

@@ -121,7 +121,7 @@ export default function ProcessDetail() {
     try {
       const p = await pb.collection('processes').getOne(id, {
         expand:
-          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type,construction_company',
+          'buyer,buyer_2,assigned_analyst,broker,credit_analysis_type,property_type,development_type,construction_company',
       })
       setProcess(p)
 
@@ -787,6 +787,26 @@ export default function ProcessDetail() {
             <p className="text-muted-foreground text-sm mt-1">
               ID: {process.id} • {new Date(process.created).toLocaleDateString('pt-BR')}
             </p>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
+                <User className="w-4 h-4 text-slate-500" />
+                <span>Cliente:</span>
+                <span className="text-slate-900">
+                  {process.expand?.buyer?.name && process.expand?.buyer_2?.name
+                    ? `${process.expand.buyer.name} / ${process.expand.buyer_2.name}`
+                    : process.expand?.buyer?.name ||
+                      process.expand?.buyer_2?.name ||
+                      'Sem proponente vinculado'}
+                </span>
+              </div>
+              {process.expand?.broker && (
+                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
+                  <User className="w-4 h-4 text-slate-500" />
+                  <span>Corretor:</span>
+                  <span className="text-slate-900">{process.expand.broker.name}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

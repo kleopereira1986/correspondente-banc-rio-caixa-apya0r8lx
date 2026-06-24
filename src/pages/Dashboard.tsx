@@ -87,7 +87,7 @@ export default function Dashboard() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data)
     } catch (e) {
@@ -311,7 +311,9 @@ export default function Dashboard() {
       ]
       const rows = filteredCredit.map((p) => [
         p.id,
-        p.expand?.buyer?.name || 'N/A',
+        p.expand?.buyer?.name && p.expand?.buyer_2?.name
+          ? `${p.expand.buyer.name} / ${p.expand.buyer_2.name}`
+          : p.expand?.buyer?.name || p.expand?.buyer_2?.name || 'Sem proponente vinculado',
         p.expand?.broker?.name || '-',
         p.expand?.broker?.expand?.real_estate_agency?.name || '-',
         formatCurrency(p.approved_financing_value || 0),
@@ -586,7 +588,13 @@ export default function Dashboard() {
                 {unassignedCredit.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell>
-                      <div className="font-medium">{p.expand?.buyer?.name || 'N/A'}</div>
+                      <div className="font-medium">
+                        {p.expand?.buyer?.name && p.expand?.buyer_2?.name
+                          ? `${p.expand.buyer.name} / ${p.expand.buyer_2.name}`
+                          : p.expand?.buyer?.name ||
+                            p.expand?.buyer_2?.name ||
+                            'Sem proponente vinculado'}
+                      </div>
                       <div className="text-xs text-muted-foreground">{p.id}</div>
                     </TableCell>
                     <TableCell>{formatCurrency(p.value)}</TableCell>
@@ -848,7 +856,11 @@ export default function Dashboard() {
                       >
                         <TableCell className="py-4 min-w-[200px]">
                           <div className="font-medium text-slate-800 group-hover:text-primary">
-                            {process.expand?.buyer?.name || 'N/A'}
+                            {process.expand?.buyer?.name && process.expand?.buyer_2?.name
+                              ? `${process.expand.buyer.name} / ${process.expand.buyer_2.name}`
+                              : process.expand?.buyer?.name ||
+                                process.expand?.buyer_2?.name ||
+                                'Sem proponente vinculado'}
                           </div>
                           <div className="text-xs text-muted-foreground">{process.id}</div>
                         </TableCell>
@@ -984,7 +996,11 @@ export default function Dashboard() {
                     >
                       <TableCell className="py-4 min-w-[200px]">
                         <div className="font-medium text-slate-800 group-hover:text-primary">
-                          {process.expand?.buyer?.name || 'N/A'}
+                          {process.expand?.buyer?.name && process.expand?.buyer_2?.name
+                            ? `${process.expand.buyer.name} / ${process.expand.buyer_2.name}`
+                            : process.expand?.buyer?.name ||
+                              process.expand?.buyer_2?.name ||
+                              'Sem proponente vinculado'}
                         </div>
                         <div className="text-xs text-muted-foreground">{process.id}</div>
                       </TableCell>

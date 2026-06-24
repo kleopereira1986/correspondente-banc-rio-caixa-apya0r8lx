@@ -44,7 +44,7 @@ export default function CreditAnalysis() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,broker,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data.filter((p: any) => p.type === 'credit'))
 
@@ -411,6 +411,12 @@ export default function CreditAnalysis() {
                       <User className="w-3.5 h-3.5" />
                       {proc.expand?.assigned_analyst?.name || 'Não atribuído'}
                     </span>
+                    {proc.expand?.broker && (
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <User className="w-3.5 h-3.5" />
+                        Corretor: {proc.expand.broker.name}
+                      </span>
+                    )}
                     <Badge variant="outline" className="font-normal text-[10px] bg-slate-50">
                       {proc.expand?.credit_analysis_type?.name || 'Crédito'}
                     </Badge>

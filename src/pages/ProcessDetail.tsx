@@ -27,6 +27,7 @@ import {
   FileText,
   RefreshCcw,
   FileSignature,
+  Edit,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -113,6 +114,9 @@ export default function ProcessDetail() {
   const [triageDialog, setTriageDialog] = useState(false)
   const [analysisType, setAnalysisType] = useState('')
   const [isLoadingConformity, setIsLoadingConformity] = useState(false)
+
+  const [editBuyer, setEditBuyer] = useState<{ id: string; name: string } | null>(null)
+  const [isEditingBuyer, setIsEditingBuyer] = useState(false)
 
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
@@ -289,6 +293,22 @@ export default function ProcessDetail() {
       toast({ title: 'Erro ao aprovar triagem', variant: 'destructive' })
     } finally {
       setIsLoadingConformity(false)
+    }
+  }
+
+  const handleEditBuyer = async () => {
+    if (!editBuyer || !editBuyer.name.trim()) return
+    setIsEditingBuyer(true)
+    try {
+      await pb.collection('users').update(editBuyer.id, { name: editBuyer.name.trim() })
+      toast({ title: 'Nome do cliente atualizado com sucesso.' })
+      setEditBuyer(null)
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro ao atualizar nome.', variant: 'destructive' })
+    } finally {
+      setIsEditingBuyer(false)
     }
   }
 
@@ -791,12 +811,29 @@ export default function ProcessDetail() {
               <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
                 <User className="w-4 h-4 text-slate-500" />
                 <span>Cliente:</span>
-                <span className="text-slate-900">
+                <span className="text-slate-900 flex items-center gap-1.5">
                   {process.expand?.buyer?.name && process.expand?.buyer_2?.name
                     ? `${process.expand.buyer.name} / ${process.expand.buyer_2.name}`
                     : process.expand?.buyer?.name ||
                       process.expand?.buyer_2?.name ||
                       'Sem proponente vinculado'}
+                  {process.buyer &&
+                    (user?.role === 'master' ||
+                      user?.role === 'analyst' ||
+                      user?.role === 'broker') && (
+                      <button
+                        onClick={() =>
+                          setEditBuyer({
+                            id: process.buyer,
+                            name: process.expand?.buyer?.name || '',
+                          })
+                        }
+                        className="text-slate-400 hover:text-primary transition-colors"
+                        title="Editar nome"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                 </span>
               </div>
               {process.expand?.broker && (
@@ -2334,6 +2371,29 @@ export default function ProcessDetail() {
             </Button>
             <Button variant="destructive" onClick={() => handleDecision('reject')}>
               Reprovar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editBuyer} onOpenChange={(open) => !open && setEditBuyer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Nome do Cliente</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={editBuyer?.name || ''}
+              onChange={(e) => editBuyer && setEditBuyer({ ...editBuyer, name: e.target.value })}
+              placeholder="Nome completo do 1º proponente"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditBuyer(null)} disabled={isEditingBuyer}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditBuyer} disabled={isEditingBuyer || !editBuyer?.name?.trim()}>
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
@@ -17,6 +18,7 @@ import {
   Edit,
   ShieldAlert,
   CheckCircle,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -38,6 +40,11 @@ export default function CreditAnalysis() {
 
   const [firstHousingStage, setFirstHousingStage] = useState<string>('Montagem de Pasta')
   const [transitionProcess, setTransitionProcess] = useState<any>(null)
+
+  const [deleteProcessId, setDeleteProcessId] = useState<string | null>(null)
+  const [isDeletingProcess, setIsDeletingProcess] = useState(false)
+  const [editBuyer, setEditBuyer] = useState<{ id: string; name: string } | null>(null)
+  const [isEditingBuyer, setIsEditingBuyer] = useState(false)
 
   const loadData = async () => {
     try {
@@ -193,6 +200,38 @@ export default function CreditAnalysis() {
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleDeleteProcess = async () => {
+    if (!deleteProcessId) return
+    setIsDeletingProcess(true)
+    try {
+      await pb.collection('processes').delete(deleteProcessId)
+      toast({ title: 'Processo excluído com sucesso.' })
+      setDeleteProcessId(null)
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro ao excluir processo.', variant: 'destructive' })
+    } finally {
+      setIsDeletingProcess(false)
+    }
+  }
+
+  const handleEditBuyer = async () => {
+    if (!editBuyer || !editBuyer.name.trim()) return
+    setIsEditingBuyer(true)
+    try {
+      await pb.collection('users').update(editBuyer.id, { name: editBuyer.name.trim() })
+      toast({ title: 'Nome do cliente atualizado com sucesso.' })
+      setEditBuyer(null)
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro ao atualizar nome do cliente.', variant: 'destructive' })
+    } finally {
+      setIsEditingBuyer(false)
     }
   }
 
@@ -392,16 +431,35 @@ export default function CreditAnalysis() {
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <Link
-                    to={`/process/${proc.id}`}
-                    className="font-semibold text-slate-800 hover:text-primary transition-colors text-base flex items-center gap-2"
-                  >
-                    {proc.expand?.buyer?.name && proc.expand?.buyer_2?.name
-                      ? `${proc.expand.buyer.name} / ${proc.expand.buyer_2.name}`
-                      : proc.expand?.buyer?.name ||
-                        proc.expand?.buyer_2?.name ||
-                        'Sem proponente vinculado'}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/process/${proc.id}`}
+                      className="font-semibold text-slate-800 hover:text-primary transition-colors text-base flex items-center gap-2"
+                    >
+                      {proc.expand?.buyer?.name && proc.expand?.buyer_2?.name
+                        ? `${proc.expand.buyer.name} / ${proc.expand.buyer_2.name}`
+                        : proc.expand?.buyer?.name ||
+                          proc.expand?.buyer_2?.name ||
+                          'Sem proponente vinculado'}
+                    </Link>
+                    {proc.buyer &&
+                      (user?.role === 'master' ||
+                        user?.role === 'analyst' ||
+                        user?.role === 'broker') && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-slate-400 hover:text-primary"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setEditBuyer({ id: proc.buyer, name: proc.expand?.buyer?.name || '' })
+                          }}
+                          title="Editar nome do cliente"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                  </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
@@ -483,12 +541,28 @@ export default function CreditAnalysis() {
                     Enviar para Habitacional
                   </Button>
                 )}
-                <Button asChild variant="outline" size="sm" className="group w-full sm:w-auto">
-                  <Link to={`/process/${proc.id}`}>
-                    Analisar{' '}
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+                  {user?.role === 'master' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 px-2"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setDeleteProcessId(proc.id)
+                      }}
+                      title="Excluir processo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                  <Button asChild variant="outline" size="sm" className="group flex-1 sm:flex-none">
+                    <Link to={`/process/${proc.id}`}>
+                      Analisar{' '}
+                      <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
           ))
@@ -782,6 +856,58 @@ export default function CreditAnalysis() {
           </Card>
         )}
       </div>
+
+      <Dialog open={!!editBuyer} onOpenChange={(open) => !open && setEditBuyer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Nome do Cliente</DialogTitle>
+            <DialogDescription>Altere o nome do 1º proponente deste processo.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={editBuyer?.name || ''}
+              onChange={(e) => editBuyer && setEditBuyer({ ...editBuyer, name: e.target.value })}
+              placeholder="Nome completo"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditBuyer(null)} disabled={isEditingBuyer}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditBuyer} disabled={isEditingBuyer || !editBuyer?.name?.trim()}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteProcessId} onOpenChange={(open) => !open && setDeleteProcessId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Processo</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir este processo permanentemente? Esta ação não pode ser
+              desfeita e removerá todos os dados e documentos vinculados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteProcessId(null)}
+              disabled={isDeletingProcess}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProcess}
+              disabled={isDeletingProcess}
+            >
+              Excluir Processo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!transitionProcess}

@@ -95,6 +95,7 @@ export default function Tasks() {
 
   const [selectedType, setSelectedType] = useState('')
   const [description, setDescription] = useState('')
+  const [clientName, setClientName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [editingType, setEditingType] = useState<any>(null)
@@ -137,14 +138,21 @@ export default function Tasks() {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedType || !description) return
+    if (!selectedType || !description || !clientName.trim()) return
     setIsSubmitting(true)
     try {
-      await createTask({ type: selectedType, requester: user.id, description, status: 'pending' })
+      await createTask({
+        type: selectedType,
+        requester: user.id,
+        description,
+        status: 'pending',
+        client_name: clientName.trim(),
+      })
       toast({ title: 'Sucesso', description: 'Tarefa solicitada com sucesso.' })
       setIsNewTaskOpen(false)
       setSelectedType('')
       setDescription('')
+      setClientName('')
     } catch (error) {
       toast({ title: 'Erro', description: 'Erro ao solicitar tarefa.', variant: 'destructive' })
     } finally {
@@ -342,6 +350,17 @@ export default function Tasks() {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>
+                      Nome completo do cliente <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      placeholder="Nome do cliente"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Observações / Detalhes</Label>
                     <Textarea
                       rows={4}
@@ -353,7 +372,7 @@ export default function Tasks() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isSubmitting || !selectedType || !description}
+                    disabled={isSubmitting || !selectedType || !description || !clientName.trim()}
                   >
                     {isSubmitting ? 'Enviando...' : 'Criar Solicitação'}
                   </Button>
@@ -504,6 +523,14 @@ export default function Tasks() {
                       <div className="flex justify-between">
                         <span className="font-medium text-slate-700">Analista:</span>
                         <span>{task.expand.assigned_analyst.name}</span>
+                      </div>
+                    )}
+                    {task.client_name && (
+                      <div className="flex justify-between">
+                        <span className="font-medium text-slate-700">Cliente:</span>
+                        <span className="truncate max-w-[150px]" title={task.client_name}>
+                          {task.client_name}
+                        </span>
                       </div>
                     )}
                     <div className="flex justify-between">

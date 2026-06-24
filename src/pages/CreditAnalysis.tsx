@@ -44,7 +44,7 @@ export default function CreditAnalysis() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,assigned_analyst,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data.filter((p: any) => p.type === 'credit'))
 
@@ -396,7 +396,11 @@ export default function CreditAnalysis() {
                     to={`/process/${proc.id}`}
                     className="font-semibold text-slate-800 hover:text-primary transition-colors text-base flex items-center gap-2"
                   >
-                    {proc.expand?.buyer?.name || 'Cliente não informado'}
+                    {proc.expand?.buyer?.name && proc.expand?.buyer_2?.name
+                      ? `${proc.expand.buyer.name} / ${proc.expand.buyer_2.name}`
+                      : proc.expand?.buyer?.name ||
+                        proc.expand?.buyer_2?.name ||
+                        'Sem proponente vinculado'}
                   </Link>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">

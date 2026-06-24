@@ -139,6 +139,11 @@ export default function TaskDetail() {
       })
 
       await createInteraction(formData)
+
+      if (task.status === 'returned' && task.requester === user.id) {
+        await updateTask(task.id, { status: 'pending' })
+      }
+
       setNewMessage('')
       setFiles([])
       scrollToBottom()
@@ -331,7 +336,7 @@ export default function TaskDetail() {
                             </span>
                           </div>
                           <div
-                            className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm'}`}
+                            className={`px-4 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto scrollbar-thin ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none shadow-sm'}`}
                           >
                             {msg.message}
                           </div>

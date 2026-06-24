@@ -9,6 +9,11 @@ export const updateTaskType = (id: string, data: any) =>
 
 export const deleteTaskType = (id: string) => pb.collection('task_types').delete(id)
 
+export const getAgencies = () => pb.collection('real_estate_agencies').getFullList({ sort: 'name' })
+
+export const getBrokers = () =>
+  pb.collection('users').getFullList({ filter: 'role="broker"', sort: 'name' })
+
 export const getTasks = (status?: string) => {
   const options: any = {
     expand: 'type,requester,assigned_analyst',

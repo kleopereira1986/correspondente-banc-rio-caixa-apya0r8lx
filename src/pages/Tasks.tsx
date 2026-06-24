@@ -19,6 +19,8 @@ import {
   createTaskType,
   updateTaskType,
   deleteTaskType,
+  getAgencies,
+  getBrokers,
 } from '@/services/tasks'
 import { useAuth } from '@/contexts/auth-context'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -43,6 +45,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -80,10 +83,15 @@ export default function Tasks() {
   const { toast } = useToast()
   const [tasks, setTasks] = useState<any[]>([])
   const [types, setTypes] = useState<any[]>([])
+  const [agencies, setAgencies] = useState<any[]>([])
+  const [brokers, setBrokers] = useState<any[]>([])
 
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false)
   const [isTaskTypesOpen, setIsTaskTypesOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [selectedAgency, setSelectedAgency] = useState('all')
+  const [selectedBroker, setSelectedBroker] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [selectedType, setSelectedType] = useState('')
   const [description, setDescription] = useState('')
@@ -92,14 +100,22 @@ export default function Tasks() {
   const [editingType, setEditingType] = useState<any>(null)
   const [newTypeName, setNewTypeName] = useState('')
 
+  const isInternal = user.role === 'master' || user.role === 'analyst'
+
   const loadData = async () => {
     try {
-      const [fetchedTasks, fetchedTypes] = await Promise.all([
+      const [fetchedTasks, fetchedTypes, fetchedAgencies, fetchedBrokers] = await Promise.all([
         getTasks(statusFilter),
         getTaskTypes(),
+        isInternal ? getAgencies() : Promise.resolve([]),
+        isInternal ? getBrokers() : Promise.resolve([]),
       ])
       setTasks(fetchedTasks)
       setTypes(fetchedTypes)
+      if (isInternal) {
+        setAgencies(fetchedAgencies)
+        setBrokers(fetchedBrokers)
+      }
     } catch (error) {
       toast({
         title: 'Erro',
@@ -168,7 +184,27 @@ export default function Tasks() {
     }
   }
 
-  const canCreate = user.role === 'broker' || user.role === 'master'
+  const canCreate =
+    user.role === 'broker' ||
+    user.role === 'master' ||
+    user.role === 'real_estate_agency' ||
+    user.role === 'analyst'
+
+  const filteredTasks = tasks.filter((task) => {
+    if (selectedAgency !== 'all') {
+      if (task.expand?.requester?.real_estate_agency !== selectedAgency) return false
+    }
+    if (selectedBroker !== 'all') {
+      if (task.requester !== selectedBroker) return false
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const name = task.expand?.requester?.name?.toLowerCase() || ''
+      const desc = task.description?.toLowerCase() || ''
+      if (!name.includes(q) && !desc.includes(q)) return false
+    }
+    return true
+  })
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -183,20 +219,6 @@ export default function Tasks() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px]">
-              <Filter size={14} className="mr-2" />
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Status</SelectItem>
-              <SelectItem value="pending">Pendente</SelectItem>
-              <SelectItem value="in_progress">Em Andamento</SelectItem>
-              <SelectItem value="completed">Concluído</SelectItem>
-              <SelectItem value="returned">Devolvido</SelectItem>
-            </SelectContent>
-          </Select>
-
           {user.role === 'master' && (
             <Dialog open={isTaskTypesOpen} onOpenChange={setIsTaskTypesOpen}>
               <DialogTrigger asChild>
@@ -328,8 +350,66 @@ export default function Tasks() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 bg-white p-4 rounded-lg border shadow-sm">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome ou descrição..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]">
+            <Filter size={14} className="mr-2" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="in_progress">Em Andamento</SelectItem>
+            <SelectItem value="completed">Concluído</SelectItem>
+            <SelectItem value="returned">Devolvido</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {isInternal && (
+          <>
+            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Imobiliária" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as Imobiliárias</SelectItem>
+                {agencies.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={selectedBroker} onValueChange={setSelectedBroker}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Corretor" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Corretores</SelectItem>
+                {brokers.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tasks.map((task) => {
+        {filteredTasks.map((task) => {
           const status = statusMap[task.status] || statusMap.pending
           const StatusIcon = status.icon
           return (
@@ -370,7 +450,7 @@ export default function Tasks() {
             </Link>
           )
         })}
-        {tasks.length === 0 && (
+        {filteredTasks.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-lg border border-dashed">
             Nenhuma tarefa encontrada para os filtros atuais.
           </div>

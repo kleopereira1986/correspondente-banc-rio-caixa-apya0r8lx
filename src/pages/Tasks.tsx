@@ -81,7 +81,7 @@ const statusMap: Record<string, { label: string; color: string; icon: any }> = {
 export default function Tasks() {
   const { user } = useAuth()
   const { toast } = useToast()
-  const [tasks, setTasks] = useState<any[]>([])
+  const [allTasks, setAllTasks] = useState<any[]>([])
   const [types, setTypes] = useState<any[]>([])
   const [agencies, setAgencies] = useState<any[]>([])
   const [brokers, setBrokers] = useState<any[]>([])
@@ -105,12 +105,12 @@ export default function Tasks() {
   const loadData = async () => {
     try {
       const [fetchedTasks, fetchedTypes, fetchedAgencies, fetchedBrokers] = await Promise.all([
-        getTasks(statusFilter),
+        getTasks('all'),
         getTaskTypes(),
         isInternal ? getAgencies() : Promise.resolve([]),
         isInternal ? getBrokers() : Promise.resolve([]),
       ])
-      setTasks(fetchedTasks)
+      setAllTasks(fetchedTasks)
       setTypes(fetchedTypes)
       if (isInternal) {
         setAgencies(fetchedAgencies)
@@ -127,7 +127,7 @@ export default function Tasks() {
 
   useEffect(() => {
     loadData()
-  }, [statusFilter])
+  }, [])
   useRealtime('tasks', () => {
     loadData()
   })
@@ -190,7 +190,7 @@ export default function Tasks() {
     user.role === 'real_estate_agency' ||
     user.role === 'analyst'
 
-  const filteredTasks = tasks.filter((task) => {
+  const baseTasksForCounts = allTasks.filter((task) => {
     if (selectedAgency !== 'all') {
       if (task.expand?.requester?.real_estate_agency !== selectedAgency) return false
     }
@@ -205,6 +205,20 @@ export default function Tasks() {
     }
     return true
   })
+
+  const filteredTasks = baseTasksForCounts.filter((task) => {
+    if (statusFilter !== 'all') {
+      if (task.status !== statusFilter) return false
+    }
+    return true
+  })
+
+  const counts = {
+    pending: baseTasksForCounts.filter((t) => t.status === 'pending').length,
+    in_progress: baseTasksForCounts.filter((t) => t.status === 'in_progress').length,
+    completed: baseTasksForCounts.filter((t) => t.status === 'completed').length,
+    returned: baseTasksForCounts.filter((t) => t.status === 'returned').length,
+  }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -348,6 +362,60 @@ export default function Tasks() {
             </Dialog>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            id: 'pending',
+            label: 'PENDENTE',
+            icon: Clock,
+            color: 'text-yellow-600',
+            bg: 'bg-yellow-50',
+          },
+          {
+            id: 'in_progress',
+            label: 'EM ATENDIMENTO',
+            icon: Clock,
+            color: 'text-blue-600',
+            bg: 'bg-blue-50',
+          },
+          {
+            id: 'completed',
+            label: 'CONCLUÍDO',
+            icon: CheckCircle2,
+            color: 'text-green-600',
+            bg: 'bg-green-50',
+          },
+          {
+            id: 'returned',
+            label: 'DEVOLVIDO',
+            icon: AlertCircle,
+            color: 'text-red-600',
+            bg: 'bg-red-50',
+          },
+        ].map((card) => {
+          const isActive = statusFilter === card.id
+          const count = counts[card.id as keyof typeof counts]
+          const Icon = card.icon
+          return (
+            <Card
+              key={card.id}
+              className={`cursor-pointer transition-all ${isActive ? `ring-2 ring-primary border-primary ${card.bg}` : 'hover:border-primary/50'}`}
+              onClick={() => setStatusFilter(isActive ? 'all' : card.id)}
+            >
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 mb-1">{card.label}</p>
+                  <p className={`text-2xl font-bold ${card.color}`}>{count}</p>
+                </div>
+                <div className={`p-3 rounded-full ${card.bg} ${card.color}`}>
+                  <Icon size={24} />
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 bg-white p-4 rounded-lg border shadow-sm">

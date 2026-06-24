@@ -144,6 +144,7 @@ export default function TaskDetail() {
         await updateTask(task.id, { status: 'pending' })
       }
 
+      toast({ title: 'Sucesso', description: 'Mensagem enviada com sucesso.' })
       setNewMessage('')
       setFiles([])
       scrollToBottom()

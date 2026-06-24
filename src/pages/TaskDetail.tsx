@@ -140,7 +140,10 @@ export default function TaskDetail() {
 
       await createInteraction(formData)
 
-      if (task.status === 'returned') {
+      if (
+        task.status === 'returned' &&
+        (user.role === 'broker' || user.role === 'real_estate_agency' || task.requester === user.id)
+      ) {
         await updateTask(task.id, { status: 'pending' })
       }
 
@@ -301,13 +304,16 @@ export default function TaskDetail() {
         </div>
 
         {/* CRM / Interactions Column */}
-        <div className="lg:col-span-2 flex flex-col h-[600px]">
+        <div className="lg:col-span-2 flex flex-col h-[600px] lg:h-[calc(100vh-10rem)] min-h-[500px]">
           <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardHeader className="pb-3 border-b bg-slate-50">
+            <CardHeader className="pb-3 border-b bg-slate-50 shrink-0">
               <CardTitle className="text-lg">Histórico & Interações</CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 p-0 flex flex-col">
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+            <CardContent className="flex-1 p-0 flex flex-col overflow-hidden min-h-0">
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 min-h-0"
+              >
                 {interactions.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-slate-400 italic">
                     Nenhuma interação registrada ainda.
@@ -373,7 +379,7 @@ export default function TaskDetail() {
                   })
                 )}
               </div>
-              <div className="p-4 bg-white border-t">
+              <div className="p-4 bg-white border-t shrink-0">
                 {files.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-3">
                     {files.map((f, i) => (

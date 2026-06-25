@@ -301,6 +301,32 @@ export default function ProcessDetail() {
     }
   }
 
+  const handleSendToHousing = async () => {
+    if (!process) return
+    try {
+      await updateProcess(process.id, {
+        type: 'housing',
+        current_step: 'Documentação',
+        status: 'Aguardando Documentação',
+      })
+      await createProcessLog({
+        process: process.id,
+        from_status: process.status,
+        to_status: 'Aguardando Documentação',
+        changed_by: user?.id,
+        note: 'Processo enviado para a fase Habitacional',
+      })
+      toast({ title: 'Processo enviado para Habitacional com sucesso!' })
+      loadData()
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível enviar para habitacional.',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handleChangeEvaluation = async () => {
     if (!process) return
     if (!changeEvaluationReason.trim()) {
@@ -1256,6 +1282,24 @@ export default function ProcessDetail() {
                     onClick={() => setChangeEvaluationDialog(true)}
                   >
                     <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR MUDANÇA NA AVALIAÇÃO
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+          {process.result === 'approved' &&
+            process.type === 'credit' &&
+            user?.role === 'real_estate_agency' && (
+              <Card className="shadow-sm border-purple-200 border-t-4 border-t-purple-500 mb-6">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg text-purple-900">Ações da Agência</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
+                    onClick={handleSendToHousing}
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" /> ENVIAR PARA HABITACIONAL
                   </Button>
                 </CardContent>
               </Card>

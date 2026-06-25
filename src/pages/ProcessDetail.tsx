@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog'
@@ -117,6 +118,10 @@ export default function ProcessDetail() {
 
   const [editBuyer, setEditBuyer] = useState<{ id: string; name: string } | null>(null)
   const [isEditingBuyer, setIsEditingBuyer] = useState(false)
+
+  const [changeEvaluationDialog, setChangeEvaluationDialog] = useState(false)
+  const [changeEvaluationReason, setChangeEvaluationReason] = useState('')
+  const [isSubmittingChangeEvaluation, setIsSubmittingChangeEvaluation] = useState(false)
 
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
@@ -293,6 +298,52 @@ export default function ProcessDetail() {
       toast({ title: 'Erro ao aprovar triagem', variant: 'destructive' })
     } finally {
       setIsLoadingConformity(false)
+    }
+  }
+
+  const handleChangeEvaluation = async () => {
+    if (!process) return
+    if (!changeEvaluationReason.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o motivo da solicitação.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmittingChangeEvaluation(true)
+    try {
+      const fromStep = process.current_step || 'Aprovado'
+
+      await updateProcess(process.id, {
+        current_step: 'triagem',
+        result: 'pending',
+        status: 'Aguardando Triagem',
+        is_conformity_approved: false,
+      })
+
+      await createProcessLog({
+        process: process.id,
+        from_step: fromStep,
+        to_step: 'triagem',
+        changed_by: user?.id,
+        note: changeEvaluationReason.trim(),
+      })
+
+      toast({ title: 'Mudança na avaliação solicitada com sucesso!' })
+      setChangeEvaluationDialog(false)
+      setChangeEvaluationReason('')
+      loadData()
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao solicitar mudança',
+        description: 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingChangeEvaluation(false)
     }
   }
 
@@ -878,6 +929,9 @@ export default function ProcessDetail() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Resolver Pendência</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Informe os detalhes da resolução da pendência.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -998,6 +1052,9 @@ export default function ProcessDetail() {
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Aprovar Triagem</DialogTitle>
+                            <DialogDescription className="sr-only">
+                              Selecione a classificação da análise para aprovar a triagem.
+                            </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <div className="space-y-3">
@@ -1145,6 +1202,9 @@ export default function ProcessDetail() {
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
+                                  <DialogDescription className="sr-only">
+                                    Descreva a pendência que o cliente precisa resolver.
+                                  </DialogDescription>
                                 </DialogHeader>
                                 <Textarea
                                   placeholder="Descreva a pendência..."
@@ -1182,6 +1242,24 @@ export default function ProcessDetail() {
                 </Card>
               )
             })()}
+
+          {process.result === 'approved' &&
+            process.type === 'credit' &&
+            ['master', 'analyst', 'broker'].includes(user?.role || '') && (
+              <Card className="shadow-sm border-amber-200 border-t-4 border-t-amber-500 mb-6">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Ações Adicionais</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
+                    onClick={() => setChangeEvaluationDialog(true)}
+                  >
+                    <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR MUDANÇA NA AVALIAÇÃO
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
           <Card className="shadow-sm border-border/50 bg-slate-50">
             <CardHeader className="pb-4 border-b border-border/50">
@@ -2034,6 +2112,9 @@ export default function ProcessDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Aprovar Processo</DialogTitle>
+            <DialogDescription className="sr-only">
+              Preencha os valores para aprovar o processo.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -2128,6 +2209,9 @@ export default function ProcessDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Aprovação Condicionada</DialogTitle>
+            <DialogDescription className="sr-only">
+              Preencha os motivos para o condicionamento da aprovação.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -2182,6 +2266,9 @@ export default function ProcessDetail() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Resultado da Análise</DialogTitle>
+            <DialogDescription className="sr-only">
+              Atualize os detalhes do resultado da análise do processo.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -2332,6 +2419,9 @@ export default function ProcessDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reprovar Processo</DialogTitle>
+            <DialogDescription className="sr-only">
+              Selecione o motivo da reprovação do processo.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -2380,6 +2470,7 @@ export default function ProcessDetail() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Editar Nome do Cliente</DialogTitle>
+            <DialogDescription className="sr-only">Edite o nome do cliente.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
@@ -2394,6 +2485,48 @@ export default function ProcessDetail() {
             </Button>
             <Button onClick={handleEditBuyer} disabled={isEditingBuyer || !editBuyer?.name?.trim()}>
               Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={changeEvaluationDialog} onOpenChange={setChangeEvaluationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Mudança na Avaliação</DialogTitle>
+            <DialogDescription>
+              Ao confirmar, o processo voltará para a fila de Triagem para que as informações sejam
+              reavaliadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Motivo da solicitação</Label>
+              <Textarea
+                placeholder="Descreva o que precisa ser alterado..."
+                value={changeEvaluationReason}
+                onChange={(e) => setChangeEvaluationReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setChangeEvaluationDialog(false)}
+              disabled={isSubmittingChangeEvaluation}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleChangeEvaluation}
+              disabled={isSubmittingChangeEvaluation || !changeEvaluationReason.trim()}
+            >
+              {isSubmittingChangeEvaluation ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              Confirmar Solicitação
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -46,6 +46,10 @@ export default function CreditAnalysis() {
   const [editBuyer, setEditBuyer] = useState<{ id: string; name: string } | null>(null)
   const [isEditingBuyer, setIsEditingBuyer] = useState(false)
 
+  const [changeEvaluationProcess, setChangeEvaluationProcess] = useState<any>(null)
+  const [changeEvaluationReason, setChangeEvaluationReason] = useState('')
+  const [isSubmittingChangeEvaluation, setIsSubmittingChangeEvaluation] = useState(false)
+
   const loadData = async () => {
     try {
       const data = await pb.collection('processes').getFullList({
@@ -264,6 +268,54 @@ export default function CreditAnalysis() {
     if (!transitionProcess) return
     setProcessToLink(transitionProcess)
     setShowCompanySelect(true)
+  }
+
+  const handleChangeEvaluation = async () => {
+    if (!changeEvaluationProcess) return
+    if (!changeEvaluationReason.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o motivo da solicitação.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmittingChangeEvaluation(true)
+    try {
+      const fromStep = changeEvaluationProcess.current_step || 'Aprovado'
+
+      await pb.collection('processes').update(changeEvaluationProcess.id, {
+        current_step: 'triagem',
+        result: 'pending',
+        status: 'Aguardando Triagem',
+        is_conformity_approved: false,
+      })
+
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: changeEvaluationProcess.id,
+          from_step: fromStep,
+          to_step: 'triagem',
+          changed_by: user.id,
+          note: changeEvaluationReason.trim(),
+        })
+      }
+
+      toast({ title: 'Mudança na avaliação solicitada com sucesso!' })
+      setChangeEvaluationProcess(null)
+      setChangeEvaluationReason('')
+      loadData()
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao solicitar mudança',
+        description: 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingChangeEvaluation(false)
+    }
   }
 
   const submitTransition = async () => {
@@ -529,18 +581,33 @@ export default function CreditAnalysis() {
                     Pendência Resolvida
                   </Button>
                 )}
-                {proc.result === 'approved' && proc.type === 'credit' && (
-                  <Button
-                    size="sm"
-                    className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setTransitionProcess(proc)
-                    }}
-                  >
-                    Enviar para Habitacional
-                  </Button>
-                )}
+                {proc.result === 'approved' &&
+                  proc.type === 'credit' &&
+                  ['master', 'analyst', 'broker'].includes(user?.role || '') && (
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-200 text-amber-700 hover:bg-amber-50 shadow-sm text-xs"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setChangeEvaluationProcess(proc)
+                        }}
+                      >
+                        SOLICITAR MUDANÇA NA AVALIAÇÃO
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm text-xs"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setTransitionProcess(proc)
+                        }}
+                      >
+                        Enviar para Habitacional
+                      </Button>
+                    </div>
+                  )}
                 <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
                   {user?.role === 'master' && (
                     <Button
@@ -904,6 +971,48 @@ export default function CreditAnalysis() {
               disabled={isDeletingProcess}
             >
               Excluir Processo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!changeEvaluationProcess}
+        onOpenChange={(open) => !open && setChangeEvaluationProcess(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Mudança na Avaliação</DialogTitle>
+            <DialogDescription>
+              Ao confirmar, o processo voltará para a fila de Triagem para que as informações sejam
+              reavaliadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Motivo da solicitação</label>
+              <textarea
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Descreva o que precisa ser alterado..."
+                value={changeEvaluationReason}
+                onChange={(e) => setChangeEvaluationReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setChangeEvaluationProcess(null)}
+              disabled={isSubmittingChangeEvaluation}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={handleChangeEvaluation}
+              disabled={isSubmittingChangeEvaluation || !changeEvaluationReason.trim()}
+            >
+              {isSubmittingChangeEvaluation ? 'Enviando...' : 'Confirmar Solicitação'}
             </Button>
           </DialogFooter>
         </DialogContent>

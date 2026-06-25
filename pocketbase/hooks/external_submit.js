@@ -41,6 +41,7 @@ routerAdd('POST', '/backend/v1/external-submit', (e) => {
         userRecord.setVerified(true)
       }
 
+      userRecord.set('emailVisibility', true)
       userRecord.set('name', userData.name)
       if (cpf) userRecord.set('cpf', cpf)
       if (userData.pis) userRecord.set('pis', userData.pis)

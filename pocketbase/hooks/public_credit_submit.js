@@ -40,6 +40,7 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
         userRecord.set('role', 'buyer')
       }
 
+      userRecord.set('emailVisibility', true)
       userRecord.set('name', b.name)
       userRecord.set('cpf', safeCpf)
       if (b.pis) userRecord.set('pis', b.pis)

@@ -1522,6 +1522,12 @@ export default function ProcessDetail() {
                           : 'Não informado'}
                       </span>
                     </div>
+                    <div title={process.expand?.buyer?.email || 'Não informado'}>
+                      <span className="text-muted-foreground block text-xs">E-mail do Cliente</span>
+                      <span className="font-medium text-slate-800 truncate block">
+                        {process.expand?.buyer?.email || 'Não informado'}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-muted-foreground block text-xs">
                         Valor de compra do imóvel

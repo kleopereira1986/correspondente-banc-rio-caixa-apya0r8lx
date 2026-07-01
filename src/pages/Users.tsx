@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/contexts/auth-context'
-import { getUsers, createUser, updateUser, deleteUser } from '@/services/api'
+import { getUsers, createUser, updateUser, deleteUser, changeUserPassword } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -30,9 +30,10 @@ import {
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Trash2, Plus, Check } from 'lucide-react'
+import { Pencil, Trash2, Plus, Check, KeyRound, Eye, EyeOff } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 const roleLabels: Record<string, string> = {
   master: 'Master',
@@ -59,6 +60,12 @@ export default function UsersPage() {
   const [isAgencyDialogOpen, setIsAgencyDialogOpen] = useState(false)
   const [isAgencyDeleteDialogOpen, setIsAgencyDeleteDialogOpen] = useState(false)
   const [selectedAgency, setSelectedAgency] = useState<any>(null)
+
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false)
+  const [passwordTarget, setPasswordTarget] = useState<any>(null)
+  const [passwordData, setPasswordData] = useState({ password: '', confirmPassword: '' })
+  const [showPassword, setShowPassword] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -210,6 +217,34 @@ export default function UsersPage() {
     }
   }
 
+  const handleOpenPasswordDialog = (u: any) => {
+    setPasswordTarget(u)
+    setPasswordData({ password: '', confirmPassword: '' })
+    setShowPassword(false)
+    setIsPasswordDialogOpen(true)
+  }
+
+  const handleChangePassword = async () => {
+    if (!passwordTarget) return
+    if (passwordData.password.length < 8) return
+    if (passwordData.password !== passwordData.confirmPassword) return
+
+    setIsChangingPassword(true)
+    try {
+      await changeUserPassword(passwordTarget.id, passwordData.password)
+      toast({ title: 'Sucesso', description: 'Senha alterada com sucesso.' })
+      setIsPasswordDialogOpen(false)
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao alterar a senha. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   const handleDeleteAgency = async () => {
     if (!selectedAgency) return
     try {
@@ -285,8 +320,21 @@ export default function UsersPage() {
                     <TableCell>{u.expand?.real_estate_agency?.name || '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenUserDialog(u)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenUserDialog(u)}
+                          title="Editar"
+                        >
                           <Pencil className="w-4 h-4 text-slate-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenPasswordDialog(u)}
+                          title="Alterar Senha"
+                        >
+                          <KeyRound className="w-4 h-4 text-amber-600" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -295,6 +343,7 @@ export default function UsersPage() {
                             setSelectedUser(u)
                             setIsUserDeleteDialogOpen(true)
                           }}
+                          title="Excluir"
                         >
                           <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
@@ -580,6 +629,72 @@ export default function UsersPage() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteAgency}>
               Excluir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Defina uma nova senha para o usuário{' '}
+              <strong>{passwordTarget?.name || passwordTarget?.email}</strong>.
+            </p>
+            <div className="space-y-2">
+              <Label>Nova Senha</Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passwordData.password}
+                  onChange={(e) => setPasswordData({ ...passwordData, password: e.target.value })}
+                  placeholder="Mínimo de 8 caracteres"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {passwordData.password.length > 0 && passwordData.password.length < 8 && (
+                <p className="text-sm text-red-500">A senha deve ter no mínimo 8 caracteres.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Confirmar Nova Senha</Label>
+              <Input
+                type={showPassword ? 'text' : 'password'}
+                value={passwordData.confirmPassword}
+                onChange={(e) =>
+                  setPasswordData({ ...passwordData, confirmPassword: e.target.value })
+                }
+                placeholder="Repita a nova senha"
+              />
+              {passwordData.confirmPassword.length > 0 &&
+                passwordData.password !== passwordData.confirmPassword && (
+                  <p className="text-sm text-red-500">As senhas não coincidem.</p>
+                )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPasswordDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleChangePassword}
+              disabled={
+                isChangingPassword ||
+                passwordData.password.length < 8 ||
+                passwordData.password !== passwordData.confirmPassword
+              }
+            >
+              {isChangingPassword ? 'Alterando...' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

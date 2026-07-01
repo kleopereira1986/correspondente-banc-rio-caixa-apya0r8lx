@@ -98,3 +98,9 @@ export const createUser = (data: any) =>
   pb.collection('users').create({ ...data, passwordConfirm: data.password })
 export const updateUser = (id: string, data: any) => pb.collection('users').update(id, data)
 export const deleteUser = (id: string) => pb.collection('users').delete(id)
+export const changeUserPassword = (id: string, password: string) =>
+  pb.send(`/backend/v1/users/${id}/change-password`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+    headers: { 'Content-Type': 'application/json' },
+  })

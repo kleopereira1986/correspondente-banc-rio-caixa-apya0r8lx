@@ -301,22 +301,37 @@ export default function ProcessDetail() {
     }
   }
 
-  const handleSendToHousing = async () => {
+  const [housingModalOpen, setHousingModalOpen] = useState(false)
+  const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
+
+  const openHousingModal = () => {
+    setSelectedCompanyForHousing('none')
+    setHousingModalOpen(true)
+  }
+
+  const confirmSendToHousing = async () => {
     if (!process) return
     try {
-      await updateProcess(process.id, {
+      const payload: any = {
         type: 'housing',
         current_step: 'Documentação',
         status: 'Aguardando Documentação',
-      })
+      }
+      if (selectedCompanyForHousing !== 'none') {
+        payload.construction_company = selectedCompanyForHousing
+      }
+      await updateProcess(process.id, payload)
       await createProcessLog({
         process: process.id,
         from_status: process.status,
         to_status: 'Aguardando Documentação',
         changed_by: user?.id,
-        note: 'Processo enviado para a fase Habitacional',
+        note:
+          'Processo enviado para a fase Habitacional' +
+          (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
       })
       toast({ title: 'Processo enviado para Habitacional com sucesso!' })
+      setHousingModalOpen(false)
       loadData()
     } catch (e) {
       toast({
@@ -1297,7 +1312,7 @@ export default function ProcessDetail() {
                 <CardContent className="space-y-3">
                   <Button
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
-                    onClick={handleSendToHousing}
+                    onClick={openHousingModal}
                   >
                     <ArrowRight className="w-4 h-4 mr-2" /> ENVIAR PARA HABITACIONAL
                   </Button>
@@ -2667,6 +2682,39 @@ export default function ProcessDetail() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : null}
               Confirmar Solicitação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deseja vincular uma construtora?</DialogTitle>
+            <DialogDescription>
+              Selecione uma construtora para vincular a este processo ou continue sem vincular.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedCompanyForHousing} onValueChange={setSelectedCompanyForHousing}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma construtora..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não vincular construtora</SelectItem>
+                {constructionCompanies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHousingModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmSendToHousing}>
+              {selectedCompanyForHousing === 'none' ? 'Continuar sem vincular' : 'Continuar'}
             </Button>
           </DialogFooter>
         </DialogContent>

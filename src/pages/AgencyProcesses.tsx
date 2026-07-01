@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +44,11 @@ export default function AgencyProcesses() {
   const [filterData, setFilterData] = useState('')
   const [filterBroker, setFilterBroker] = useState('all')
   const [filterResult, setFilterResult] = useState('all')
+
+  const [housingModalOpen, setHousingModalOpen] = useState(false)
+  const [housingProcessId, setHousingProcessId] = useState<string | null>(null)
+  const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
+  const [constructionCompanies, setConstructionCompanies] = useState<any[]>([])
 
   const fetchProcesses = useCallback(async () => {
     if (!user?.real_estate_agency) return
@@ -70,6 +83,15 @@ export default function AgencyProcesses() {
     fetchBrokers()
   }, [user?.real_estate_agency])
 
+  useEffect(() => {
+    if (user?.role === 'real_estate_agency') {
+      pb.collection('construction_companies')
+        .getFullList({ sort: 'name' })
+        .then(setConstructionCompanies)
+        .catch(console.error)
+    }
+  }, [user?.role])
+
   useRealtime('processes', () => {
     fetchProcesses()
   })
@@ -78,7 +100,7 @@ export default function AgencyProcesses() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
   }
 
-  const handleSendToHousing = async (processId: string, e: React.MouseEvent) => {
+  const openHousingModal = (processId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     if (user?.role !== 'real_estate_agency') {
       toast({
@@ -88,16 +110,37 @@ export default function AgencyProcesses() {
       })
       return
     }
+    setHousingProcessId(processId)
+    setSelectedCompanyForHousing('none')
+    setHousingModalOpen(true)
+  }
+
+  const confirmSendToHousing = async () => {
+    if (!housingProcessId) return
     try {
-      await pb.collection('processes').update(processId, {
+      const payload: any = {
         type: 'housing',
-        status: 'Em Análise Habitacional',
-        current_step: 'Análise',
+        status: 'Aguardando Documentação',
+        current_step: 'Documentação',
+      }
+      if (selectedCompanyForHousing !== 'none') {
+        payload.construction_company = selectedCompanyForHousing
+      }
+      await pb.collection('processes').update(housingProcessId, payload)
+      await pb.collection('process_logs').create({
+        process: housingProcessId,
+        to_status: 'Aguardando Documentação',
+        changed_by: user?.id,
+        note:
+          'Processo enviado para a fase Habitacional' +
+          (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
       })
       toast({
         title: 'Sucesso',
         description: 'Processo enviado para habitacional.',
       })
+      setHousingModalOpen(false)
+      setHousingProcessId(null)
       fetchProcesses()
     } catch (err: any) {
       toast({
@@ -295,7 +338,7 @@ export default function AgencyProcesses() {
                             size="sm"
                             variant="outline"
                             className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50"
-                            onClick={(e) => handleSendToHousing(process.id, e)}
+                            onClick={(e) => openHousingModal(process.id, e)}
                           >
                             Enviar para Habitacional
                           </Button>
@@ -315,6 +358,40 @@ export default function AgencyProcesses() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deseja vincular uma construtora?</DialogTitle>
+            <DialogDescription>
+              Selecione uma construtora para vincular a este processo ou continue sem vincular.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedCompanyForHousing} onValueChange={setSelectedCompanyForHousing}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma construtora..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não vincular construtora</SelectItem>
+                {constructionCompanies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHousingModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmSendToHousing}>
+              {selectedCompanyForHousing === 'none' ? 'Continuar sem vincular' : 'Continuar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

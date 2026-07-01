@@ -1551,63 +1551,39 @@ export default function ProcessDetail() {
                 <div className="p-4 bg-white">
                   <h4 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    Dados do Financiamento
+                    Dados da Operação
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Possui imóvel definido?
+                      <span className="text-muted-foreground block text-xs mb-1">
+                        Status / Resultado
                       </span>
-                      <span className="font-medium text-slate-800">
-                        {typeof process.has_defined_property === 'boolean'
-                          ? process.has_defined_property
-                            ? 'Sim'
-                            : 'Não'
-                          : 'Não informado'}
-                      </span>
+                      {process.result === 'approved' ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-none hover:bg-emerald-100">
+                          Aprovado
+                        </Badge>
+                      ) : process.result === 'rejected' ? (
+                        <Badge variant="destructive" className="border-none hover:bg-destructive">
+                          Reprovado
+                        </Badge>
+                      ) : process.result === 'conditioned' ? (
+                        <Badge className="bg-amber-100 text-amber-800 border-none hover:bg-amber-100">
+                          Condicionado
+                        </Badge>
+                      ) : process.result === 'pending' && process.status === 'Pendência' ? (
+                        <Badge className="bg-secondary/10 text-secondary border-none hover:bg-secondary/10">
+                          Pendência Cliente
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-blue-100 text-blue-800 border-none hover:bg-blue-100">
+                          {process.status}
+                        </Badge>
+                      )}
                     </div>
-                    <div title={process.expand?.buyer?.email || 'Não informado'}>
+                    <div>
                       <span className="text-muted-foreground block text-xs">E-mail do Cliente</span>
-                      <span className="font-medium text-slate-800 truncate block">
+                      <span className="font-medium text-slate-800 break-all block">
                         {process.expand?.buyer?.email || 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Valor de compra do imóvel
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.property_purchase_value
-                          ? formatCurrency(process.property_purchase_value)
-                          : 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Opção de compra é um imóvel
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.property_type?.name || 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Financiar custas/despesas?
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {typeof process.finance_costs === 'boolean'
-                          ? process.finance_costs
-                            ? 'Sim'
-                            : 'Não'
-                          : 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Prazo desejado (meses)
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.desired_term || 'Não informado'}
                       </span>
                     </div>
                     <div>
@@ -1616,52 +1592,166 @@ export default function ProcessDetail() {
                         {process.expand?.credit_analysis_type?.name || 'Não informado'}
                       </span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">Empreendimento</span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.development_type?.name || 'Não informado'}
-                      </span>
+
+                    <div className="sm:col-span-2 lg:col-span-3 border-t border-border/50 pt-4 mt-2">
+                      <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                        Imóvel e Financiamento
+                      </h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Opção de compra é um imóvel
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {process.expand?.property_type?.name || 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Possui imóvel definido?
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {typeof process.has_defined_property === 'boolean'
+                              ? process.has_defined_property
+                                ? 'Sim'
+                                : 'Não'
+                              : 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Valor de compra do imóvel
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {process.property_purchase_value
+                              ? formatCurrency(process.property_purchase_value)
+                              : 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Empreendimento
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {process.expand?.development_type?.name || 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Valor do Financiamento Solicitado
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {process.value ? formatCurrency(process.value) : 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Prazo desejado (meses)
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {process.desired_term || 'Não informado'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-xs">
+                            Financiar custas/despesas?
+                          </span>
+                          <span className="font-medium text-slate-800">
+                            {typeof process.finance_costs === 'boolean'
+                              ? process.finance_costs
+                                ? 'Sim'
+                                : 'Não'
+                              : 'Não informado'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {process.property_observations && (
+                        <div className="mt-4">
+                          <span className="text-muted-foreground block text-xs">
+                            Observação do imóvel
+                          </span>
+                          <span className="font-medium text-slate-800 break-words block p-2 bg-slate-50 rounded-md border mt-1">
+                            {process.property_observations}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Valor do Financiamento
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.value ? formatCurrency(process.value) : 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">Subsídio Federal</span>
-                      <span className="font-medium text-slate-800">
-                        {process.federal_subsidy
-                          ? formatCurrency(process.federal_subsidy)
-                          : 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Sistema de Amortização
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.amortization_system || 'Não informado'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground block text-xs">
-                        Analista Atribuído
-                      </span>
-                      <span className="font-medium text-slate-800">
-                        {process.expand?.assigned_analyst?.name || 'Não atribuído'}
-                      </span>
-                    </div>
-                    <div className="sm:col-span-2 lg:col-span-3">
-                      <span className="text-muted-foreground block text-xs">
-                        Observação do imóvel
-                      </span>
-                      <span className="font-medium text-slate-800 break-words">
-                        {process.property_observations || 'Não informado'}
-                      </span>
-                    </div>
+
+                    {(process.approved_financing_value ||
+                      process.approved_installment_value ||
+                      process.evaluation_expiry_date ||
+                      process.federal_subsidy ||
+                      process.amortization_system ||
+                      process.expand?.assigned_analyst?.name) && (
+                      <div className="sm:col-span-2 lg:col-span-3 border-t border-border/50 pt-4 mt-2">
+                        <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+                          Resultado e Condições
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {process.approved_financing_value ? (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Valor Aprovado (Financiamento)
+                              </span>
+                              <span className="font-semibold text-emerald-600">
+                                {formatCurrency(process.approved_financing_value)}
+                              </span>
+                            </div>
+                          ) : null}
+                          {process.approved_installment_value ? (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Valor da Parcela
+                              </span>
+                              <span className="font-semibold text-emerald-600">
+                                {formatCurrency(process.approved_installment_value)}
+                              </span>
+                            </div>
+                          ) : null}
+                          {process.evaluation_expiry_date && (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Validade da Avaliação
+                              </span>
+                              <span className="font-medium text-slate-800">
+                                {formatDate(process.evaluation_expiry_date)}
+                              </span>
+                            </div>
+                          )}
+                          {process.federal_subsidy ? (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Subsídio Federal
+                              </span>
+                              <span className="font-medium text-slate-800">
+                                {formatCurrency(process.federal_subsidy)}
+                              </span>
+                            </div>
+                          ) : null}
+                          {process.amortization_system && (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Sistema de Amortização
+                              </span>
+                              <span className="font-medium text-slate-800">
+                                {process.amortization_system}
+                              </span>
+                            </div>
+                          )}
+                          {process.expand?.assigned_analyst?.name && (
+                            <div>
+                              <span className="text-muted-foreground block text-xs">
+                                Analista Atribuído
+                              </span>
+                              <span className="font-medium text-slate-800">
+                                {process.expand.assigned_analyst.name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1685,7 +1775,7 @@ export default function ProcessDetail() {
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-xs">E-mail</span>
-                      <span className="font-medium text-slate-800">
+                      <span className="font-medium text-slate-800 break-all block">
                         {process.expand?.buyer?.email || 'Não informado'}
                       </span>
                     </div>
@@ -1787,7 +1877,7 @@ export default function ProcessDetail() {
                       </div>
                       <div>
                         <span className="text-muted-foreground block text-xs">E-mail</span>
-                        <span className="font-medium text-slate-800">
+                        <span className="font-medium text-slate-800 break-all block">
                           {process.expand?.buyer_2?.email || '-'}
                         </span>
                       </div>

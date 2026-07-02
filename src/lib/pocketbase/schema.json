@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-01T17:25:24.150Z",
+  "generatedAt": "2026-07-01T19:13:29.405Z",
   "collections": [
     {
       "name": "users",
@@ -432,7 +432,7 @@
         "view": "",
         "create": "",
         "update": "@request.auth.id != ''",
-        "delete": "@request.auth.role = 'master' || uploaded_by = @request.auth.id"
+        "delete": "@request.auth.role = 'master' || @request.auth.role = 'analyst'"
       },
       "fields": [
         {

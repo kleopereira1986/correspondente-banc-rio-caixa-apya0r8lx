@@ -89,6 +89,7 @@ export const getDocuments = (processId: string) =>
     .getFullList({ filter: `process="${processId}"`, expand: 'uploaded_by', sort: '-created' })
 export const createDocument = (data: FormData) => pb.collection('documents').create(data)
 export const updateDocument = (id: string, data: any) => pb.collection('documents').update(id, data)
+export const deleteDocument = (id: string) => pb.collection('documents').delete(id)
 
 export const getUsers = (role?: string) => {
   if (role) return pb.collection('users').getFullList({ filter: `role="${role}"` })

@@ -29,6 +29,7 @@ import {
   RefreshCcw,
   FileSignature,
   Edit,
+  Trash2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -42,6 +43,7 @@ import {
   getCreditDocumentTypes,
   getProcessLogs,
   createProcessLog,
+  deleteDocument,
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
@@ -203,12 +205,33 @@ export default function ProcessDetail() {
     if (!process) return
     try {
       if (action === 'pendency') {
+        if (!pendencyReason.trim()) {
+          toast({
+            title: 'Aviso',
+            description: 'A descrição da pendência é obrigatória.',
+            variant: 'destructive',
+          })
+          return
+        }
+        const fromStatus = process.status || 'Início'
+        const fromStep = process.current_step || 'Análise'
         await updateProcess(process.id, {
           result: 'pending',
           status: 'Pendência',
           observations: pendencyReason,
+          last_updated_by: user?.id || '',
+        })
+        await createProcessLog({
+          process: process.id,
+          from_step: fromStep,
+          to_step: 'Análise',
+          from_status: fromStatus,
+          to_status: 'Pendência',
+          changed_by: user?.id || '',
+          note: pendencyReason.trim(),
         })
         toast({ title: 'Pendência Solicitada' })
+        setPendencyReason('')
         setIsPendencyDialogOpen(false)
       } else if (action === 'resolve_pendency') {
         // Handled by handleResolvePendency
@@ -617,6 +640,26 @@ export default function ProcessDetail() {
       })
     } finally {
       setUploadingSlots((prev) => ({ ...prev, [key]: false }))
+    }
+  }
+
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
+
+  const handleDeleteDocument = async (docId: string, docName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o documento "${docName}"?`)) return
+    try {
+      setDeletingDocId(docId)
+      await deleteDocument(docId)
+      toast({ title: 'Documento excluído com sucesso!' })
+      loadData()
+    } catch (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o documento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setDeletingDocId(null)
     }
   }
 
@@ -2105,6 +2148,22 @@ export default function ProcessDetail() {
                                     <Download className="w-4 h-4" />
                                   </Button>
                                 </a>
+                                {isAnalyst && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-600 hover:bg-red-50 h-8 w-8"
+                                    onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                    disabled={deletingDocId === doc.id}
+                                    title="Excluir documento"
+                                  >
+                                    {deletingDocId === doc.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                )}
                                 {process.result !== 'approved' &&
                                   process.result !== 'rejected' &&
                                   (uploadingSlots[doc.id] ? (
@@ -2252,6 +2311,22 @@ export default function ProcessDetail() {
                                 <Download className="w-4 h-4" />
                               </Button>
                             </a>
+                            {isAnalyst && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-600 hover:bg-red-50"
+                                onClick={() => handleDeleteDocument(doc.id, doc.name)}
+                                disabled={deletingDocId === doc.id}
+                                title="Excluir documento"
+                              >
+                                {deletingDocId === doc.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       )

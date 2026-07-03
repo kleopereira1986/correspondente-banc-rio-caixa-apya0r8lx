@@ -1285,19 +1285,35 @@ export default function ProcessDetail() {
                               </DialogTrigger>
                               <DialogContent>
                                 <DialogHeader>
-                                  <DialogTitle>Informar Pendência ao Cliente</DialogTitle>
+                                  <DialogTitle>Registrar Pendência</DialogTitle>
                                   <DialogDescription className="sr-only">
                                     Descreva a pendência que o cliente precisa resolver.
                                   </DialogDescription>
                                 </DialogHeader>
-                                <Textarea
-                                  placeholder="Descreva a pendência..."
-                                  value={pendencyReason}
-                                  onChange={(e) => setPendencyReason(e.target.value)}
-                                  className="min-h-[100px]"
-                                />
+                                <div className="space-y-2 py-2">
+                                  <Label>
+                                    Observações/Motivo <span className="text-red-500">*</span>
+                                  </Label>
+                                  <Textarea
+                                    placeholder="Descreva a pendência..."
+                                    value={pendencyReason}
+                                    onChange={(e) => setPendencyReason(e.target.value)}
+                                    className="min-h-[100px]"
+                                  />
+                                </div>
                                 <DialogFooter>
-                                  <Button onClick={() => handleAction('pendency')}>Enviar</Button>
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setIsPendencyDialogOpen(false)}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleAction('pendency')}
+                                    disabled={!pendencyReason.trim()}
+                                  >
+                                    Salvar
+                                  </Button>
                                 </DialogFooter>
                               </DialogContent>
                             </Dialog>

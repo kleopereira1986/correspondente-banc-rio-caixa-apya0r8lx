@@ -31,6 +31,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,

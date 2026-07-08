@@ -32,7 +32,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Eye, CheckCircle2, Clock, AlertCircle } from 'lucide-react'
+import { Plus, Eye, CheckCircle2, Clock, AlertCircle, RefreshCcw } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -62,6 +62,10 @@ export default function BrokerProcesses() {
 
   const [resolvePendencyDialog, setResolvePendencyDialog] = useState(false)
   const [resolvePendencyNote, setResolvePendencyNote] = useState('')
+
+  const [reevaluationProcess, setReevaluationProcess] = useState<any>(null)
+  const [reevaluationReason, setReevaluationReason] = useState('')
+  const [isSubmittingReevaluation, setIsSubmittingReevaluation] = useState(false)
 
   const [formData, setFormData] = useState({
     buyerId: '',
@@ -410,6 +414,51 @@ export default function BrokerProcesses() {
     }
   }
 
+  const handleRequestReevaluation = async () => {
+    if (!reevaluationProcess) return
+    if (!reevaluationReason.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o motivo da reavaliação.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmittingReevaluation(true)
+    try {
+      const fromStep = reevaluationProcess.current_step || 'Decisão'
+      const fromStatus = reevaluationProcess.status || ''
+
+      await updateProcess(reevaluationProcess.id, {
+        analysis_type: 'reevaluation',
+        status: 'Aguardando Análise',
+        current_step: 'Análise',
+        result: 'pending',
+        last_updated_by: user?.id || '',
+      })
+
+      await createProcessLog({
+        process: reevaluationProcess.id,
+        from_step: fromStep,
+        to_step: 'Análise',
+        from_status: fromStatus,
+        to_status: 'Aguardando Análise',
+        changed_by: user?.id || '',
+        note: `Reavaliação solicitada pelo corretor: ${reevaluationReason.trim()}`,
+      })
+
+      toast({ title: 'Sucesso', description: 'Reavaliação solicitada com sucesso.' })
+      setReevaluationProcess(null)
+      setReevaluationReason('')
+      loadData()
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setIsSubmittingReevaluation(false)
+    }
+  }
+
   const handleStartHousing = async () => {
     try {
       const p = processes.find((x) => x.id === selectedProcessId)
@@ -509,6 +558,19 @@ export default function BrokerProcesses() {
                         }}
                       >
                         Iniciar Habitacional
+                      </Button>
+                    )}
+                    {p.type === 'credit' && p.result === 'conditioned' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                        onClick={() => {
+                          setReevaluationProcess(p)
+                          setReevaluationReason('')
+                        }}
+                      >
+                        <RefreshCcw className="w-4 h-4 mr-1" /> Solicitar Reavaliação
                       </Button>
                     )}
                     {p.status === 'Pendência' && (
@@ -622,6 +684,44 @@ export default function BrokerProcesses() {
             </Button>
             <Button onClick={handleResolvePendency} disabled={!resolvePendencyNote.trim()}>
               Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!reevaluationProcess}
+        onOpenChange={(open) => !open && setReevaluationProcess(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Reavaliação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Motivo da reavaliação</Label>
+              <Textarea
+                placeholder="Descreva o motivo da solicitação de reavaliação..."
+                value={reevaluationReason}
+                onChange={(e) => setReevaluationReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReevaluationProcess(null)}
+              disabled={isSubmittingReevaluation}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={handleRequestReevaluation}
+              disabled={isSubmittingReevaluation || !reevaluationReason.trim()}
+            >
+              {isSubmittingReevaluation ? 'Enviando...' : 'Confirmar Reavaliação'}
             </Button>
           </DialogFooter>
         </DialogContent>

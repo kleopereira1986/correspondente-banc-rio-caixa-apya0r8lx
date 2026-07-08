@@ -125,6 +125,10 @@ export default function ProcessDetail() {
   const [changeEvaluationReason, setChangeEvaluationReason] = useState('')
   const [isSubmittingChangeEvaluation, setIsSubmittingChangeEvaluation] = useState(false)
 
+  const [reevaluationDialog, setReevaluationDialog] = useState(false)
+  const [reevaluationReason, setReevaluationReason] = useState('')
+  const [isSubmittingReevaluation, setIsSubmittingReevaluation] = useState(false)
+
   const isAnalyst = user?.role === 'master' || user?.role === 'analyst'
 
   const loadData = async () => {
@@ -408,6 +412,56 @@ export default function ProcessDetail() {
       })
     } finally {
       setIsSubmittingChangeEvaluation(false)
+    }
+  }
+
+  const handleReevaluation = async () => {
+    if (!process) return
+    if (!reevaluationReason.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o motivo da reavaliação.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSubmittingReevaluation(true)
+    try {
+      const fromStep = process.current_step || 'Decisão'
+      const fromStatus = process.status || 'Condicionado'
+
+      await updateProcess(process.id, {
+        analysis_type: 'reevaluation',
+        is_conformity_approved: true,
+        current_step: 'Análise',
+        status: 'Aguardando Análise',
+        result: 'pending',
+      })
+
+      await createProcessLog({
+        process: process.id,
+        from_step: fromStep,
+        to_step: 'Análise',
+        from_status: fromStatus,
+        to_status: 'Aguardando Análise',
+        changed_by: user?.id,
+        note: `Reavaliação solicitada pelo corretor. Motivo: ${reevaluationReason.trim()}`,
+      })
+
+      toast({ title: 'Reavaliação solicitada com sucesso!' })
+      setReevaluationDialog(false)
+      setReevaluationReason('')
+      loadData()
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao solicitar reavaliação',
+        description: 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingReevaluation(false)
     }
   }
 
@@ -1356,6 +1410,26 @@ export default function ProcessDetail() {
                     onClick={() => setChangeEvaluationDialog(true)}
                   >
                     <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR MUDANÇA NA AVALIAÇÃO
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+          {process.result === 'conditioned' &&
+            process.type === 'credit' &&
+            (user?.id === process.broker ||
+              user?.role === 'master' ||
+              user?.role === 'analyst') && (
+              <Card className="shadow-sm border-indigo-200 border-t-4 border-t-indigo-500 mb-6">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg">Reavaliação</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
+                    onClick={() => setReevaluationDialog(true)}
+                  >
+                    <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR REAVALIAÇÃO
                   </Button>
                 </CardContent>
               </Card>
@@ -2773,6 +2847,45 @@ export default function ProcessDetail() {
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : null}
               Confirmar Solicitação
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={reevaluationDialog} onOpenChange={setReevaluationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Reavaliação</DialogTitle>
+            <DialogDescription>
+              Ao confirmar, o processo será enviado para a fila de Reavaliação para que seja
+              reanalisado pela equipe de crédito.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Motivo da reavaliação</Label>
+              <Textarea
+                placeholder="Descreva o motivo da reavaliação..."
+                value={reevaluationReason}
+                onChange={(e) => setReevaluationReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReevaluationDialog(false)}
+              disabled={isSubmittingReevaluation}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={handleReevaluation}
+              disabled={isSubmittingReevaluation || !reevaluationReason.trim()}
+            >
+              {isSubmittingReevaluation ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Confirmar Reavaliação
             </Button>
           </DialogFooter>
         </DialogContent>

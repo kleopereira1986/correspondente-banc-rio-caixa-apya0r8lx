@@ -77,6 +77,11 @@ export default function Dashboard() {
   const [clients, setClients] = useState<any[]>([])
   const [selectedBuyer, setSelectedBuyer] = useState('')
 
+  const [housingModalOpen, setHousingModalOpen] = useState(false)
+  const [housingProcessId, setHousingProcessId] = useState<string | null>(null)
+  const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
+  const [constructionCompanies, setConstructionCompanies] = useState<any[]>([])
+
   const [isUnassignedListOpen, setIsUnassignedListOpen] = useState(false)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
@@ -104,9 +109,19 @@ export default function Dashboard() {
     }
   }
 
+  const loadConstructionCompanies = async () => {
+    try {
+      const data = await pb.collection('construction_companies').getFullList({ sort: 'name' })
+      setConstructionCompanies(data)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useEffect(() => {
     loadData()
     loadClients()
+    loadConstructionCompanies()
   }, [])
 
   useRealtime('processes', () => loadData())
@@ -195,16 +210,71 @@ export default function Dashboard() {
 
   const handleCreate = async () => {
     if (!selectedBuyer) return
+    let step = 'Documentação'
+    if (newType === 'housing') {
+      try {
+        const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
+        step = stages[0]?.name || 'Montagem de Pasta'
+      } catch {
+        /* intentionally ignored */
+      }
+    }
+
     await createProcess({
       type: newType,
-      status: newType === 'credit' ? 'Triagem' : 'Documentação',
-      current_step: newType === 'credit' ? 'Triagem' : 'Documentação',
+      status: newType === 'credit' ? 'Triagem' : 'Nova Solicitação',
+      current_step: newType === 'credit' ? 'Triagem' : step,
       buyer: selectedBuyer,
       result: 'pending',
     })
     toast({ title: 'Processo iniciado com sucesso!' })
     setIsNewOpen(false)
     loadData()
+  }
+
+  const openHousingModal = (processId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setHousingProcessId(processId)
+    setSelectedCompanyForHousing('none')
+    setHousingModalOpen(true)
+  }
+
+  const confirmSendToHousing = async () => {
+    if (!housingProcessId) return
+    try {
+      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
+      const firstStep = stages[0]?.name || 'Montagem de Pasta'
+
+      const payload: any = {
+        type: 'housing',
+        current_step: firstStep,
+        status: 'Nova Solicitação',
+      }
+      if (selectedCompanyForHousing !== 'none') {
+        payload.construction_company = selectedCompanyForHousing
+      }
+      await updateProcess(housingProcessId, payload)
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: housingProcessId,
+          to_status: 'Nova Solicitação',
+          changed_by: user.id,
+          note:
+            'Processo enviado para o Kanban Habitacional' +
+            (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
+        })
+      }
+      toast({ title: 'Processo enviado para Kanban com sucesso!' })
+      setHousingModalOpen(false)
+      setHousingProcessId(null)
+      loadData()
+    } catch (e) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível enviar para habitacional.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const getStatusBadge = (status: string, result: string) => {
@@ -985,6 +1055,7 @@ export default function Dashboard() {
                     <TableHead className="text-right">Data/Hora Criação</TableHead>
                     <TableHead className="text-right">Última Atualização</TableHead>
                     <TableHead>Atualizado Por</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1060,11 +1131,25 @@ export default function Dashboard() {
                       <TableCell className="py-4 text-sm min-w-[150px]">
                         {process.expand?.last_updated_by?.name || '-'}
                       </TableCell>
+                      <TableCell className="py-4 text-right">
+                        {(user?.role === 'master' ||
+                          user?.role === 'analyst' ||
+                          user?.role === 'real_estate_agency') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                            onClick={(e) => openHousingModal(process.id, e)}
+                          >
+                            Enviar para Kanban
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filteredHousing.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nenhum processo habitacional encontrado.
                       </TableCell>
                     </TableRow>
@@ -1243,6 +1328,38 @@ export default function Dashboard() {
           </>
         )}
       </Tabs>
+
+      <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar processo para Kanban Habitacional</DialogTitle>
+            <DialogDescription>
+              Você pode vincular uma construtora a este processo (opcional).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedCompanyForHousing} onValueChange={setSelectedCompanyForHousing}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma construtora..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Não vincular construtora</SelectItem>
+                {constructionCompanies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setHousingModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmSendToHousing}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -58,9 +58,13 @@ export default function HousingKanban() {
 
   const loadData = async () => {
     try {
+      const filter =
+        user?.role === 'real_estate_agency'
+          ? `broker.real_estate_agency = '${user.real_estate_agency}'`
+          : undefined
       const [stgs, procs, users] = await Promise.all([
         getHousingStages(),
-        getProcesses(),
+        getProcesses(filter),
         getUsers('buyer'),
       ])
       setStages(stgs)
@@ -173,7 +177,7 @@ export default function HousingKanban() {
     }
   }
 
-  if (user?.role !== 'master' && user?.role !== 'analyst')
+  if (user?.role !== 'master' && user?.role !== 'analyst' && user?.role !== 'real_estate_agency')
     return <div className="p-8">Acesso Negado</div>
 
   return (

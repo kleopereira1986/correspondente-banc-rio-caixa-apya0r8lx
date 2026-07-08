@@ -4,9 +4,11 @@ onRecordUpdateRequest((e) => {
 
   if (originalType === 'credit' && newType === 'housing') {
     const role = e.auth?.getString('role')
-    if (role === 'broker') {
+    const allowedRoles = ['master', 'analyst', 'real_estate_agency']
+
+    if (!allowedRoles.includes(role)) {
       throw new ForbiddenError(
-        'Corretores não têm permissão para enviar processos para habitacional.',
+        'Seu perfil não tem permissão para enviar processos para habitacional.',
       )
     }
   }

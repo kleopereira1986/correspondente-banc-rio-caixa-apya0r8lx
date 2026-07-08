@@ -107,8 +107,10 @@ export default function Layout() {
   } else if (isAgency) {
     navItems = [
       { title: 'Dashboard', url: '/agency/dashboard', icon: LayoutDashboard },
+      { title: 'Gerar Link', url: '/gerar-link', icon: LinkIcon },
       { title: 'Meus Corretores', url: '/agency/brokers', icon: Users },
       { title: 'Processos da Agência', url: '/agency/processes', icon: FolderOpen },
+      { title: 'Processo Habitacional', url: '/housing-kanban', icon: LayoutDashboard },
     ]
   } else if (isBroker) {
     navItems = [

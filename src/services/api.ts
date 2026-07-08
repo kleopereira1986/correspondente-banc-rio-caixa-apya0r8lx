@@ -1,11 +1,14 @@
 import pb from '@/lib/pocketbase/client'
 
-export const getProcesses = () =>
-  pb.collection('processes').getFullList({
+export const getProcesses = (filterStr?: string) => {
+  const options: any = {
     expand:
       'buyer,buyer_2,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
     sort: '-created',
-  })
+  }
+  if (filterStr) options.filter = filterStr
+  return pb.collection('processes').getFullList(options)
+}
 export const getProcess = (id: string) =>
   pb.collection('processes').getOne(id, {
     expand:

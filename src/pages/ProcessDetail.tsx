@@ -339,10 +339,13 @@ export default function ProcessDetail() {
   const confirmSendToHousing = async () => {
     if (!process) return
     try {
+      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
+      const firstStep = stages[0]?.name || 'Montagem de Pasta'
+
       const payload: any = {
         type: 'housing',
-        current_step: 'Documentação',
-        status: 'Aguardando Documentação',
+        current_step: firstStep,
+        status: 'Nova Solicitação',
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing
@@ -351,13 +354,13 @@ export default function ProcessDetail() {
       await createProcessLog({
         process: process.id,
         from_status: process.status,
-        to_status: 'Aguardando Documentação',
+        to_status: 'Nova Solicitação',
         changed_by: user?.id,
         note:
-          'Processo enviado para a fase Habitacional' +
+          'Processo enviado para o Kanban Habitacional' +
           (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
       })
-      toast({ title: 'Processo enviado para Habitacional com sucesso!' })
+      toast({ title: 'Processo enviado para o Kanban Habitacional com sucesso!' })
       setHousingModalOpen(false)
       loadData()
     } catch (e) {

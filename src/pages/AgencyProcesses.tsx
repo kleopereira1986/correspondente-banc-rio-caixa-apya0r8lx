@@ -118,13 +118,12 @@ export default function AgencyProcesses() {
   const confirmSendToHousing = async () => {
     if (!housingProcessId) return
     try {
-      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
-      const firstStep = stages[0]?.name || 'Montagem de Pasta'
+      const newStep = 'Triagem CCA'
 
       const payload: any = {
         type: 'housing',
         status: 'Nova Solicitação',
-        current_step: firstStep,
+        current_step: newStep,
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing
@@ -132,6 +131,7 @@ export default function AgencyProcesses() {
       await pb.collection('processes').update(housingProcessId, payload)
       await pb.collection('process_logs').create({
         process: housingProcessId,
+        to_step: newStep,
         to_status: 'Nova Solicitação',
         changed_by: user?.id,
         note:

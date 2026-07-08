@@ -85,6 +85,7 @@ export default function HousingKanban() {
   useRealtime('processes', () => loadData())
 
   const moveProcess = async (processId: string, newStep: string) => {
+    if (user?.role === 'real_estate_agency') return
     try {
       const payload: any = { current_step: newStep, status: 'Em Andamento' }
       if (newStep === stages[stages.length - 1]?.name) {
@@ -126,7 +127,7 @@ export default function HousingKanban() {
     const credProc = creditProcesses.find((p) => p.id === selectedCredit)
     if (!credProc) return
     try {
-      const firstStep = stages[0]?.name || 'Montagem de Pasta'
+      const firstStep = 'Triagem CCA'
 
       const updatedObservations = notes
         ? `${credProc.observations ? credProc.observations + '\n\n' : ''}Nota da Importação: ${notes}`
@@ -187,14 +188,16 @@ export default function HousingKanban() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Kanban Habitacional</h1>
           <p className="text-muted-foreground">Acompanhe as fases da documentação e contratos.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
-            Importar Cliente
-          </Button>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> Novo Processo
-          </Button>
-        </div>
+        {user?.role !== 'real_estate_agency' && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              Importar Cliente
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> Novo Processo
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-x-auto pb-4">
@@ -230,15 +233,17 @@ export default function HousingKanban() {
                             <DropdownMenuItem onClick={() => navigate(`/process/${proc.id}`)}>
                               <Eye className="w-4 h-4 mr-2" /> Detalhes
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedProcess(proc)
-                                setNotes(proc.observations || '')
-                                setPendencyDialogOpen(true)
-                              }}
-                            >
-                              <FileText className="w-4 h-4 mr-2" /> Registrar Pendência
-                            </DropdownMenuItem>
+                            {user?.role !== 'real_estate_agency' && (
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setSelectedProcess(proc)
+                                  setNotes(proc.observations || '')
+                                  setPendencyDialogOpen(true)
+                                }}
+                              >
+                                <FileText className="w-4 h-4 mr-2" /> Registrar Pendência
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() => {
                                 navigator.clipboard.writeText(
@@ -279,21 +284,31 @@ export default function HousingKanban() {
                         </div>
                       )}
 
-                      <Select
-                        onValueChange={(val) => moveProcess(proc.id, val)}
-                        value={proc.current_step}
-                      >
-                        <SelectTrigger className="h-8 text-xs bg-slate-50">
-                          <SelectValue placeholder="Mover para..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {stages.map((s) => (
-                            <SelectItem key={s.id} value={s.name} disabled={s.name === stage.name}>
-                              Mover: {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {user?.role === 'real_estate_agency' ? (
+                        <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded-md text-center">
+                          {proc.current_step || 'Não iniciada'}
+                        </div>
+                      ) : (
+                        <Select
+                          onValueChange={(val) => moveProcess(proc.id, val)}
+                          value={proc.current_step}
+                        >
+                          <SelectTrigger className="h-8 text-xs bg-slate-50">
+                            <SelectValue placeholder="Mover para..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {stages.map((s) => (
+                              <SelectItem
+                                key={s.id}
+                                value={s.name}
+                                disabled={s.name === stage.name}
+                              >
+                                Mover: {s.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   ))}
                   {colProcs.length === 0 && !isLoading && (

@@ -244,12 +244,11 @@ export default function Dashboard() {
   const confirmSendToHousing = async () => {
     if (!housingProcessId) return
     try {
-      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
-      const firstStep = stages[0]?.name || 'Montagem de Pasta'
+      const newStep = 'Triagem CCA'
 
       const payload: any = {
         type: 'housing',
-        current_step: firstStep,
+        current_step: newStep,
         status: 'Nova Solicitação',
       }
       if (selectedCompanyForHousing !== 'none') {
@@ -259,6 +258,7 @@ export default function Dashboard() {
       if (user?.id) {
         await pb.collection('process_logs').create({
           process: housingProcessId,
+          to_step: newStep,
           to_status: 'Nova Solicitação',
           changed_by: user.id,
           note:
@@ -565,6 +565,9 @@ export default function Dashboard() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados abaixo para cadastrar um novo cliente no sistema.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -584,10 +587,12 @@ export default function Dashboard() {
                       placeholder="Ex: joao@email.com"
                     />
                   </div>
+                </div>
+                <DialogFooter>
                   <Button onClick={handleCreateClient} className="w-full">
                     Cadastrar
                   </Button>
-                </div>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
@@ -602,6 +607,9 @@ export default function Dashboard() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Iniciar Novo Processo</DialogTitle>
+                  <DialogDescription>
+                    Selecione o tipo de processo e o cliente para iniciar um novo atendimento.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -631,10 +639,12 @@ export default function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <DialogFooter>
                   <Button onClick={handleCreate} className="w-full">
                     Criar Processo
                   </Button>
-                </div>
+                </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
@@ -645,6 +655,9 @@ export default function Dashboard() {
         <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Processos Aguardando Analista</DialogTitle>
+            <DialogDescription>
+              Lista de processos de crédito aguardando atribuição de analista.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
             <Table>

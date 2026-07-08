@@ -6,7 +6,7 @@ migrate(
     } catch (_) {
       const record = new Record(col)
       record.set('name', 'Triagem CCA')
-      record.set('order', 0)
+      record.set('order', 1)
       app.save(record)
     }
   },

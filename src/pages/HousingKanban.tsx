@@ -304,23 +304,27 @@ export default function HousingKanban() {
 
                       <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
                         <Phone className="w-3 h-3" />
-                        {proc.expand?.buyer?.phone || 'Sem telefone'}
+                        Telefone: {proc.expand?.buyer?.phone || 'Sem telefone'}
                       </div>
 
-                      <div className="flex items-center text-xs text-muted-foreground mt-3 mb-4">
-                        <User className="w-3 h-3 mr-1" />
-                        {proc.expand?.assigned_analyst ? (
-                          <span className="flex items-center gap-1">
-                            {proc.expand.assigned_analyst.name}{' '}
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
-                              Interno
-                            </Badge>
-                          </span>
-                        ) : proc.expand?.broker ? (
-                          <span>Corretor: {proc.expand.broker.name}</span>
-                        ) : (
-                          <span>Pendente de atribuição</span>
-                        )}
+                      <div className="flex flex-col gap-1 text-xs text-muted-foreground mt-3 mb-4">
+                        <div className="flex items-center">
+                          <User className="w-3 h-3 mr-1" />
+                          {proc.expand?.assigned_analyst ? (
+                            <span className="flex items-center gap-1">
+                              Analista: {proc.expand.assigned_analyst.name}{' '}
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                                Interno
+                              </Badge>
+                            </span>
+                          ) : (
+                            <span>Analista: Pendente de atribuição</span>
+                          )}
+                        </div>
+                        <div className="flex items-center">
+                          <User className="w-3 h-3 mr-1" />
+                          <span>Corretor: {proc.expand?.broker?.name || 'Não atribuído'}</span>
+                        </div>
                       </div>
 
                       {proc.status === 'Pendência' && (

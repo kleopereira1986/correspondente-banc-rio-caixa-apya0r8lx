@@ -50,6 +50,10 @@ export default function AgencyProcesses() {
   const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
   const [constructionCompanies, setConstructionCompanies] = useState<any[]>([])
 
+  const [reevaluationDialog, setReevaluationDialog] = useState(false)
+  const [reevaluationReason, setReevaluationReason] = useState('')
+  const [reevaluationProcessId, setReevaluationProcessId] = useState<string | null>(null)
+
   const fetchProcesses = useCallback(async () => {
     if (!user?.real_estate_agency) return
     try {
@@ -155,16 +159,25 @@ export default function AgencyProcesses() {
     }
   }
 
-  const handleRequestReevaluation = async (processId: string, e: React.MouseEvent) => {
+  const handleRequestReevaluationClick = (processId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (
-      !confirm(
-        'Deseja solicitar uma nova avaliação de crédito para este processo? O processo será enviado para a fila de reavaliação.',
-      )
-    )
+    setReevaluationProcessId(processId)
+    setReevaluationReason('')
+    setReevaluationDialog(true)
+  }
+
+  const confirmRequestReevaluation = async () => {
+    if (!reevaluationProcessId) return
+    if (!reevaluationReason.trim()) {
+      toast({
+        title: 'Aviso',
+        description: 'Preencha o motivo da reavaliação.',
+        variant: 'destructive',
+      })
       return
+    }
     try {
-      await pb.collection('processes').update(processId, {
+      await pb.collection('processes').update(reevaluationProcessId, {
         type: 'credit',
         analysis_type: 'reevaluation',
         is_conformity_approved: true,
@@ -178,8 +191,8 @@ export default function AgencyProcesses() {
           await pb.send('/backend/v1/process-logs/manual', {
             method: 'POST',
             body: JSON.stringify({
-              process: processId,
-              note: 'Reavaliação solicitada pela agência.',
+              process: reevaluationProcessId,
+              note: `Reavaliação solicitada pela agência. Motivo: ${reevaluationReason.trim()}`,
             }),
             headers: { 'Content-Type': 'application/json' },
           })
@@ -192,6 +205,8 @@ export default function AgencyProcesses() {
         title: 'Sucesso',
         description: 'Processo enviado para reavaliação.',
       })
+      setReevaluationDialog(false)
+      setReevaluationProcessId(null)
       fetchProcesses()
     } catch (err: any) {
       toast({
@@ -386,10 +401,10 @@ export default function AgencyProcesses() {
                         {user?.role === 'real_estate_agency' && (
                           <Button
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs whitespace-nowrap"
-                            onClick={(e) => handleRequestReevaluation(process.id, e)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs whitespace-nowrap uppercase tracking-wider"
+                            onClick={(e) => handleRequestReevaluationClick(process.id, e)}
                           >
-                            Solicitar nova avaliação
+                            SOLICITAR NOVA AVALIAÇÃO
                           </Button>
                         )}
                         {user?.role === 'real_estate_agency' &&
@@ -451,6 +466,34 @@ export default function AgencyProcesses() {
             <Button onClick={confirmSendToHousing}>
               {selectedCompanyForHousing === 'none' ? 'Continuar sem vincular' : 'Continuar'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reevaluationDialog} onOpenChange={setReevaluationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitar Nova Avaliação</DialogTitle>
+            <DialogDescription>
+              O processo será enviado para a fila de reavaliação de crédito. Informe o motivo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Motivo / Observações</label>
+              <textarea
+                className="w-full min-h-[100px] flex rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Descreva o motivo da reavaliação..."
+                value={reevaluationReason}
+                onChange={(e) => setReevaluationReason(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReevaluationDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmRequestReevaluation}>Confirmar Reavaliação</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

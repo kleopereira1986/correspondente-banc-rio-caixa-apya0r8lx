@@ -121,6 +121,42 @@ export default function ProcessDetail() {
   const [editBuyer, setEditBuyer] = useState<{ id: string; name: string } | null>(null)
   const [isEditingBuyer, setIsEditingBuyer] = useState(false)
 
+  const [editBroker, setEditBroker] = useState<boolean>(false)
+  const [selectedBroker, setSelectedBroker] = useState<string>('')
+  const [agencyBrokers, setAgencyBrokers] = useState<any[]>([])
+
+  const loadBrokers = async () => {
+    if (user?.role === 'real_estate_agency') {
+      const data = await pb.collection('users').getFullList({
+        filter: `role = 'broker' && real_estate_agency = '${user.real_estate_agency}'`,
+      })
+      setAgencyBrokers(data)
+    } else if (user?.role === 'master') {
+      const data = await pb.collection('users').getFullList({
+        filter: `role = 'broker'`,
+      })
+      setAgencyBrokers(data)
+    }
+  }
+
+  useEffect(() => {
+    if (user?.role === 'real_estate_agency' || user?.role === 'master') {
+      loadBrokers()
+    }
+  }, [user])
+
+  const handleEditBrokerSubmit = async () => {
+    if (!process) return
+    try {
+      await updateProcess(process.id, { broker: selectedBroker === 'none' ? '' : selectedBroker })
+      toast({ title: 'Corretor atualizado com sucesso.' })
+      setEditBroker(false)
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar corretor.', variant: 'destructive' })
+    }
+  }
+
   const [changeEvaluationDialog, setChangeEvaluationDialog] = useState(false)
   const [changeEvaluationReason, setChangeEvaluationReason] = useState('')
   const [isSubmittingChangeEvaluation, setIsSubmittingChangeEvaluation] = useState(false)
@@ -869,6 +905,18 @@ export default function ProcessDetail() {
   if (!process)
     return <div className="p-8 text-center text-muted-foreground animate-pulse">Carregando...</div>
 
+  const isDocPendente =
+    process.current_step?.toUpperCase() === 'DOC PENDENTE' ||
+    process.status?.toUpperCase() === 'DOC PENDENTE' ||
+    process.status === 'Pendência'
+  const canUploadDocs =
+    (process.result !== 'approved' && process.result !== 'rejected') ||
+    (isDocPendente &&
+      (user?.role === 'master' ||
+        user?.role === 'real_estate_agency' ||
+        user?.role === 'analyst' ||
+        user?.role === 'broker'))
+
   const creditSteps = [
     {
       id: 1,
@@ -1029,13 +1077,25 @@ export default function ProcessDetail() {
                     )}
                 </span>
               </div>
-              {process.expand?.broker && (
-                <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
-                  <User className="w-4 h-4 text-slate-500" />
-                  <span>Corretor:</span>
-                  <span className="text-slate-900">{process.expand.broker.name}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
+                <User className="w-4 h-4 text-slate-500" />
+                <span>Corretor:</span>
+                <span className="text-slate-900 flex items-center gap-1.5">
+                  {process.expand?.broker?.name || 'Não atribuído'}
+                  {(user?.role === 'real_estate_agency' || user?.role === 'master') && (
+                    <button
+                      onClick={() => {
+                        setSelectedBroker(process.broker || 'none')
+                        setEditBroker(true)
+                      }}
+                      className="text-slate-400 hover:text-primary transition-colors ml-1"
+                      title="Editar corretor"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -2102,8 +2162,7 @@ export default function ProcessDetail() {
         <div className="lg:col-span-2 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold text-slate-800">Documentos</h2>
-            {process.result !== 'approved' &&
-              process.result !== 'rejected' &&
+            {canUploadDocs &&
               (uploadingSlots['Geral-Extra'] ? (
                 <Button variant="outline" size="sm" className="shadow-sm" disabled>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
@@ -2258,8 +2317,7 @@ export default function ProcessDetail() {
                                     )}
                                   </Button>
                                 )}
-                                {process.result !== 'approved' &&
-                                  process.result !== 'rejected' &&
+                                {canUploadDocs &&
                                   (uploadingSlots[doc.id] ? (
                                     <Button
                                       variant="ghost"
@@ -2289,8 +2347,7 @@ export default function ProcessDetail() {
                                   ))}
                               </>
                             ) : (
-                              process.result !== 'approved' &&
-                              process.result !== 'rejected' &&
+                              canUploadDocs &&
                               (uploadingSlots[`${cat}-${slotName}`] ? (
                                 <Button variant="outline" size="sm" className="h-8" disabled>
                                   <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
@@ -2894,6 +2951,40 @@ export default function ProcessDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={editBroker} onOpenChange={setEditBroker}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Corretor Responsável</DialogTitle>
+            <DialogDescription className="sr-only">
+              Selecione um novo corretor para este processo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedBroker} onValueChange={setSelectedBroker}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um corretor..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum corretor</SelectItem>
+                {agencyBrokers.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name || b.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditBroker(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditBrokerSubmit} disabled={!selectedBroker}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
         <DialogContent>
           <DialogHeader>

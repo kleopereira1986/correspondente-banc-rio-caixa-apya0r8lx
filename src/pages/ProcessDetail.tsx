@@ -346,6 +346,7 @@ export default function ProcessDetail() {
         type: 'housing',
         current_step: firstStep,
         status: 'Nova Solicitação',
+        result: 'pending',
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing

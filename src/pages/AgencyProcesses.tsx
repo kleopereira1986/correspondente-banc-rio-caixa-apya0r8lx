@@ -124,6 +124,7 @@ export default function AgencyProcesses() {
         type: 'housing',
         status: 'Nova Solicitação',
         current_step: newStep,
+        result: 'pending',
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing
@@ -149,6 +150,53 @@ export default function AgencyProcesses() {
       toast({
         title: 'Erro',
         description: err.message || 'Erro ao enviar para habitacional.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleRequestReevaluation = async (processId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (
+      !confirm(
+        'Deseja solicitar uma nova avaliação de crédito para este processo? O processo será enviado para a fila de reavaliação.',
+      )
+    )
+      return
+    try {
+      await pb.collection('processes').update(processId, {
+        type: 'credit',
+        analysis_type: 'reevaluation',
+        is_conformity_approved: true,
+        status: 'Aguardando Análise',
+        current_step: 'Análise',
+        result: 'pending',
+      })
+
+      if (user?.id) {
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: processId,
+              note: 'Reavaliação solicitada pela agência.',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log', logErr)
+        }
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Processo enviado para reavaliação.',
+      })
+      fetchProcesses()
+    } catch (err: any) {
+      toast({
+        title: 'Erro',
+        description: err.message || 'Erro ao solicitar reavaliação.',
         variant: 'destructive',
       })
     }
@@ -334,18 +382,29 @@ export default function AgencyProcesses() {
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      {user?.role === 'real_estate_agency' &&
-                        process.type === 'credit' &&
-                        processResult === 'approved' && (
+                      <div className="flex items-center gap-2 justify-end">
+                        {user?.role === 'real_estate_agency' && (
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50"
-                            onClick={(e) => openHousingModal(process.id, e)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs whitespace-nowrap"
+                            onClick={(e) => handleRequestReevaluation(process.id, e)}
                           >
-                            Enviar para Habitacional
+                            Solicitar nova avaliação
                           </Button>
                         )}
+                        {user?.role === 'real_estate_agency' &&
+                          process.type === 'credit' &&
+                          processResult === 'approved' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                              onClick={(e) => openHousingModal(process.id, e)}
+                            >
+                              Enviar para Habitacional
+                            </Button>
+                          )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

@@ -181,44 +181,33 @@ export default function HousingKanban() {
   const handleSendToReevaluation = async (proc: any) => {
     if (
       !confirm(
-        'Deseja enviar este processo para nova análise de crédito (reavaliação)? O processo habitacional atual será encerrado.',
+        'Deseja enviar este processo para nova análise de crédito (reavaliação)? O processo será transferido para a fila de análise de crédito.',
       )
     )
       return
     try {
-      const newProcess = await createProcess({
+      await updateProcess(proc.id, {
         type: 'credit',
         analysis_type: 'reevaluation',
         is_conformity_approved: true,
         status: 'Aguardando Análise',
         current_step: 'Análise',
-        buyer: proc.buyer,
-        buyer_2: proc.buyer_2,
-        seller: proc.seller,
-        broker: proc.broker,
-        construction_company: proc.construction_company,
-        value: proc.value,
-        property_type: proc.property_type,
-        development_type: proc.development_type,
-        credit_analysis_type: proc.credit_analysis_type,
-        observations: `Gerado a partir do processo habitacional ${proc.id} para reavaliação de crédito.`,
-      })
-
-      await updateProcess(proc.id, {
-        status: 'Cancelado',
-        current_step: 'Cancelado (Reavaliação)',
+        result: 'pending',
       })
 
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: proc.id,
-          from_step: proc.current_step,
-          to_step: 'Cancelado (Reavaliação)',
-          from_status: proc.status,
-          to_status: 'Cancelado',
-          changed_by: user.id,
-          note: `Processo habitacional encerrado e enviado para nova análise de crédito (Processo: ${newProcess.id}).`,
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: proc.id,
+              note: 'Processo enviado para nova análise de crédito (reavaliação) a partir do Kanban Habitacional.',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
 
       toast({ title: 'Enviado para reavaliação com sucesso!' })

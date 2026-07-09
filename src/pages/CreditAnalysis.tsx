@@ -381,6 +381,7 @@ export default function CreditAnalysis() {
         type: 'housing',
         current_step: firstHousingStage,
         status: 'Nova Solicitação',
+        result: 'pending',
       }
       if (selectedCompanyId && selectedCompanyId !== 'none') {
         updateData.construction_company = selectedCompanyId

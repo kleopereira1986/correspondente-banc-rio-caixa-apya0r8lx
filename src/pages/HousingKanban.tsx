@@ -33,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, MoreVertical, Eye, FileText, Link as LinkIcon, User } from 'lucide-react'
+import { Plus, MoreVertical, Eye, FileText, Link as LinkIcon, User, Phone } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -178,6 +178,57 @@ export default function HousingKanban() {
     }
   }
 
+  const handleSendToReevaluation = async (proc: any) => {
+    if (
+      !confirm(
+        'Deseja enviar este processo para nova análise de crédito (reavaliação)? O processo habitacional atual será encerrado.',
+      )
+    )
+      return
+    try {
+      const newProcess = await createProcess({
+        type: 'credit',
+        analysis_type: 'reevaluation',
+        is_conformity_approved: true,
+        status: 'Aguardando Análise',
+        current_step: 'Análise',
+        buyer: proc.buyer,
+        buyer_2: proc.buyer_2,
+        seller: proc.seller,
+        broker: proc.broker,
+        construction_company: proc.construction_company,
+        value: proc.value,
+        property_type: proc.property_type,
+        development_type: proc.development_type,
+        credit_analysis_type: proc.credit_analysis_type,
+        observations: `Gerado a partir do processo habitacional ${proc.id} para reavaliação de crédito.`,
+      })
+
+      await updateProcess(proc.id, {
+        status: 'Cancelado',
+        current_step: 'Cancelado (Reavaliação)',
+      })
+
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: proc.id,
+          from_step: proc.current_step,
+          to_step: 'Cancelado (Reavaliação)',
+          from_status: proc.status,
+          to_status: 'Cancelado',
+          changed_by: user.id,
+          note: `Processo habitacional encerrado e enviado para nova análise de crédito (Processo: ${newProcess.id}).`,
+        })
+      }
+
+      toast({ title: 'Enviado para reavaliação com sucesso!' })
+      loadData()
+    } catch (error) {
+      console.error(error)
+      toast({ title: 'Erro ao enviar para reavaliação', variant: 'destructive' })
+    }
+  }
+
   if (user?.role !== 'master' && user?.role !== 'analyst' && user?.role !== 'real_estate_agency')
     return <div className="p-8">Acesso Negado</div>
 
@@ -262,6 +313,11 @@ export default function HousingKanban() {
                         {proc.expand?.buyer?.name || 'Sem nome'}
                       </h4>
 
+                      <div className="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                        <Phone className="w-3 h-3" />
+                        {proc.expand?.buyer?.phone || 'Sem telefone'}
+                      </div>
+
                       <div className="flex items-center text-xs text-muted-foreground mt-3 mb-4">
                         <User className="w-3 h-3 mr-1" />
                         {proc.expand?.assigned_analyst ? (
@@ -283,6 +339,19 @@ export default function HousingKanban() {
                           Pendência: {proc.observations || 'Ação necessária'}
                         </div>
                       )}
+
+                      {proc.current_step?.toUpperCase() === 'DOC PENDENTE' &&
+                        (user?.role === 'real_estate_agency' ||
+                          user?.role === 'master' ||
+                          user?.role === 'analyst') && (
+                          <Button
+                            size="sm"
+                            className="w-full text-[10px] mb-3 bg-indigo-600 hover:bg-indigo-700 h-8 whitespace-normal leading-tight"
+                            onClick={() => handleSendToReevaluation(proc)}
+                          >
+                            ENVIAR PARA NOVA ANALISE DE CREDITO
+                          </Button>
+                        )}
 
                       {user?.role === 'real_estate_agency' ? (
                         <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded-md text-center">

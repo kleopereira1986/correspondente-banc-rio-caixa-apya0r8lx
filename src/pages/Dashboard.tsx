@@ -1217,7 +1217,7 @@ export default function Dashboard() {
                                   navigate(`/housing-transition/${process.id}`)
                                 }}
                               >
-                                Enviar para Kanban
+                                Enviar para processo habitacional
                               </Button>
                             )}
                           {user?.role === 'master' && (

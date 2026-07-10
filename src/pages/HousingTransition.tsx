@@ -116,7 +116,7 @@ export default function HousingTransition() {
         {!confirmStep ? (
           <>
             <DialogHeader>
-              <DialogTitle>Vincular Construtora</DialogTitle>
+              <DialogTitle>Enviar para triagem CCA</DialogTitle>
             </DialogHeader>
             <div className="space-y-3 py-2">
               <Label className="text-sm font-medium">
@@ -143,12 +143,10 @@ export default function HousingTransition() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Confirmação</DialogTitle>
+              <DialogTitle>Enviar para triagem CCA</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-2">
-              <p className="text-sm text-slate-700">
-                Confirma o envio para Kanban Habitacional na etapa triagem cca?
-              </p>
+              <p className="text-sm text-slate-700">Confirma a ação Enviar para triagem CCA?</p>
               {selectedCompanyObj && (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <div className="flex items-center gap-2">

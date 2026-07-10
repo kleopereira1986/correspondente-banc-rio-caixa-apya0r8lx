@@ -563,9 +563,7 @@ export default function CreditAnalysis() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
             <div className="bg-background rounded-lg shadow-lg w-full max-w-md border flex flex-col animate-in fade-in zoom-in-95 duration-200">
               <div className="p-6 pb-4">
-                <h2 className="text-lg font-semibold tracking-tight">
-                  Deseja vincular uma construtora?
-                </h2>
+                <h2 className="text-lg font-semibold tracking-tight">Enviar para triagem CCA</h2>
                 <p className="text-sm text-muted-foreground mt-2">
                   Selecione uma construtora para vincular a este processo ou continue sem vincular.
                 </p>
@@ -798,7 +796,7 @@ export default function CreditAnalysis() {
                           setTransitionProcess(proc)
                         }}
                       >
-                        Enviar para Habitacional
+                        Enviar para processo habitacional
                       </Button>
                     </div>
                   )}
@@ -1324,7 +1322,7 @@ export default function CreditAnalysis() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Transferir para Habitacional</DialogTitle>
+            <DialogTitle>Enviar para triagem CCA</DialogTitle>
             <DialogDescription>
               Tem certeza que deseja enviar este processo aprovado para o fluxo Habitacional? Ele
               será movido para a etapa "<strong>Triagem CCA</strong>".

@@ -375,12 +375,9 @@ export default function ProcessDetail() {
   const confirmSendToHousing = async () => {
     if (!process) return
     try {
-      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
-      const firstStep = stages[0]?.name || 'Montagem de Pasta'
-
       const payload: any = {
         type: 'housing',
-        current_step: firstStep,
+        current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         result: 'pending',
       }
@@ -1480,7 +1477,7 @@ export default function ProcessDetail() {
                       className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
                       onClick={() => navigate(`/housing-transition/${process.id}`)}
                     >
-                      <ArrowRight className="w-4 h-4 mr-2" /> ENVIAR PARA PROCESSO HABITACIONAL
+                      <ArrowRight className="w-4 h-4 mr-2" /> Enviar para processo habitacional
                     </Button>
                   )}
                 </CardContent>
@@ -1519,7 +1516,7 @@ export default function ProcessDetail() {
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
                     onClick={openHousingModal}
                   >
-                    <ArrowRight className="w-4 h-4 mr-2" /> ENVIAR PARA HABITACIONAL
+                    <ArrowRight className="w-4 h-4 mr-2" /> Enviar para processo habitacional
                   </Button>
                 </CardContent>
               </Card>
@@ -2996,7 +2993,7 @@ export default function ProcessDetail() {
       <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deseja vincular uma construtora?</DialogTitle>
+            <DialogTitle>Enviar para triagem CCA</DialogTitle>
             <DialogDescription>
               Selecione uma construtora para vincular a este processo ou continue sem vincular.
             </DialogDescription>

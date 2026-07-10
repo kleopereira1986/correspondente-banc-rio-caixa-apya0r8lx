@@ -36,6 +36,7 @@ import {
 import { Plus, MoreVertical, Eye, FileText, Link as LinkIcon, User, Phone } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function HousingKanban() {
   const { user } = useAuth()
@@ -97,7 +98,11 @@ export default function HousingKanban() {
       await updateProcess(processId, payload)
       toast({ title: 'Processo movido com sucesso' })
     } catch (e) {
-      toast({ title: 'Erro ao mover processo', variant: 'destructive' })
+      toast({
+        title: 'Erro ao mover processo',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -118,7 +123,7 @@ export default function HousingKanban() {
       setNotes('')
       setSelectedBuyer('')
     } catch (e) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -142,15 +147,18 @@ export default function HousingKanban() {
       })
 
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: credProc.id,
-          from_step: credProc.current_step || '',
-          to_step: firstStep,
-          from_status: credProc.status || '',
-          to_status: 'Nova Solicitação',
-          changed_by: user.id,
-          note: 'Processo transferido da Análise de Crédito para Habitacional.',
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: credProc.id,
+              note: 'Processo transferido da Análise de Crédito para Habitacional.',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
 
       toast({ title: 'Processo habitacional importado com sucesso' })
@@ -158,7 +166,7 @@ export default function HousingKanban() {
       setNotes('')
       setSelectedCredit('')
     } catch (e) {
-      toast({ title: 'Erro ao importar', variant: 'destructive' })
+      toast({ title: 'Erro ao importar', description: getErrorMessage(e), variant: 'destructive' })
     }
   }
 
@@ -174,7 +182,11 @@ export default function HousingKanban() {
       setNotes('')
       setSelectedProcess(null)
     } catch (e) {
-      toast({ title: 'Erro ao registrar pendência', variant: 'destructive' })
+      toast({
+        title: 'Erro ao registrar pendência',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -214,7 +226,11 @@ export default function HousingKanban() {
       loadData()
     } catch (error) {
       console.error(error)
-      toast({ title: 'Erro ao enviar para reavaliação', variant: 'destructive' })
+      toast({
+        title: 'Erro ao enviar para reavaliação',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      })
     }
   }
 

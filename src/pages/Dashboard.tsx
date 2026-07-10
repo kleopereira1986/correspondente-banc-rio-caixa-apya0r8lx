@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -164,7 +165,11 @@ export default function Dashboard() {
       toast({ title: 'Processo assumido com sucesso!' })
       loadData()
     } catch (e) {
-      toast({ title: 'Erro ao assumir processo', variant: 'destructive' })
+      toast({
+        title: 'Erro ao assumir processo',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -174,18 +179,27 @@ export default function Dashboard() {
         status: 'Autorização Concluída',
       })
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: procId,
-          from_status: 'Autorização Solicitada',
-          to_status: 'Autorização Concluída',
-          changed_by: user.id,
-          note: 'Autorização Gerencial confirmada pelo analista no Dashboard.',
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: procId,
+              note: 'Autorização Gerencial confirmada pelo analista no Dashboard.',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
       toast({ title: 'Autorização confirmada!' })
       loadData()
     } catch (e) {
-      toast({ title: 'Erro ao confirmar autorização', variant: 'destructive' })
+      toast({
+        title: 'Erro ao confirmar autorização',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -195,18 +209,27 @@ export default function Dashboard() {
         status: 'Em Cadastramento',
       })
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: procId,
-          from_status: 'Pendência Resolvida',
-          to_status: 'Em Cadastramento',
-          changed_by: user.id,
-          note: 'Pendência reconhecida como resolvida no Dashboard.',
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: procId,
+              note: 'Pendência reconhecida como resolvida no Dashboard.',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
       toast({ title: 'Pendência reconhecida!' })
       loadData()
     } catch (e) {
-      toast({ title: 'Erro ao atualizar processo', variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar processo',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     }
   }
 
@@ -253,18 +276,26 @@ export default function Dashboard() {
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing
+      } else {
+        payload.construction_company = ''
       }
       await updateProcess(housingProcessId, payload)
+
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: housingProcessId,
-          to_step: newStep,
-          to_status: 'Nova Solicitação',
-          changed_by: user.id,
-          note:
-            'Processo enviado para o Kanban Habitacional' +
-            (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: housingProcessId,
+              note:
+                'Processo enviado para o Kanban Habitacional' +
+                (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
       toast({ title: 'Processo enviado para Kanban com sucesso!' })
       setHousingModalOpen(false)
@@ -273,7 +304,7 @@ export default function Dashboard() {
     } catch (e) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível enviar para habitacional.',
+        description: getErrorMessage(e) || 'Não foi possível enviar para habitacional.',
         variant: 'destructive',
       })
     }

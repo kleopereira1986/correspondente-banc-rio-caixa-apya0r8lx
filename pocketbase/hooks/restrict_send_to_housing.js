@@ -2,6 +2,9 @@ onRecordUpdateRequest((e) => {
   const originalType = e.record.original().getString('type')
   const newType = e.record.getString('type')
 
+  const originalStep = e.record.original().getString('current_step')
+  const newStep = e.record.getString('current_step')
+
   if (originalType === 'credit' && newType === 'housing') {
     const role = e.auth?.getString('role')
     const allowedRoles = ['master', 'analyst', 'real_estate_agency']
@@ -10,6 +13,28 @@ onRecordUpdateRequest((e) => {
       throw new ForbiddenError(
         'Seu perfil não tem permissão para enviar processos para habitacional.',
       )
+    }
+  }
+
+  // Validação: requer construtora se for imóvel Novo ao entrar na Triagem CCA
+  if (newType === 'housing' && newStep === 'Triagem CCA' && originalStep !== 'Triagem CCA') {
+    const developmentTypeId = e.record.getString('development_type')
+    if (developmentTypeId) {
+      try {
+        const devType = $app.findRecordById('development_types', developmentTypeId)
+        if (
+          devType.getString('name').toLowerCase() === 'novo' &&
+          !e.record.getString('construction_company')
+        ) {
+          throw new BadRequestError(
+            'Processo de imóvel Novo requer uma construtora vinculada. Edite o processo e vincule a construtora antes de enviar para o Kanban.',
+          )
+        }
+      } catch (err) {
+        if (err instanceof BadRequestError) {
+          throw err
+        }
+      }
     }
   }
 

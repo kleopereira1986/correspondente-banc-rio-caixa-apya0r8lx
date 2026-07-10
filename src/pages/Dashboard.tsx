@@ -1180,16 +1180,67 @@ export default function Dashboard() {
                       <TableCell className="py-4 text-right">
                         {(user?.role === 'master' ||
                           user?.role === 'analyst' ||
-                          user?.role === 'real_estate_agency') && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
-                            onClick={(e) => openHousingModal(process.id, e)}
-                          >
-                            Enviar para Kanban
-                          </Button>
-                        )}
+                          user?.role === 'real_estate_agency') &&
+                          (!process.current_step ||
+                            ![
+                              'Triagem CCA',
+                              'Montagem de Pasta',
+                              'Análise de Documentos',
+                              'Emissão de Boleto',
+                              'Aguardando Avaliação',
+                              'Finalizado',
+                            ].includes(process.current_step)) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                try {
+                                  const { default: pbClient } =
+                                    await import('@/lib/pocketbase/client')
+                                  const payload = {
+                                    type: 'housing',
+                                    current_step: 'Triagem CCA',
+                                    status: 'Nova Solicitação',
+                                    result: 'pending',
+                                  }
+                                  await pbClient.collection('processes').update(process.id, payload)
+                                  await pbClient
+                                    .send('/backend/v1/process-logs/manual', {
+                                      method: 'POST',
+                                      body: JSON.stringify({
+                                        process: process.id,
+                                        note: 'Processo enviado para o Kanban Habitacional (Triagem CCA).',
+                                      }),
+                                      headers: { 'Content-Type': 'application/json' },
+                                    })
+                                    .catch(console.error)
+
+                                  import('@/hooks/use-toast').then(({ toast }) => {
+                                    toast({
+                                      title: 'Sucesso',
+                                      description: 'Processo enviado para Kanban com sucesso!',
+                                    })
+                                  })
+                                } catch (err: any) {
+                                  Promise.all([
+                                    import('@/lib/pocketbase/errors'),
+                                    import('@/hooks/use-toast'),
+                                  ]).then(([{ getErrorMessage }, { toast }]) => {
+                                    toast({
+                                      title: 'Erro de Validação',
+                                      description:
+                                        getErrorMessage(err) || 'Erro ao enviar para o Kanban.',
+                                      variant: 'destructive',
+                                    })
+                                  })
+                                }
+                              }}
+                            >
+                              Enviar para Kanban
+                            </Button>
+                          )}
                       </TableCell>
                     </TableRow>
                   ))}

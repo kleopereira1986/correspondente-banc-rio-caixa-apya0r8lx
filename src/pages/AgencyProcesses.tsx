@@ -138,27 +138,33 @@ export default function AgencyProcesses() {
         payload.construction_company = selectedCompanyForHousing
       }
       await pb.collection('processes').update(housingProcessId, payload)
-      await pb.collection('process_logs').create({
-        process: housingProcessId,
-        to_step: newStep,
-        to_status: 'Nova Solicitação',
-        changed_by: user?.id,
-        note:
-          'Processo enviado para o Kanban Habitacional' +
-          (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
-      })
+      await pb
+        .send('/backend/v1/process-logs/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            process: housingProcessId,
+            note:
+              'Processo enviado para o Kanban Habitacional (Triagem CCA)' +
+              (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+        .catch(console.error)
+
       toast({
         title: 'Sucesso',
-        description: 'Processo enviado para o Kanban Habitacional.',
+        description: 'Processo enviado para Kanban com sucesso!',
       })
       setHousingModalOpen(false)
       setHousingProcessId(null)
       fetchProcesses()
     } catch (err: any) {
-      toast({
-        title: 'Erro',
-        description: err.message || 'Erro ao enviar para habitacional.',
-        variant: 'destructive',
+      import('@/lib/pocketbase/errors').then(({ getErrorMessage }) => {
+        toast({
+          title: 'Erro de Validação',
+          description: getErrorMessage(err) || 'Erro ao enviar para habitacional.',
+          variant: 'destructive',
+        })
       })
     }
   }

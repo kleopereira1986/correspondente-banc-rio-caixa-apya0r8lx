@@ -354,11 +354,27 @@ export default function CreditAnalysis() {
   const [companySearch, setCompanySearch] = useState('')
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false)
   const [processToLink, setProcessToLink] = useState<any>(null)
+  const [creditSearch, setCreditSearch] = useState('')
+  const [brokerFilter, setBrokerFilter] = useState<string>('all')
+  const [agencyFilter, setAgencyFilter] = useState<string>('all')
+  const [brokers, setBrokers] = useState<any[]>([])
+  const [agencies, setAgencies] = useState<any[]>([])
 
   useEffect(() => {
     pb.collection('construction_companies')
       .getFullList({ sort: 'name' })
       .then(setCompanies)
+      .catch(console.error)
+  }, [])
+
+  useEffect(() => {
+    pb.collection('users')
+      .getFullList({ filter: 'role="broker"' })
+      .then(setBrokers)
+      .catch(console.error)
+    pb.collection('real_estate_agencies')
+      .getFullList({ sort: 'name' })
+      .then(setAgencies)
       .catch(console.error)
   }, [])
 
@@ -473,13 +489,79 @@ export default function CreditAnalysis() {
   }
 
   let renderedCompanyModal = false
+  let renderedFilterBar = false
+
+  const applyCreditFilters = (list: any[]) => {
+    return list.filter((p) => {
+      if (creditSearch) {
+        const q = creditSearch.toLowerCase()
+        const buyerName = (p.expand?.buyer?.name || '').toLowerCase()
+        const buyerCpf = (p.expand?.buyer?.cpf || '').toLowerCase()
+        const buyer2Name = (p.expand?.buyer_2?.name || '').toLowerCase()
+        const buyer2Cpf = (p.expand?.buyer_2?.cpf || '').toLowerCase()
+        if (
+          !buyerName.includes(q) &&
+          !buyerCpf.includes(q) &&
+          !buyer2Name.includes(q) &&
+          !buyer2Cpf.includes(q)
+        ) {
+          return false
+        }
+      }
+      if (brokerFilter !== 'all' && p.broker !== brokerFilter) return false
+      if (agencyFilter !== 'all') {
+        const buyerAgency = p.expand?.buyer?.real_estate_agency || ''
+        if (buyerAgency !== agencyFilter) return false
+      }
+      return true
+    })
+  }
 
   const renderProcessList = (list: any[], emptyMessage: string) => {
+    const filteredList = applyCreditFilters(list)
+    const list = filteredList
+    const shouldRenderFilterBar = !renderedFilterBar
+    if (shouldRenderFilterBar) renderedFilterBar = true
     const shouldRenderModal = showCompanySelect && !renderedCompanyModal
     if (shouldRenderModal) renderedCompanyModal = true
 
     return (
       <div className="divide-y divide-border/50 relative">
+        {shouldRenderFilterBar && (
+          <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/30 border-b border-border/50">
+            <input
+              type="search"
+              placeholder="Buscar por nome ou CPF..."
+              className="flex h-9 w-full sm:flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={creditSearch}
+              onChange={(e) => setCreditSearch(e.target.value)}
+            />
+            <select
+              className="flex h-9 w-full sm:w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              value={brokerFilter}
+              onChange={(e) => setBrokerFilter(e.target.value)}
+            >
+              <option value="all">Todos os corretores</option>
+              {brokers.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="flex h-9 w-full sm:w-[200px] rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              value={agencyFilter}
+              onChange={(e) => setAgencyFilter(e.target.value)}
+            >
+              <option value="all">Todas as imobiliárias</option>
+              {agencies.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {shouldRenderModal && processToLink && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
             <div className="bg-background rounded-lg shadow-lg w-full max-w-md border flex flex-col animate-in fade-in zoom-in-95 duration-200">

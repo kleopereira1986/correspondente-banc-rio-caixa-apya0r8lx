@@ -37,6 +37,7 @@ import RgExtraction from './pages/RgExtraction'
 import GenerateLink from './pages/GenerateLink'
 import PublicForm from './pages/PublicForm'
 import ConstructionCompanies from './pages/ConstructionCompanies'
+import HousingTransition from './pages/HousingTransition'
 
 const App = () => (
   <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/testing-tools" element={<TestingTools />} />
             <Route path="/gerar-link" element={<GenerateLink />} />
             <Route path="/construction-companies" element={<ConstructionCompanies />} />
+            <Route path="/housing-transition/:id" element={<HousingTransition />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

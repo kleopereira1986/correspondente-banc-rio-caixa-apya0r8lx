@@ -1173,9 +1173,7 @@ export default function Dashboard() {
                         {process.expand?.last_updated_by?.name || '-'}
                       </TableCell>
                       <TableCell className="py-4 text-right">
-                        {(user?.role === 'master' ||
-                          user?.role === 'analyst' ||
-                          user?.role === 'real_estate_agency') &&
+                        {(user?.role === 'master' || user?.role === 'analyst') &&
                           (!process.current_step ||
                             ![
                               'Triagem CCA',
@@ -1189,40 +1187,9 @@ export default function Dashboard() {
                               size="sm"
                               variant="outline"
                               className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
-                              onClick={async (e) => {
+                              onClick={(e) => {
                                 e.stopPropagation()
-                                try {
-                                  const payload = {
-                                    type: 'housing',
-                                    current_step: 'Triagem CCA',
-                                    status: 'Nova Solicitação',
-                                    result: 'pending',
-                                  }
-                                  await updateProcess(process.id, payload)
-                                  await pb
-                                    .send('/backend/v1/process-logs/manual', {
-                                      method: 'POST',
-                                      body: JSON.stringify({
-                                        process: process.id,
-                                        note: 'Processo enviado para o Kanban Habitacional (Triagem CCA).',
-                                      }),
-                                      headers: { 'Content-Type': 'application/json' },
-                                    })
-                                    .catch(console.error)
-
-                                  toast({
-                                    title: 'Sucesso',
-                                    description: 'Processo enviado para Kanban com sucesso!',
-                                  })
-                                  loadData()
-                                } catch (err: any) {
-                                  toast({
-                                    title: 'Erro ao enviar para Kanban',
-                                    description:
-                                      getErrorMessage(err) || 'Erro ao comunicar com o servidor.',
-                                    variant: 'destructive',
-                                  })
-                                }
+                                navigate(`/housing-transition/${process.id}`)
                               }}
                             >
                               Enviar para Kanban

@@ -237,12 +237,7 @@ export default function Dashboard() {
     if (!selectedBuyer) return
     let step = 'Documentação'
     if (newType === 'housing') {
-      try {
-        const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
-        step = stages[0]?.name || 'Montagem de Pasta'
-      } catch {
-        /* intentionally ignored */
-      }
+      step = 'Triagem CCA'
     }
 
     await createProcess({
@@ -1197,16 +1192,14 @@ export default function Dashboard() {
                               onClick={async (e) => {
                                 e.stopPropagation()
                                 try {
-                                  const { default: pbClient } =
-                                    await import('@/lib/pocketbase/client')
                                   const payload = {
                                     type: 'housing',
                                     current_step: 'Triagem CCA',
                                     status: 'Nova Solicitação',
                                     result: 'pending',
                                   }
-                                  await pbClient.collection('processes').update(process.id, payload)
-                                  await pbClient
+                                  await updateProcess(process.id, payload)
+                                  await pb
                                     .send('/backend/v1/process-logs/manual', {
                                       method: 'POST',
                                       body: JSON.stringify({
@@ -1217,23 +1210,17 @@ export default function Dashboard() {
                                     })
                                     .catch(console.error)
 
-                                  import('@/hooks/use-toast').then(({ toast }) => {
-                                    toast({
-                                      title: 'Sucesso',
-                                      description: 'Processo enviado para Kanban com sucesso!',
-                                    })
+                                  toast({
+                                    title: 'Sucesso',
+                                    description: 'Processo enviado para Kanban com sucesso!',
                                   })
+                                  loadData()
                                 } catch (err: any) {
-                                  Promise.all([
-                                    import('@/lib/pocketbase/errors'),
-                                    import('@/hooks/use-toast'),
-                                  ]).then(([{ getErrorMessage }, { toast }]) => {
-                                    toast({
-                                      title: 'Erro de Validação',
-                                      description:
-                                        getErrorMessage(err) || 'Erro ao enviar para o Kanban.',
-                                      variant: 'destructive',
-                                    })
+                                  toast({
+                                    title: 'Erro ao enviar para Kanban',
+                                    description:
+                                      getErrorMessage(err) || 'Erro ao comunicar com o servidor.',
+                                    variant: 'destructive',
                                   })
                                 }
                               }}

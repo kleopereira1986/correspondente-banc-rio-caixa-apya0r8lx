@@ -109,11 +109,10 @@ export default function HousingKanban() {
   const handleCreate = async () => {
     if (!selectedBuyer) return
     try {
-      const firstStep = stages[0]?.name || 'Montagem de Pasta'
       await createProcess({
         type: 'housing',
         buyer: selectedBuyer,
-        current_step: firstStep,
+        current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         observations: notes,
         assigned_analyst: user?.role === 'analyst' ? user.id : undefined,

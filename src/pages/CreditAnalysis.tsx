@@ -3,6 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
 import { Link } from 'react-router-dom'
@@ -19,6 +26,7 @@ import {
   ShieldAlert,
   CheckCircle,
   Trash2,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -37,6 +45,10 @@ export default function CreditAnalysis() {
   const [processes, setProcesses] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+
+  const [searchQuery, setSearchQuery] = useState('')
+  const [brokerFilter, setBrokerFilter] = useState('all')
+  const [agencyFilter, setAgencyFilter] = useState('all')
 
   const [firstHousingStage, setFirstHousingStage] = useState<string>('Montagem de Pasta')
   const [transitionProcess, setTransitionProcess] = useState<any>(null)
@@ -59,9 +71,9 @@ export default function CreditAnalysis() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,buyer_2,assigned_analyst,broker,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
       })
-      setProcesses(data.filter((p: any) => p.type === 'credit'))
+      setProcesses(data)
 
       const docs = await pb.collection('documents').getFullList({
         fields: 'id,process,status,category,created',
@@ -86,7 +98,48 @@ export default function CreditAnalysis() {
   useRealtime('processes', () => loadData())
   useRealtime('documents', () => loadData())
 
-  const cadastramentoBase = processes.filter(
+  const uniqueAgencies = Array.from(
+    new Set(
+      processes
+        .filter((p) => p.type === 'credit')
+        .map((p) => p.expand?.broker?.expand?.real_estate_agency?.name)
+        .filter(Boolean),
+    ),
+  ) as string[]
+
+  const uniqueBrokers = Array.from(
+    new Set(
+      processes
+        .filter((p) => p.type === 'credit')
+        .map((p) => p.expand?.broker?.name)
+        .filter(Boolean),
+    ),
+  ) as string[]
+
+  const filteredProcesses = processes.filter((p: any) => {
+    if (p.type !== 'credit') return false
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const name1 = (p.expand?.buyer?.name || '').toLowerCase()
+      const cpf1 = (p.expand?.buyer?.cpf || '').toLowerCase()
+      const name2 = (p.expand?.buyer_2?.name || '').toLowerCase()
+      const cpf2 = (p.expand?.buyer_2?.cpf || '').toLowerCase()
+      if (!name1.includes(q) && !cpf1.includes(q) && !name2.includes(q) && !cpf2.includes(q))
+        return false
+    }
+
+    if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
+    if (
+      agencyFilter !== 'all' &&
+      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+    )
+      return false
+
+    return true
+  })
+
+  const cadastramentoBase = filteredProcesses.filter(
     (p) =>
       p.is_conformity_approved &&
       (p.current_step === 'Cadastramento' || p.status === 'Pendência Resolvida') &&
@@ -123,7 +176,7 @@ export default function CreditAnalysis() {
   const cadastramentoSemPendencia = cadastramentoBase.filter((p) => !checkProcessPendency(p))
 
   const stats = {
-    triagem: processes.filter(
+    triagem: filteredProcesses.filter(
       (p) =>
         !p.is_conformity_approved &&
         p.status !== 'Concluído' &&
@@ -134,7 +187,7 @@ export default function CreditAnalysis() {
     cadastramento: cadastramentoBase,
     cadastramento_com_pendencia: cadastramentoComPendencia,
     cadastramento_sem_pendencia: cadastramentoSemPendencia,
-    aguardando_autorizacao: processes.filter(
+    aguardando_autorizacao: filteredProcesses.filter(
       (p) =>
         p.is_conformity_approved &&
         (p.status === 'Aguardando Solicitação de Reavaliação' ||
@@ -144,7 +197,7 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
-    primeira_analise: processes.filter(
+    primeira_analise: filteredProcesses.filter(
       (p) =>
         p.is_conformity_approved &&
         p.current_step !== 'Cadastramento' &&
@@ -155,7 +208,7 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
-    reavaliacao: processes.filter(
+    reavaliacao: filteredProcesses.filter(
       (p) =>
         p.is_conformity_approved &&
         p.current_step !== 'Cadastramento' &&
@@ -166,7 +219,7 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
-    aprovados: processes.filter((p) => p.result === 'approved' && p.type === 'credit'),
+    aprovados: filteredProcesses.filter((p) => p.result === 'approved'),
   }
 
   const toggleFilter = (filter: string) => {
@@ -379,7 +432,7 @@ export default function CreditAnalysis() {
     try {
       const updateData: any = {
         type: 'housing',
-        current_step: firstHousingStage,
+        current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         result: 'pending',
       }
@@ -393,7 +446,7 @@ export default function CreditAnalysis() {
         await pb.collection('process_logs').create({
           process: processToLink.id,
           from_step: processToLink.current_step || '',
-          to_step: firstHousingStage,
+          to_step: 'Triagem CCA',
           from_status: processToLink.status || '',
           to_status: 'Nova Solicitação',
           changed_by: user.id,
@@ -408,9 +461,14 @@ export default function CreditAnalysis() {
       setSelectedCompanyId('none')
       setCompanySearch('')
       loadData()
-    } catch (e) {
-      console.error(e)
-      toast({ title: 'Erro ao transferir processo.', variant: 'destructive' })
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: 'Erro ao enviar para Kanban',
+        description:
+          err?.response?.message || err?.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -720,6 +778,53 @@ export default function CreditAnalysis() {
           Gerencie os processos aguardando análise de crédito e reavaliação. Clique nos cards para
           filtrar as filas.
         </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-lg border shadow-sm mb-6">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">Buscar</label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou CPF..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-slate-50"
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">Imobiliária</label>
+          <Select value={agencyFilter} onValueChange={setAgencyFilter}>
+            <SelectTrigger className="bg-slate-50">
+              <SelectValue placeholder="Todas as Imobiliárias" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Imobiliárias</SelectItem>
+              {uniqueAgencies.map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-slate-700">Corretor Parceiro</label>
+          <Select value={brokerFilter} onValueChange={setBrokerFilter}>
+            <SelectTrigger className="bg-slate-50">
+              <SelectValue placeholder="Todos os Corretores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Corretores</SelectItem>
+              {uniqueBrokers.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
@@ -1143,7 +1248,7 @@ export default function CreditAnalysis() {
             <DialogTitle>Transferir para Habitacional</DialogTitle>
             <DialogDescription>
               Tem certeza que deseja enviar este processo aprovado para o fluxo Habitacional? Ele
-              será movido para a etapa "<strong>{firstHousingStage}</strong>".
+              será movido para a etapa "<strong>Triagem CCA</strong>".
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">

@@ -137,7 +137,7 @@ export default function AgencyDashboard() {
 
         <Card
           className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
-          onClick={() => navigate('/agency/processes')}
+          onClick={() => navigate('/agency/processes', { state: { filterResult: 'in_progress' } })}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -152,7 +152,7 @@ export default function AgencyDashboard() {
 
         <Card
           className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
-          onClick={() => navigate('/agency/processes')}
+          onClick={() => navigate('/agency/processes', { state: { filterResult: 'approved' } })}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Aprovados</CardTitle>

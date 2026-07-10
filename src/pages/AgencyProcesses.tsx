@@ -1,7 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import { useAuth } from '@/contexts/auth-context'
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -37,6 +37,7 @@ import { format } from 'date-fns'
 export default function AgencyProcesses() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [processes, setProcesses] = useState<any[]>([])
   const [brokers, setBrokers] = useState<any[]>([])
 
@@ -44,7 +45,7 @@ export default function AgencyProcesses() {
   const [filterMaxValor, setFilterMaxValor] = useState('')
   const [filterData, setFilterData] = useState('')
   const [filterBroker, setFilterBroker] = useState('all')
-  const [filterResult, setFilterResult] = useState('all')
+  const [filterResult, setFilterResult] = useState(location.state?.filterResult || 'all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const [housingModalOpen, setHousingModalOpen] = useState(false)
@@ -124,14 +125,10 @@ export default function AgencyProcesses() {
   const confirmSendToHousing = async () => {
     if (!housingProcessId) return
     try {
-      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
-      const triagemStage = stages.find((s) => s.name === 'Triagem CCA')
-      const newStep = triagemStage?.name || 'Triagem CCA'
-
       const payload: any = {
         type: 'housing',
         status: 'Nova Solicitação',
-        current_step: newStep,
+        current_step: 'Triagem CCA',
         result: 'pending',
       }
       if (selectedCompanyForHousing !== 'none') {
@@ -159,12 +156,11 @@ export default function AgencyProcesses() {
       setHousingProcessId(null)
       fetchProcesses()
     } catch (err: any) {
-      import('@/lib/pocketbase/errors').then(({ getErrorMessage }) => {
-        toast({
-          title: 'Erro de Validação',
-          description: getErrorMessage(err) || 'Erro ao enviar para habitacional.',
-          variant: 'destructive',
-        })
+      toast({
+        title: 'Erro ao enviar para Kanban',
+        description:
+          err?.response?.message || err?.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
       })
     }
   }
@@ -244,7 +240,11 @@ export default function AgencyProcesses() {
     if (filterBroker !== 'all' && p.broker !== filterBroker) match = false
     if (filterResult !== 'all') {
       const r = p.result || 'pending'
-      if (r !== filterResult) match = false
+      if (filterResult === 'in_progress') {
+        if (r === 'approved' || r === 'rejected') match = false
+      } else {
+        if (r !== filterResult) match = false
+      }
     }
     return match
   })
@@ -321,6 +321,7 @@ export default function AgencyProcesses() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
+                  <SelectItem value="in_progress">Em Andamento</SelectItem>
                   <SelectItem value="approved">Aprovado</SelectItem>
                   <SelectItem value="rejected">Reprovado</SelectItem>
                   <SelectItem value="conditioned">Condicionado</SelectItem>

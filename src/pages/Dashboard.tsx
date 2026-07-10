@@ -80,11 +80,6 @@ export default function Dashboard() {
   const [clients, setClients] = useState<any[]>([])
   const [selectedBuyer, setSelectedBuyer] = useState('')
 
-  const [housingModalOpen, setHousingModalOpen] = useState(false)
-  const [housingProcessId, setHousingProcessId] = useState<string | null>(null)
-  const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
-  const [constructionCompanies, setConstructionCompanies] = useState<any[]>([])
-
   const [isUnassignedListOpen, setIsUnassignedListOpen] = useState(false)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
@@ -112,19 +107,9 @@ export default function Dashboard() {
     }
   }
 
-  const loadConstructionCompanies = async () => {
-    try {
-      const data = await pb.collection('construction_companies').getFullList({ sort: 'name' })
-      setConstructionCompanies(data)
-    } catch (e) {
-      console.error(e)
-    }
-  }
-
   useEffect(() => {
     loadData()
     loadClients()
-    loadConstructionCompanies()
   }, [])
 
   useRealtime('processes', () => loadData())
@@ -250,59 +235,6 @@ export default function Dashboard() {
     toast({ title: 'Processo iniciado com sucesso!' })
     setIsNewOpen(false)
     loadData()
-  }
-
-  const openHousingModal = (processId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setHousingProcessId(processId)
-    setSelectedCompanyForHousing('none')
-    setHousingModalOpen(true)
-  }
-
-  const confirmSendToHousing = async () => {
-    if (!housingProcessId) return
-    try {
-      const newStep = 'Triagem CCA'
-
-      const payload: any = {
-        type: 'housing',
-        current_step: newStep,
-        status: 'Nova Solicitação',
-      }
-      if (selectedCompanyForHousing !== 'none') {
-        payload.construction_company = selectedCompanyForHousing
-      } else {
-        payload.construction_company = ''
-      }
-      await updateProcess(housingProcessId, payload)
-
-      if (user?.id) {
-        try {
-          await pb.send('/backend/v1/process-logs/manual', {
-            method: 'POST',
-            body: JSON.stringify({
-              process: housingProcessId,
-              note:
-                'Processo enviado para o Kanban Habitacional' +
-                (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
-            }),
-            headers: { 'Content-Type': 'application/json' },
-          })
-        } catch (logErr) {
-          console.error('Erro ao registrar log manual', logErr)
-        }
-      }
-      toast({ title: 'Processo enviado para Kanban com sucesso!' })
-      setHousingModalOpen(false)
-      setHousingProcessId(null)
-      loadData()
-    } catch (e) {
-      toast({
-        title: 'Erro',
-        description: getErrorMessage(e) || 'Não foi possível enviar para habitacional.',
-        variant: 'destructive',
-      })
-    }
   }
 
   const getStatusBadge = (status: string, result: string) => {
@@ -1379,38 +1311,6 @@ export default function Dashboard() {
           </>
         )}
       </Tabs>
-
-      <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enviar processo para Kanban Habitacional</DialogTitle>
-            <DialogDescription>
-              Você pode vincular uma construtora a este processo (opcional).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedCompanyForHousing} onValueChange={setSelectedCompanyForHousing}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma construtora..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Não vincular construtora</SelectItem>
-                {constructionCompanies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setHousingModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmSendToHousing}>Confirmar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

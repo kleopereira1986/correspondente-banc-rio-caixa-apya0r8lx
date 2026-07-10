@@ -16,6 +16,13 @@ onRecordUpdateRequest((e) => {
     }
   }
 
+  // Bug Fix - Flow Logic: prevent reverting a housing process back to credit
+  if (originalType === 'housing' && newType === 'credit') {
+    throw new BadRequestError(
+      'Não é permitido reverter um processo habitacional para análise de crédito.',
+    )
+  }
+
   // Validação: requer construtora se for imóvel Novo ao entrar na Triagem CCA
   if (newType === 'housing' && newStep === 'Triagem CCA' && originalStep !== 'Triagem CCA') {
     const developmentTypeId = e.record.getString('development_type')

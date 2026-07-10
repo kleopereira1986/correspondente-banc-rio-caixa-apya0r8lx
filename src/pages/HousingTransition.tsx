@@ -83,7 +83,8 @@ export default function HousingTransition() {
         title: 'Sucesso',
         description: 'Processo enviado para Kanban com sucesso!',
       })
-      handleClose()
+      setOpen(false)
+      navigate('/housing-kanban')
     } catch (err: any) {
       toast({
         title: 'Erro ao enviar para Kanban',
@@ -146,7 +147,7 @@ export default function HousingTransition() {
             </DialogHeader>
             <div className="py-4 space-y-2">
               <p className="text-sm text-slate-700">
-                Confirma o envio para kanban habitacional na etapa triagem cca?
+                Confirma o envio para Kanban Habitacional na etapa triagem cca?
               </p>
               {selectedCompanyObj && (
                 <div className="rounded-md bg-muted p-3 text-sm">

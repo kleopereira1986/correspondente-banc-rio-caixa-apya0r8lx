@@ -355,8 +355,6 @@ export default function CreditAnalysis() {
   const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false)
   const [processToLink, setProcessToLink] = useState<any>(null)
   const [creditSearch, setCreditSearch] = useState('')
-  const [brokerFilter, setBrokerFilter] = useState<string>('all')
-  const [agencyFilter, setAgencyFilter] = useState<string>('all')
   const [brokers, setBrokers] = useState<any[]>([])
   const [agencies, setAgencies] = useState<any[]>([])
 
@@ -519,7 +517,6 @@ export default function CreditAnalysis() {
 
   const renderProcessList = (list: any[], emptyMessage: string) => {
     const filteredList = applyCreditFilters(list)
-    const list = filteredList
     const shouldRenderFilterBar = !renderedFilterBar
     if (shouldRenderFilterBar) renderedFilterBar = true
     const shouldRenderModal = showCompanySelect && !renderedCompanyModal

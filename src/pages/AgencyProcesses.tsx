@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { Search } from 'lucide-react'
 import { useRealtime } from '@/hooks/use-realtime'
 import { toast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
@@ -44,6 +45,7 @@ export default function AgencyProcesses() {
   const [filterData, setFilterData] = useState('')
   const [filterBroker, setFilterBroker] = useState('all')
   const [filterResult, setFilterResult] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [housingModalOpen, setHousingModalOpen] = useState(false)
   const [housingProcessId, setHousingProcessId] = useState<string | null>(null)
@@ -106,10 +108,10 @@ export default function AgencyProcesses() {
 
   const openHousingModal = (processId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (user?.role !== 'real_estate_agency') {
+    if (user?.role !== 'real_estate_agency' && user?.role !== 'master') {
       toast({
         title: 'Acesso negado',
-        description: 'Apenas a agência pode enviar para habitacional.',
+        description: 'Apenas a agência ou master pode enviar para habitacional.',
         variant: 'destructive',
       })
       return
@@ -122,7 +124,9 @@ export default function AgencyProcesses() {
   const confirmSendToHousing = async () => {
     if (!housingProcessId) return
     try {
-      const newStep = 'Triagem CCA'
+      const stages = await pb.collection('housing_stages').getFullList({ sort: 'order' })
+      const triagemStage = stages.find((s) => s.name === 'Triagem CCA')
+      const newStep = triagemStage?.name || 'Triagem CCA'
 
       const payload: any = {
         type: 'housing',
@@ -219,6 +223,12 @@ export default function AgencyProcesses() {
 
   const filteredProcesses = processes.filter((p) => {
     let match = true
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      const name = (p.expand?.buyer?.name || '').toLowerCase()
+      const cpf = (p.expand?.buyer?.cpf || '').toLowerCase()
+      if (!name.includes(q) && !cpf.includes(q)) match = false
+    }
     if (filterMinValor && (p.approved_financing_value || 0) < Number(filterMinValor)) match = false
     if (filterMaxValor && (p.approved_financing_value || 0) > Number(filterMaxValor)) match = false
     if (filterData) {
@@ -245,7 +255,16 @@ export default function AgencyProcesses() {
       <Card className="shadow-sm border-border/50">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Filtros</CardTitle>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
+          <div className="relative mt-4 mb-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou CPF do cliente..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Valor Min (R$)</label>
               <Input
@@ -407,7 +426,7 @@ export default function AgencyProcesses() {
                             SOLICITAR NOVA AVALIAÇÃO
                           </Button>
                         )}
-                        {user?.role === 'real_estate_agency' &&
+                        {(user?.role === 'real_estate_agency' || user?.role === 'master') &&
                           process.type === 'credit' &&
                           processResult === 'approved' && (
                             <Button

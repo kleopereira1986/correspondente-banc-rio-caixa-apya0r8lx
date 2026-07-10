@@ -3,8 +3,15 @@ import { useAuth } from '@/contexts/auth-context'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Users, FolderOpen, CheckCircle2, Clock, FileText, AlertCircle } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useRealtime } from '@/hooks/use-realtime'
 import { format } from 'date-fns'
 
@@ -33,7 +40,9 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 
 export default function AgencyDashboard() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [brokersCount, setBrokersCount] = useState(0)
+  const [taskStatusFilter, setTaskStatusFilter] = useState('all')
   const [processes, setProcesses] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,6 +92,8 @@ export default function AgencyDashboard() {
   const pendingTasksCount = tasks.filter(
     (t) => t.status === 'pending' || t.status === 'in_progress',
   ).length
+  const filteredTasks =
+    taskStatusFilter === 'all' ? tasks : tasks.filter((t) => t.status === taskStatusFilter)
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -94,7 +105,10 @@ export default function AgencyDashboard() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card className="shadow-sm border-border/50">
+        <Card
+          className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+          onClick={() => navigate('/agency/brokers')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total de Corretores
@@ -106,7 +120,10 @@ export default function AgencyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/50">
+        <Card
+          className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+          onClick={() => navigate('/agency/processes')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total de Processos
@@ -118,7 +135,10 @@ export default function AgencyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/50">
+        <Card
+          className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+          onClick={() => navigate('/agency/processes')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Em Andamento
@@ -130,7 +150,10 @@ export default function AgencyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/50">
+        <Card
+          className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+          onClick={() => navigate('/agency/processes')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">Aprovados</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -140,7 +163,10 @@ export default function AgencyDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-border/50">
+        <Card
+          className="shadow-sm border-border/50 cursor-pointer hover:shadow-md hover:border-primary/30 transition-all"
+          onClick={() => navigate('/tasks')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Tarefas Pendentes
@@ -156,21 +182,35 @@ export default function AgencyDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="shadow-sm border-border/50">
           <CardHeader className="border-b border-border/50">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-500" /> Tarefas dos Corretores
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-500" /> Tarefas dos Corretores
+              </CardTitle>
+              <Select value={taskStatusFilter} onValueChange={setTaskStatusFilter}>
+                <SelectTrigger className="w-[180px] h-8 text-sm">
+                  <SelectValue placeholder="Filtrar status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os Status</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="in_progress">Em Andamento</SelectItem>
+                  <SelectItem value="completed">Concluído</SelectItem>
+                  <SelectItem value="returned">Devolvido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">Carregando tarefas...</div>
-            ) : tasks.length === 0 ? (
+            ) : filteredTasks.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
                 <CheckCircle2 className="w-10 h-10 text-slate-200 mb-3" />
                 <p className="text-sm">Nenhuma tarefa solicitada pelos corretores.</p>
               </div>
             ) : (
               <div className="divide-y divide-border/50 max-h-[500px] overflow-y-auto">
-                {tasks.map((task) => {
+                {filteredTasks.map((task) => {
                   const status = statusConfig[task.status] || statusConfig.pending
                   const StatusIcon = status.icon
                   return (

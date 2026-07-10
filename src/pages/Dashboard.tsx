@@ -23,6 +23,7 @@ import {
   Filter,
   FileOutput,
   FileSpreadsheet,
+  Trash2,
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { createProcess, getUsers, updateProcess } from '@/services/api'
@@ -84,6 +85,8 @@ export default function Dashboard() {
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
   const [newClientName, setNewClientName] = useState('')
   const [newClientEmail, setNewClientEmail] = useState('')
+  const [deleteProcessId, setDeleteProcessId] = useState<string | null>(null)
+  const [isDeletingProcess, setIsDeletingProcess] = useState(false)
 
   const loadData = async () => {
     try {
@@ -286,11 +289,21 @@ export default function Dashboard() {
     new Set(processes.map((p) => p.expand?.broker?.name).filter(Boolean)),
   ) as string[]
 
-  const filtered = processes.filter(
-    (p) =>
-      p.expand?.buyer?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.id.toLowerCase().includes(search.toLowerCase()),
-  )
+  const filtered = processes.filter((p) => {
+    const q = search.toLowerCase()
+    const name1 = p.expand?.buyer?.name?.toLowerCase() || ''
+    const cpf1 = p.expand?.buyer?.cpf?.toLowerCase() || ''
+    const name2 = p.expand?.buyer_2?.name?.toLowerCase() || ''
+    const cpf2 = p.expand?.buyer_2?.cpf?.toLowerCase() || ''
+    const id = p.id.toLowerCase()
+    return (
+      name1.includes(q) ||
+      cpf1.includes(q) ||
+      name2.includes(q) ||
+      cpf2.includes(q) ||
+      id.includes(q)
+    )
+  })
 
   const filteredCredit = filtered.filter((p) => {
     if (p.type !== 'credit') return false
@@ -434,7 +447,32 @@ export default function Dashboard() {
     }
   }
 
-  const filteredHousing = filtered.filter((p) => p.type === 'housing')
+  const filteredHousing = filtered.filter((p) => {
+    if (p.type !== 'housing') return false
+    if (
+      agencyFilter !== 'all' &&
+      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+    )
+      return false
+    if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
+    return true
+  })
+
+  const handleDeleteProcess = async () => {
+    if (!deleteProcessId) return
+    setIsDeletingProcess(true)
+    try {
+      await pb.collection('processes').delete(deleteProcessId)
+      toast({ title: 'Processo excluído com sucesso.' })
+      setDeleteProcessId(null)
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro ao excluir processo.', variant: 'destructive' })
+    } finally {
+      setIsDeletingProcess(false)
+    }
+  }
 
   const pendingCount = processes.filter(
     (p) => p.result === 'pending' || p.status === 'Triagem' || p.status === 'Awaiting Registration',
@@ -662,6 +700,34 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!deleteProcessId} onOpenChange={(open) => !open && setDeleteProcessId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Processo</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir este processo permanentemente? Esta ação não pode ser
+              desfeita e removerá todos os dados e documentos vinculados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteProcessId(null)}
+              disabled={isDeletingProcess}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteProcess}
+              disabled={isDeletingProcess}
+            >
+              Excluir Processo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="fila_credito" className="w-full space-y-6">
         <TabsList className="bg-slate-100/50 flex-wrap h-auto">
           <TabsTrigger value="fila_credito">Fila de Processos Análise de Crédito</TabsTrigger>
@@ -722,11 +788,11 @@ export default function Dashboard() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Buscar cliente..."
+                      placeholder="Buscar cliente ou CPF..."
                       className="w-full sm:w-[200px] pl-9 h-9"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                    />
+                    />{' '}
                   </div>
                   <Button
                     variant="outline"
@@ -1004,17 +1070,43 @@ export default function Dashboard() {
               <CardTitle className="text-lg text-slate-800">
                 Fila de Processos Habitacional
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Buscar cliente..."
+                    placeholder="Buscar cliente ou CPF..."
                     className="w-full sm:w-[250px] pl-9 h-9"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
+                <Select value={agencyFilter} onValueChange={setAgencyFilter}>
+                  <SelectTrigger className="h-9 w-full sm:w-[180px] bg-white">
+                    <SelectValue placeholder="Imobiliária" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Imobiliárias</SelectItem>
+                    {uniqueAgencies.map((a) => (
+                      <SelectItem key={a} value={a}>
+                        {a}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={brokerFilter} onValueChange={setBrokerFilter}>
+                  <SelectTrigger className="h-9 w-full sm:w-[180px] bg-white">
+                    <SelectValue placeholder="Corretor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos Corretores</SelectItem>
+                    {uniqueBrokers.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
@@ -1105,28 +1197,44 @@ export default function Dashboard() {
                         {process.expand?.last_updated_by?.name || '-'}
                       </TableCell>
                       <TableCell className="py-4 text-right">
-                        {(user?.role === 'master' || user?.role === 'analyst') &&
-                          (!process.current_step ||
-                            ![
-                              'Triagem CCA',
-                              'Montagem de Pasta',
-                              'Análise de Documentos',
-                              'Emissão de Boleto',
-                              'Aguardando Avaliação',
-                              'Finalizado',
-                            ].includes(process.current_step)) && (
+                        <div className="flex items-center justify-end gap-2">
+                          {(user?.role === 'master' || user?.role === 'analyst') &&
+                            (!process.current_step ||
+                              ![
+                                'Triagem CCA',
+                                'Montagem de Pasta',
+                                'Análise de Documentos',
+                                'Emissão de Boleto',
+                                'Aguardando Avaliação',
+                                'Finalizado',
+                              ].includes(process.current_step)) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  navigate(`/housing-transition/${process.id}`)
+                                }}
+                              >
+                                Enviar para Kanban
+                              </Button>
+                            )}
+                          {user?.role === 'master' && (
                             <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs border-purple-200 text-purple-700 hover:bg-purple-50 whitespace-nowrap"
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                navigate(`/housing-transition/${process.id}`)
+                                setDeleteProcessId(process.id)
                               }}
+                              title="Excluir processo"
                             >
-                              Enviar para Kanban
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

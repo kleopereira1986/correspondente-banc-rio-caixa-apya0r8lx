@@ -1475,6 +1475,14 @@ export default function ProcessDetail() {
                   >
                     <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR MUDANÇA NA AVALIAÇÃO
                   </Button>
+                  {['master', 'analyst'].includes(user?.role || '') && (
+                    <Button
+                      className="w-full bg-teal-600 hover:bg-teal-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
+                      onClick={() => navigate(`/housing-transition/${process.id}`)}
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2" /> ENVIAR PARA PROCESSO HABITACIONAL
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}

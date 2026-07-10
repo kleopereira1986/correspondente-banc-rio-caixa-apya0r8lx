@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useAuth } from '@/contexts/auth-context'
+import { useState, useEffect, useMemo } from 'react'
+import { useAuth, type Role } from '@/contexts/auth-context'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -14,11 +14,37 @@ import { Label } from '@/components/ui/label'
 import { Copy, CheckCircle2, ExternalLink, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+interface FormOption {
+  value: string
+  label: string
+}
+
+const ALL_FORM_OPTIONS: FormOption[] = [
+  { value: 'credit-analysis', label: 'Solicitação de Crédito' },
+  { value: 'housing', label: 'Processo Habitacional' },
+]
+
+const FULL_ACCESS_ROLES: Role[] = ['master', 'analyst']
+
 export default function GenerateLink() {
   const { user } = useAuth()
   const [type, setType] = useState('credit-analysis')
   const [correspondente, setCorrespondente] = useState('CAPITAL CREDITO')
   const [copied, setCopied] = useState(false)
+
+  const availableForms = useMemo(() => {
+    const role = user?.role as Role | undefined
+    if (role && FULL_ACCESS_ROLES.includes(role)) {
+      return ALL_FORM_OPTIONS
+    }
+    return ALL_FORM_OPTIONS.filter((opt) => opt.value !== 'housing')
+  }, [user?.role])
+
+  useEffect(() => {
+    if (!availableForms.some((opt) => opt.value === type)) {
+      setType(availableForms[0]?.value ?? 'credit-analysis')
+    }
+  }, [availableForms, type])
 
   const generatedLink = `${window.location.origin}/formulario?correspondente=${encodeURIComponent(correspondente)}&usuario=${user?.id || ''}&form=${type}`
 
@@ -85,8 +111,11 @@ export default function GenerateLink() {
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="credit-analysis">Solicitação de Crédito</SelectItem>
-                  <SelectItem value="housing">Processo Habitacional</SelectItem>
+                  {availableForms.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -124,6 +153,13 @@ export default function GenerateLink() {
             <p className="text-xs text-slate-500 leading-relaxed max-w-2xl">
               Este link contém o seu código de identificação único. Os clientes que se cadastrarem
               através dele serão vinculados e atribuídos automaticamente à sua carteira.
+              {availableForms.length === 1 && (
+                <>
+                  {' '}
+                  Disponível exclusivamente para Solicitação de Crédito. Processos habitacionais são
+                  restritos à equipe interna.
+                </>
+              )}
             </p>
           </div>
 

@@ -59,10 +59,10 @@ export default function HousingKanban() {
 
   const loadData = async () => {
     try {
-      const filter =
-        user?.role === 'real_estate_agency'
-          ? `broker.real_estate_agency = '${user.real_estate_agency}'`
-          : undefined
+      let filter: string | undefined
+      if (user?.role === 'real_estate_agency' && user.real_estate_agency) {
+        filter = `broker.real_estate_agency = '${user.real_estate_agency}'`
+      }
       const [stgs, procs, users] = await Promise.all([
         getHousingStages(),
         getProcesses(filter),
@@ -73,7 +73,11 @@ export default function HousingKanban() {
       setCreditProcesses(procs.filter((p) => p.type === 'credit' && p.result === 'approved'))
       setBuyers(users)
     } catch (e) {
-      toast({ title: 'Erro', variant: 'destructive' })
+      toast({
+        title: 'Erro ao carregar dados',
+        description: getErrorMessage(e),
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -144,6 +148,7 @@ export default function HousingKanban() {
         result: 'pending',
         observations: updatedObservations,
         assigned_analyst: user?.role === 'analyst' ? user.id : credProc.assigned_analyst,
+        last_updated_by: user?.id || '',
       })
 
       if (user?.id) {

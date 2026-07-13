@@ -454,6 +454,7 @@ export default function CreditAnalysis() {
         current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         result: 'pending',
+        last_updated_by: user?.id || '',
       }
       if (selectedCompanyId && selectedCompanyId !== 'none') {
         updateData.construction_company = selectedCompanyId
@@ -462,15 +463,18 @@ export default function CreditAnalysis() {
       await pb.collection('processes').update(processToLink.id, updateData)
 
       if (user?.id) {
-        await pb.collection('process_logs').create({
-          process: processToLink.id,
-          from_step: processToLink.current_step || '',
-          to_step: 'Triagem CCA',
-          from_status: processToLink.status || '',
-          to_status: 'Nova Solicitação',
-          changed_by: user.id,
-          note: `Processo transferido da Análise de Crédito para Habitacional.${selectedCompanyId !== 'none' ? ' Construtora vinculada.' : ''}`,
-        })
+        try {
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: processToLink.id,
+              note: 'Processo enviado para o fluxo habitacional',
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+        } catch (logErr) {
+          console.error('Erro ao registrar log manual', logErr)
+        }
       }
 
       toast({ title: 'Processo transferido para o fluxo Habitacional com sucesso.' })

@@ -47,6 +47,7 @@ import {
 } from '@/services/api'
 import { useRealtime } from '@/hooks/use-realtime'
 import { cn } from '@/lib/utils'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   Select,
   SelectContent,
@@ -380,27 +381,31 @@ export default function ProcessDetail() {
         current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         result: 'pending',
+        last_updated_by: user?.id || '',
       }
       if (selectedCompanyForHousing !== 'none') {
         payload.construction_company = selectedCompanyForHousing
       }
       await updateProcess(process.id, payload)
-      await createProcessLog({
-        process: process.id,
-        from_status: process.status,
-        to_status: 'Nova Solicitação',
-        changed_by: user?.id,
-        note:
-          'Processo enviado para o Kanban Habitacional' +
-          (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
-      })
+      await pb
+        .send('/backend/v1/process-logs/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            process: process.id,
+            note:
+              'Processo enviado para o Kanban Habitacional (Triagem CCA)' +
+              (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+        .catch(() => {})
       toast({ title: 'Processo enviado para o Kanban Habitacional com sucesso!' })
       setHousingModalOpen(false)
       loadData()
     } catch (e) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível enviar para habitacional.',
+        description: getErrorMessage(e) || 'Não foi possível enviar para habitacional.',
         variant: 'destructive',
       })
     }

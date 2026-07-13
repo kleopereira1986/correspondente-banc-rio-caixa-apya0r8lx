@@ -9,13 +9,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { ConstructionCompanySelect } from '@/components/ConstructionCompanySelect'
 import { updateProcess } from '@/services/api'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { Loader2, Building2 } from 'lucide-react'
+import { Loader2, Building2, AlertTriangle } from 'lucide-react'
 
 export default function HousingTransition() {
   const { id } = useParams<{ id: string }>()
@@ -28,6 +29,7 @@ export default function HousingTransition() {
   const [confirmStep, setConfirmStep] = useState(false)
   const [companies, setCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>('')
+  const [existingCompany, setExistingCompany] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
 
   const isAuthorized = user?.role === 'master' || user?.role === 'analyst'
@@ -37,20 +39,29 @@ export default function HousingTransition() {
       navigate('/dashboard')
       return
     }
-    pb.collection('construction_companies')
-      .getFullList({ sort: 'name' })
-      .then(setCompanies)
+    Promise.all([
+      pb.collection('construction_companies').getFullList({ sort: 'name' }),
+      id ? pb.collection('processes').getOne(id) : Promise.resolve(null),
+    ])
+      .then(([companyList, processRecord]) => {
+        setCompanies(companyList)
+        if (processRecord?.construction_company) {
+          setExistingCompany(processRecord.construction_company)
+          setSelectedCompany(processRecord.construction_company)
+        }
+      })
       .catch(() => {
         toast({
           title: 'Erro',
-          description: 'Não foi possível carregar as construtoras.',
+          description: 'Não foi possível carregar os dados.',
           variant: 'destructive',
         })
       })
       .finally(() => setLoading(false))
-  }, [isAuthorized, navigate, toast])
+  }, [isAuthorized, navigate, toast, id])
 
   const selectedCompanyObj = companies.find((c) => c.id === selectedCompany)
+  const hasExistingCompany = !!existingCompany
 
   const handleClose = () => {
     setOpen(false)
@@ -58,17 +69,20 @@ export default function HousingTransition() {
   }
 
   const handleConfirm = async () => {
-    if (!id || !selectedCompany) return
+    if (!id) return
     setSubmitting(true)
     try {
-      await updateProcess(id, {
+      const payload: any = {
         type: 'housing',
         current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
         result: 'pending',
-        construction_company: selectedCompany,
-        last_updated_by: user?.id,
-      })
+        last_updated_by: user?.id || '',
+      }
+      if (selectedCompany) {
+        payload.construction_company = selectedCompany
+      }
+      await updateProcess(id, payload)
       await pb
         .send('/backend/v1/process-logs/manual', {
           method: 'POST',
@@ -78,14 +92,14 @@ export default function HousingTransition() {
           }),
           headers: { 'Content-Type': 'application/json' },
         })
-        .catch(console.error)
+        .catch(() => {})
       toast({
         title: 'Sucesso',
-        description: 'Processo enviado para Kanban com sucesso!',
+        description: 'Processo enviado para o Kanban Habitacional com sucesso!',
       })
       setOpen(false)
       navigate('/housing-kanban')
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: 'Erro ao enviar para Kanban',
         description: getErrorMessage(err) || 'Erro ao comunicar com o servidor.',
@@ -117,11 +131,14 @@ export default function HousingTransition() {
           <>
             <DialogHeader>
               <DialogTitle>Enviar para triagem CCA</DialogTitle>
+              <DialogDescription>
+                {hasExistingCompany
+                  ? 'Este processo já possui uma construtora vinculada. Você pode mantê-la ou selecionar outra.'
+                  : 'Selecione uma construtora para vincular a este processo, ou continue sem vincular.'}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <Label className="text-sm font-medium">
-                Selecione a construtora <span className="text-red-500">*</span>
-              </Label>
+              <Label className="text-sm font-medium">Construtora</Label>
               <ConstructionCompanySelect
                 companies={companies}
                 value={selectedCompany}
@@ -132,10 +149,7 @@ export default function HousingTransition() {
               <Button variant="outline" onClick={handleClose} disabled={submitting}>
                 Cancelar
               </Button>
-              <Button
-                onClick={() => selectedCompany && setConfirmStep(true)}
-                disabled={!selectedCompany || submitting}
-              >
+              <Button onClick={() => setConfirmStep(true)} disabled={submitting}>
                 Avançar
               </Button>
             </DialogFooter>
@@ -144,10 +158,10 @@ export default function HousingTransition() {
           <>
             <DialogHeader>
               <DialogTitle>Enviar para triagem CCA</DialogTitle>
+              <DialogDescription>Confirma a ação Enviar para triagem CCA?</DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
-              <p className="text-sm text-slate-700">Confirma a ação Enviar para triagem CCA?</p>
-              {selectedCompanyObj && (
+              {selectedCompanyObj ? (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -155,6 +169,14 @@ export default function HousingTransition() {
                       Construtora: <strong>{selectedCompanyObj.name}</strong>
                     </span>
                   </div>
+                </div>
+              ) : (
+                <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>
+                    Continuando sem vincular uma construtora. Se o empreendimento for do tipo
+                    &quot;Novo&quot;, a operação será rejeitada.
+                  </span>
                 </div>
               )}
             </div>

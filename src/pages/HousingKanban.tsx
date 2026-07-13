@@ -141,6 +141,7 @@ export default function HousingKanban() {
         type: 'housing',
         current_step: firstStep,
         status: 'Nova Solicitação',
+        result: 'pending',
         observations: updatedObservations,
         assigned_analyst: user?.role === 'analyst' ? user.id : credProc.assigned_analyst,
       })

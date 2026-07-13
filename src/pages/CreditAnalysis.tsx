@@ -390,6 +390,11 @@ export default function CreditAnalysis() {
   const handleTransitionToHousing = async () => {
     if (!transitionProcess) return
     setProcessToLink(transitionProcess)
+    if (transitionProcess.construction_company) {
+      setSelectedCompanyId(transitionProcess.construction_company)
+    } else {
+      setSelectedCompanyId('none')
+    }
     setShowCompanySelect(true)
   }
 
@@ -648,10 +653,20 @@ export default function CreditAnalysis() {
                 >
                   Cancelar
                 </button>
+                {processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
+                selectedCompanyId === 'none' ? (
+                  <p className="text-sm text-red-600 font-medium absolute left-6">
+                    Imóvel "Novo" exige construtora.
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={submitTransition}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                  disabled={
+                    processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
+                    selectedCompanyId === 'none'
+                  }
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {selectedCompanyId === 'none' ? 'Continuar sem vincular' : 'Vincular e Continuar'}
                 </button>

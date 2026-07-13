@@ -365,52 +365,6 @@ export default function ProcessDetail() {
     }
   }
 
-  const [housingModalOpen, setHousingModalOpen] = useState(false)
-  const [selectedCompanyForHousing, setSelectedCompanyForHousing] = useState('none')
-
-  const openHousingModal = () => {
-    setSelectedCompanyForHousing('none')
-    setHousingModalOpen(true)
-  }
-
-  const confirmSendToHousing = async () => {
-    if (!process) return
-    try {
-      const payload: any = {
-        type: 'housing',
-        current_step: 'Triagem CCA',
-        status: 'Nova Solicitação',
-        result: 'pending',
-        last_updated_by: user?.id || '',
-      }
-      if (selectedCompanyForHousing !== 'none') {
-        payload.construction_company = selectedCompanyForHousing
-      }
-      await updateProcess(process.id, payload)
-      await pb
-        .send('/backend/v1/process-logs/manual', {
-          method: 'POST',
-          body: JSON.stringify({
-            process: process.id,
-            note:
-              'Processo enviado para o Kanban Habitacional (Triagem CCA)' +
-              (selectedCompanyForHousing !== 'none' ? ' e vinculado à construtora' : ''),
-          }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-        .catch(() => {})
-      toast({ title: 'Processo enviado para o Kanban Habitacional com sucesso!' })
-      setHousingModalOpen(false)
-      loadData()
-    } catch (e) {
-      toast({
-        title: 'Erro',
-        description: getErrorMessage(e) || 'Não foi possível enviar para habitacional.',
-        variant: 'destructive',
-      })
-    }
-  }
-
   const handleChangeEvaluation = async () => {
     if (!process) return
     if (!changeEvaluationReason.trim()) {
@@ -1504,24 +1458,6 @@ export default function ProcessDetail() {
                     onClick={() => setReevaluationDialog(true)}
                   >
                     <RefreshCcw className="w-4 h-4 mr-2" /> SOLICITAR REAVALIAÇÃO
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-          {process.result === 'approved' &&
-            process.type === 'credit' &&
-            user?.role === 'real_estate_agency' && (
-              <Card className="shadow-sm border-purple-200 border-t-4 border-t-purple-500 mb-6">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg text-purple-900">Ações da Agência</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-semibold tracking-wide"
-                    onClick={openHousingModal}
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2" /> Enviar para processo habitacional
                   </Button>
                 </CardContent>
               </Card>
@@ -2990,40 +2926,6 @@ export default function ProcessDetail() {
             </Button>
             <Button onClick={handleEditBrokerSubmit} disabled={!selectedBroker}>
               Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={housingModalOpen} onOpenChange={setHousingModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Enviar para triagem CCA</DialogTitle>
-            <DialogDescription>
-              Selecione uma construtora para vincular a este processo ou continue sem vincular.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Select value={selectedCompanyForHousing} onValueChange={setSelectedCompanyForHousing}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma construtora..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Não vincular construtora</SelectItem>
-                {constructionCompanies.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setHousingModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmSendToHousing}>
-              {selectedCompanyForHousing === 'none' ? 'Continuar sem vincular' : 'Continuar'}
             </Button>
           </DialogFooter>
         </DialogContent>

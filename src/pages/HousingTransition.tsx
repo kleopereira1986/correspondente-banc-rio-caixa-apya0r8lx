@@ -63,6 +63,20 @@ export default function HousingTransition() {
   const selectedCompanyObj = companies.find((c) => c.id === selectedCompany)
   const hasExistingCompany = !!existingCompany
 
+  const [processData, setProcessData] = useState<any>(null)
+
+  useEffect(() => {
+    if (id) {
+      pb.collection('processes')
+        .getOne(id, { expand: 'development_type' })
+        .then(setProcessData)
+        .catch(() => {})
+    }
+  }, [id])
+
+  const isNovo = processData?.expand?.development_type?.name?.toLowerCase() === 'novo'
+  const canProceed = !isNovo || !!selectedCompanyObj
+
   const handleClose = () => {
     setOpen(false)
     navigate(-1)
@@ -149,10 +163,18 @@ export default function HousingTransition() {
               <Button variant="outline" onClick={handleClose} disabled={submitting}>
                 Cancelar
               </Button>
-              <Button onClick={() => setConfirmStep(true)} disabled={submitting}>
+              <Button onClick={() => setConfirmStep(true)} disabled={submitting || !canProceed}>
                 Avançar
               </Button>
             </DialogFooter>
+            {isNovo && !selectedCompanyObj && (
+              <div className="px-6 pb-4 pt-2">
+                <p className="text-sm text-red-600 font-medium">
+                  Este processo é de um imóvel "Novo". É obrigatório selecionar uma construtora para
+                  avançar.
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -173,10 +195,7 @@ export default function HousingTransition() {
               ) : (
                 <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>
-                    Continuando sem vincular uma construtora. Se o empreendimento for do tipo
-                    &quot;Novo&quot;, a operação será rejeitada.
-                  </span>
+                  <span>Continuando sem vincular uma construtora.</span>
                 </div>
               )}
             </div>
@@ -184,11 +203,22 @@ export default function HousingTransition() {
               <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={submitting}>
                 Voltar
               </Button>
-              <Button onClick={handleConfirm} disabled={submitting}>
+              <Button
+                onClick={handleConfirm}
+                disabled={submitting || (isNovo && !selectedCompanyObj)}
+              >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Confirmar
               </Button>
             </DialogFooter>
+            {isNovo && !selectedCompanyObj && (
+              <div className="px-6 pb-4">
+                <p className="text-sm text-red-600 font-medium">
+                  Este processo é de um imóvel "Novo". É obrigatório selecionar uma construtora para
+                  confirmar.
+                </p>
+              </div>
+            )}
           </>
         )}
       </DialogContent>

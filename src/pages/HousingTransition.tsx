@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label'
 import { ConstructionCompanySelect } from '@/components/ConstructionCompanySelect'
 import { updateProcess } from '@/services/api'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
-import { Loader2, Building2, AlertTriangle } from 'lucide-react'
+import { Loader2, Building2 } from 'lucide-react'
 
 export default function HousingTransition() {
   const { id } = useParams<{ id: string }>()
@@ -29,10 +29,11 @@ export default function HousingTransition() {
   const [confirmStep, setConfirmStep] = useState(false)
   const [companies, setCompanies] = useState<any[]>([])
   const [selectedCompany, setSelectedCompany] = useState<string>('')
-  const [existingCompany, setExistingCompany] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
 
   const isAuthorized = user?.role === 'master' || user?.role === 'analyst'
+
+  const [processData, setProcessData] = useState<any>(null)
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -41,14 +42,16 @@ export default function HousingTransition() {
     }
     Promise.all([
       pb.collection('construction_companies').getFullList({ sort: 'name' }),
-      id ? pb.collection('processes').getOne(id) : Promise.resolve(null),
+      id
+        ? pb.collection('processes').getOne(id, { expand: 'development_type' })
+        : Promise.resolve(null),
     ])
       .then(([companyList, processRecord]) => {
         setCompanies(companyList)
         if (processRecord?.construction_company) {
-          setExistingCompany(processRecord.construction_company)
           setSelectedCompany(processRecord.construction_company)
         }
+        setProcessData(processRecord)
       })
       .catch(() => {
         toast({
@@ -61,21 +64,7 @@ export default function HousingTransition() {
   }, [isAuthorized, navigate, toast, id])
 
   const selectedCompanyObj = companies.find((c) => c.id === selectedCompany)
-  const hasExistingCompany = !!existingCompany
-
-  const [processData, setProcessData] = useState<any>(null)
-
-  useEffect(() => {
-    if (id) {
-      pb.collection('processes')
-        .getOne(id, { expand: 'development_type' })
-        .then(setProcessData)
-        .catch(() => {})
-    }
-  }, [id])
-
-  const isNovo = processData?.expand?.development_type?.name?.toLowerCase() === 'novo'
-  const canProceed = !isNovo || !!selectedCompanyObj
+  const canProceed = !!selectedCompanyObj
 
   const handleClose = () => {
     setOpen(false)
@@ -84,15 +73,23 @@ export default function HousingTransition() {
 
   const handleConfirm = async () => {
     if (!id) return
+    if (!selectedCompany) {
+      toast({
+        title: 'Aviso',
+        description: 'Selecione uma construtora para continuar.',
+        variant: 'destructive',
+      })
+      return
+    }
     setSubmitting(true)
     try {
       const payload: any = {
         type: 'housing',
         current_step: 'Triagem CCA',
+        status: 'Nova Solicitação',
+        result: 'approved',
+        construction_company: selectedCompany,
         last_updated_by: user?.id || '',
-      }
-      if (selectedCompany) {
-        payload.construction_company = selectedCompany
       }
       await updateProcess(id, payload)
       await pb
@@ -102,6 +99,8 @@ export default function HousingTransition() {
             process: id,
             from_step: processData?.current_step || '',
             to_step: 'Triagem CCA',
+            from_status: processData?.status || '',
+            to_status: 'Nova Solicitação',
             note: 'Processo enviado para o fluxo habitacional',
           }),
           headers: { 'Content-Type': 'application/json' },
@@ -109,7 +108,7 @@ export default function HousingTransition() {
         .catch(() => {})
       toast({
         title: 'Sucesso',
-        description: 'Processo enviado para o Kanban Habitacional com sucesso!',
+        description: 'Processo movido para TRIAGEM CCA com sucesso!',
       })
       setOpen(false)
       navigate('/housing-kanban')
@@ -144,20 +143,23 @@ export default function HousingTransition() {
         {!confirmStep ? (
           <>
             <DialogHeader>
-              <DialogTitle>Enviar para triagem CCA</DialogTitle>
+              <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
               <DialogDescription>
-                {hasExistingCompany
-                  ? 'Este processo já possui uma construtora vinculada. Você pode mantê-la ou selecionar outra.'
-                  : 'Selecione uma construtora para vincular a este processo, ou continue sem vincular.'}
+                Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
-              <Label className="text-sm font-medium">Construtora</Label>
+              <Label className="text-sm font-medium">Construtora *</Label>
               <ConstructionCompanySelect
                 companies={companies}
                 value={selectedCompany}
                 onChange={setSelectedCompany}
               />
+              {!selectedCompanyObj && (
+                <p className="text-sm text-red-600 font-medium">
+                  É obrigatório selecionar uma construtora para continuar.
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={handleClose} disabled={submitting}>
@@ -167,23 +169,17 @@ export default function HousingTransition() {
                 Avançar
               </Button>
             </DialogFooter>
-            {isNovo && !selectedCompanyObj && (
-              <div className="px-6 pb-4 pt-2">
-                <p className="text-sm text-red-600 font-medium">
-                  Este processo é de um imóvel "Novo". É obrigatório selecionar uma construtora para
-                  avançar.
-                </p>
-              </div>
-            )}
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Enviar para triagem CCA</DialogTitle>
-              <DialogDescription>Confirma a ação Enviar para triagem CCA?</DialogDescription>
+              <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
+              <DialogDescription>
+                Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
+              </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
-              {selectedCompanyObj ? (
+              {selectedCompanyObj && (
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -192,33 +188,17 @@ export default function HousingTransition() {
                     </span>
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800 flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>Continuando sem vincular uma construtora.</span>
-                </div>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirmStep(false)} disabled={submitting}>
                 Voltar
               </Button>
-              <Button
-                onClick={handleConfirm}
-                disabled={submitting || (isNovo && !selectedCompanyObj)}
-              >
+              <Button onClick={handleConfirm} disabled={submitting || !selectedCompanyObj}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Confirmar
               </Button>
             </DialogFooter>
-            {isNovo && !selectedCompanyObj && (
-              <div className="px-6 pb-4">
-                <p className="text-sm text-red-600 font-medium">
-                  Este processo é de um imóvel "Novo". É obrigatório selecionar uma construtora para
-                  confirmar.
-                </p>
-              </div>
-            )}
           </>
         )}
       </DialogContent>

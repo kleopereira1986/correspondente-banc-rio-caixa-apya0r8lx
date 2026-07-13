@@ -38,6 +38,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { ConstructionCompanySelect } from '@/components/ConstructionCompanySelect'
 
 export default function CreditAnalysis() {
   const { user } = useAuth()
@@ -174,7 +176,6 @@ export default function CreditAnalysis() {
   }
 
   const cadastramentoComPendencia = cadastramentoBase.filter((p) => checkProcessPendency(p))
-
   const cadastramentoSemPendencia = cadastramentoBase.filter((p) => !checkProcessPendency(p))
 
   const stats = {
@@ -230,9 +231,7 @@ export default function CreditAnalysis() {
 
   const handleAuthorization = async (procId: string) => {
     try {
-      await pb.collection('processes').update(procId, {
-        status: 'Autorização Concluída',
-      })
+      await pb.collection('processes').update(procId, { status: 'Autorização Concluída' })
       if (user?.id) {
         await pb.collection('process_logs').create({
           process: procId,
@@ -249,9 +248,7 @@ export default function CreditAnalysis() {
 
   const handleAcknowledgePendency = async (procId: string) => {
     try {
-      await pb.collection('processes').update(procId, {
-        status: 'Em Cadastramento',
-      })
+      await pb.collection('processes').update(procId, { status: 'Em Cadastramento' })
       if (user?.id) {
         await pb.collection('process_logs').create({
           process: procId,
@@ -308,12 +305,10 @@ export default function CreditAnalysis() {
       })
       return
     }
-
     setIsSubmittingReevaluation(true)
     try {
       const fromStep = reevaluationProcess.current_step || 'Decisão'
       const fromStatus = reevaluationProcess.status || 'Condicionado'
-
       await pb.collection('processes').update(reevaluationProcess.id, {
         analysis_type: 'reevaluation',
         is_conformity_approved: true,
@@ -321,7 +316,6 @@ export default function CreditAnalysis() {
         status: 'Aguardando Análise',
         result: 'pending',
       })
-
       if (user?.id) {
         await pb.collection('process_logs').create({
           process: reevaluationProcess.id,
@@ -333,7 +327,6 @@ export default function CreditAnalysis() {
           note: `Reavaliação solicitada pelo corretor. Motivo: ${reevaluationReason.trim()}`,
         })
       }
-
       toast({ title: 'Reavaliação solicitada com sucesso!' })
       setReevaluationProcess(null)
       setReevaluationReason('')
@@ -351,11 +344,7 @@ export default function CreditAnalysis() {
   }
 
   const [companies, setCompanies] = useState<any[]>([])
-  const [showCompanySelect, setShowCompanySelect] = useState(false)
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('none')
-  const [companySearch, setCompanySearch] = useState('')
-  const [isCompanyDropdownOpen, setIsCompanyDropdownOpen] = useState(false)
-  const [processToLink, setProcessToLink] = useState<any>(null)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
   const [creditSearch, setCreditSearch] = useState('')
   const [brokers, setBrokers] = useState<any[]>([])
   const [agencies, setAgencies] = useState<any[]>([])
@@ -378,26 +367,59 @@ export default function CreditAnalysis() {
       .catch(console.error)
   }, [])
 
-  const filteredCompanies = companies.filter(
-    (c) =>
-      c.name.toLowerCase().includes(companySearch.toLowerCase()) || c.cnpj.includes(companySearch),
-  )
-
-  let selectedCompanyName = 'Não vincular construtora'
-  if (selectedCompanyId !== 'none') {
-    const c = companies.find((c) => c.id === selectedCompanyId)
-    if (c) selectedCompanyName = `${c.name} (${c.cnpj})`
-  }
-
-  const handleTransitionToHousing = async () => {
-    if (!transitionProcess) return
-    setProcessToLink(transitionProcess)
-    if (transitionProcess.construction_company) {
-      setSelectedCompanyId(transitionProcess.construction_company)
-    } else {
-      setSelectedCompanyId('none')
+  const submitTransition = async () => {
+    if (!transitionProcess || isTransitioning) return
+    if (!selectedCompanyId) {
+      toast({
+        title: 'Aviso',
+        description: 'Selecione uma construtora para continuar.',
+        variant: 'destructive',
+      })
+      return
     }
-    setShowCompanySelect(true)
+    setIsTransitioning(true)
+    try {
+      const updateData: any = {
+        type: 'housing',
+        current_step: 'Triagem CCA',
+        status: 'Nova Solicitação',
+        result: 'approved',
+        construction_company: selectedCompanyId,
+        last_updated_by: user?.id || '',
+      }
+      await pb.collection('processes').update(transitionProcess.id, updateData)
+      try {
+        await pb.send('/backend/v1/process-logs/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            process: transitionProcess.id,
+            from_step: transitionProcess.current_step || '',
+            to_step: 'Triagem CCA',
+            from_status: transitionProcess.status || '',
+            to_status: 'Nova Solicitação',
+            note: 'Processo enviado para o fluxo habitacional',
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (logErr) {
+        console.error('Erro ao registrar log manual', logErr)
+      }
+      toast({ title: 'Processo movido para TRIAGEM CCA com sucesso!' })
+      setTransitionProcess(null)
+      setSelectedCompanyId('')
+      navigate('/housing-kanban')
+      loadData()
+    } catch (err: any) {
+      console.error(err)
+      toast({
+        title: 'Erro ao enviar para Kanban',
+        description:
+          err?.response?.message || err?.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTransitioning(false)
+    }
   }
 
   const handleChangeEvaluation = async () => {
@@ -410,18 +432,15 @@ export default function CreditAnalysis() {
       })
       return
     }
-
     setIsSubmittingChangeEvaluation(true)
     try {
       const fromStep = changeEvaluationProcess.current_step || 'Aprovado'
-
       await pb.collection('processes').update(changeEvaluationProcess.id, {
         current_step: 'triagem',
         result: 'pending',
         status: 'Aguardando Triagem',
         is_conformity_approved: false,
       })
-
       if (user?.id) {
         await pb.collection('process_logs').create({
           process: changeEvaluationProcess.id,
@@ -431,7 +450,6 @@ export default function CreditAnalysis() {
           note: changeEvaluationReason.trim(),
         })
       }
-
       toast({ title: 'Mudança na avaliação solicitada com sucesso!' })
       setChangeEvaluationProcess(null)
       setChangeEvaluationReason('')
@@ -448,62 +466,6 @@ export default function CreditAnalysis() {
     }
   }
 
-  const submitTransition = async () => {
-    if (!processToLink || isTransitioning) return
-    setIsTransitioning(true)
-    try {
-      const updateData: any = {
-        type: 'housing',
-        current_step: 'Triagem CCA',
-        status: 'Nova Solicitação',
-        result: 'approved',
-        last_updated_by: user?.id || '',
-      }
-      if (selectedCompanyId && selectedCompanyId !== 'none') {
-        updateData.construction_company = selectedCompanyId
-      }
-
-      await pb.collection('processes').update(processToLink.id, updateData)
-
-      try {
-        await pb.send('/backend/v1/process-logs/manual', {
-          method: 'POST',
-          body: JSON.stringify({
-            process: processToLink.id,
-            from_step: processToLink.current_step || '',
-            to_step: 'Triagem CCA',
-            from_status: processToLink.status || '',
-            to_status: 'Nova Solicitação',
-            note: 'Processo enviado para o fluxo habitacional',
-          }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-      } catch (logErr) {
-        console.error('Erro ao registrar log manual', logErr)
-      }
-
-      toast({ title: 'Processo enviado para o Kanban Habitacional com sucesso!' })
-      setTransitionProcess(null)
-      setProcessToLink(null)
-      setShowCompanySelect(false)
-      setSelectedCompanyId('none')
-      setCompanySearch('')
-      navigate('/housing-kanban')
-      loadData()
-    } catch (err: any) {
-      console.error(err)
-      toast({
-        title: 'Erro ao enviar para Kanban',
-        description:
-          err?.response?.message || err?.message || 'Falha na comunicação com o servidor.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsTransitioning(false)
-    }
-  }
-
-  let renderedCompanyModal = false
   let renderedFilterBar = false
 
   const applyCreditFilters = (list: any[]) => {
@@ -536,8 +498,6 @@ export default function CreditAnalysis() {
     const filteredList = applyCreditFilters(list)
     const shouldRenderFilterBar = !renderedFilterBar
     if (shouldRenderFilterBar) renderedFilterBar = true
-    const shouldRenderModal = showCompanySelect && !renderedCompanyModal
-    if (shouldRenderModal) renderedCompanyModal = true
 
     return (
       <div className="divide-y divide-border/50 relative">
@@ -574,122 +534,6 @@ export default function CreditAnalysis() {
                 </option>
               ))}
             </select>
-          </div>
-        )}
-        {shouldRenderModal && processToLink && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-background rounded-lg shadow-lg w-full max-w-md border flex flex-col animate-in fade-in zoom-in-95 duration-200">
-              <div className="p-6 pb-4">
-                <h2 className="text-lg font-semibold tracking-tight">Enviar para triagem CCA</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Selecione uma construtora para vincular a este processo ou continue sem vincular.
-                </p>
-              </div>
-              <div className="p-6 pt-0 flex-1">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setIsCompanyDropdownOpen(!isCompanyDropdownOpen)}
-                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  >
-                    <span className="truncate">{selectedCompanyName}</span>
-                    <svg
-                      width="15"
-                      height="15"
-                      viewBox="0 0 15 15"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 opacity-50"
-                    >
-                      <path
-                        d="M4.93179 5.43179C4.75605 5.60753 4.75605 5.89245 4.93179 6.06819L7.43179 8.56819C7.60753 8.74393 7.89245 8.74393 8.06819 8.56819L10.5682 6.06819C10.7439 5.89245 10.7439 5.60753 10.5682 5.43179C10.3925 5.25605 10.1075 5.25605 9.93179 5.43179L7.75 7.61358L5.56819 5.43179C5.39245 5.25605 5.10753 5.25605 4.93179 5.43179Z"
-                        fill="currentColor"
-                        fillRule="evenodd"
-                        clipRule="evenodd"
-                      ></path>
-                    </svg>
-                  </button>
-                  {isCompanyDropdownOpen && (
-                    <div className="absolute top-full left-0 z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md">
-                      <div className="p-2 sticky top-0 bg-popover border-b">
-                        <input
-                          type="text"
-                          placeholder="Buscar construtora..."
-                          value={companySearch}
-                          onChange={(e) => setCompanySearch(e.target.value)}
-                          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                        />
-                      </div>
-                      <div className="p-1">
-                        <div
-                          className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => {
-                            setSelectedCompanyId('none')
-                            setIsCompanyDropdownOpen(false)
-                            setCompanySearch('')
-                          }}
-                        >
-                          Não vincular construtora
-                        </div>
-                        {filteredCompanies.map((c) => (
-                          <div
-                            key={c.id}
-                            className="relative flex cursor-default select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-                            onClick={() => {
-                              setSelectedCompanyId(c.id)
-                              setIsCompanyDropdownOpen(false)
-                              setCompanySearch('')
-                            }}
-                          >
-                            {c.name} ({c.cnpj})
-                          </div>
-                        ))}
-                        {filteredCompanies.length === 0 && (
-                          <div className="py-6 text-center text-sm text-muted-foreground">
-                            Nenhuma construtora encontrada.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="p-6 pt-0 flex items-center justify-end space-x-2">
-                <button
-                  type="button"
-                  disabled={isTransitioning}
-                  onClick={() => {
-                    setShowCompanySelect(false)
-                    setProcessToLink(null)
-                  }}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Cancelar
-                </button>
-                {processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
-                selectedCompanyId === 'none' ? (
-                  <p className="text-sm text-red-600 font-medium absolute left-6">
-                    Imóvel "Novo" exige construtora.
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={submitTransition}
-                  disabled={
-                    isTransitioning ||
-                    (processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
-                      selectedCompanyId === 'none')
-                  }
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isTransitioning
-                    ? 'Enviando...'
-                    : selectedCompanyId === 'none'
-                      ? 'Continuar sem vincular'
-                      : 'Vincular e Continuar'}
-                </button>
-              </div>
-            </div>
           </div>
         )}
         {list.length === 0 ? (
@@ -826,6 +670,7 @@ export default function CreditAnalysis() {
                         className="bg-teal-600 hover:bg-teal-700 text-white shadow-sm text-xs"
                         onClick={(e) => {
                           e.preventDefault()
+                          setSelectedCompanyId(proc.construction_company || '')
                           setTransitionProcess(proc)
                         }}
                       >
@@ -1128,7 +973,6 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
-
         {(!activeFilter ||
           activeFilter === 'cadastramento' ||
           activeFilter === 'cadastramento_sem_pendencia' ||
@@ -1156,7 +1000,6 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
-
         {(!activeFilter || activeFilter === 'aguardando_autorizacao') && (
           <Card className="shadow-sm border-amber-200 h-full flex flex-col">
             <CardHeader className="bg-amber-50/50 border-b border-amber-100 pb-4">
@@ -1172,7 +1015,6 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
-
         {(!activeFilter || activeFilter === 'primeira_analise') && (
           <Card className="shadow-sm border-blue-200 h-full flex flex-col">
             <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
@@ -1185,7 +1027,6 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
-
         {(!activeFilter || activeFilter === 'reavaliacao') && (
           <Card className="shadow-sm border-indigo-200 h-full flex flex-col">
             <CardHeader className="bg-indigo-50/50 border-b border-indigo-100 pb-4">
@@ -1198,7 +1039,6 @@ export default function CreditAnalysis() {
             </CardContent>
           </Card>
         )}
-
         {(!activeFilter || activeFilter === 'aprovados') && (
           <Card className="shadow-sm border-teal-200 h-full flex flex-col">
             <CardHeader className="bg-teal-50/50 border-b border-teal-100 pb-4">
@@ -1351,25 +1191,50 @@ export default function CreditAnalysis() {
 
       <Dialog
         open={!!transitionProcess}
-        onOpenChange={(open) => !open && setTransitionProcess(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransitionProcess(null)
+            setSelectedCompanyId('')
+          }
+        }}
       >
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Enviar para triagem CCA</DialogTitle>
+            <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja enviar este processo aprovado para o fluxo Habitacional? Ele
-              será movido para a etapa "<strong>Triagem CCA</strong>".
+              Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium">Construtora *</Label>
+            <ConstructionCompanySelect
+              companies={companies}
+              value={selectedCompanyId}
+              onChange={setSelectedCompanyId}
+            />
+            {!selectedCompanyId && (
+              <p className="text-sm text-red-600 font-medium">
+                É obrigatório selecionar uma construtora para continuar.
+              </p>
+            )}
+          </div>
           <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setTransitionProcess(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTransitionProcess(null)
+                setSelectedCompanyId('')
+              }}
+              disabled={isTransitioning}
+            >
               Cancelar
             </Button>
             <Button
               className="bg-teal-600 hover:bg-teal-700 text-white"
-              onClick={handleTransitionToHousing}
+              onClick={submitTransition}
+              disabled={isTransitioning || !selectedCompanyId}
             >
-              Confirmar Transferência
+              {isTransitioning ? 'Enviando...' : 'Confirmar Transferência'}
             </Button>
           </DialogFooter>
         </DialogContent>

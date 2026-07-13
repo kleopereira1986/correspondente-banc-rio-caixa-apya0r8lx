@@ -379,9 +379,10 @@ export default function CreditAnalysis() {
     }
     setIsTransitioning(true)
     try {
+      const targetStep = firstHousingStage || 'TRIAGEM CCA'
       const updateData: any = {
         type: 'housing',
-        current_step: 'Triagem CCA',
+        current_step: targetStep,
         status: 'Nova Solicitação',
         result: 'approved',
         construction_company: selectedCompanyId,
@@ -394,7 +395,7 @@ export default function CreditAnalysis() {
           body: JSON.stringify({
             process: transitionProcess.id,
             from_step: transitionProcess.current_step || '',
-            to_step: 'Triagem CCA',
+            to_step: targetStep,
             from_status: transitionProcess.status || '',
             to_status: 'Nova Solicitação',
             note: 'Processo enviado para o fluxo habitacional',
@@ -1202,6 +1203,8 @@ export default function CreditAnalysis() {
           <DialogHeader>
             <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
             <DialogDescription>
+              Informe qual a Construtora responsável por este processo.
+              <br />
               Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
             </DialogDescription>
           </DialogHeader>

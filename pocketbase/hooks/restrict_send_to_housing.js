@@ -24,7 +24,7 @@ onRecordUpdateRequest((e) => {
   }
 
   // Validação: requer construtora se for imóvel Novo ao entrar na Triagem CCA
-  if (newType === 'housing' && newStep === 'Triagem CCA' && originalStep !== 'Triagem CCA') {
+  if (newType === 'housing' && originalType === 'credit') {
     const developmentTypeId = e.record.getString('development_type')
     if (developmentTypeId) {
       try {

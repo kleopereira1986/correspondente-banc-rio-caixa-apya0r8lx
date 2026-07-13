@@ -34,6 +34,7 @@ export default function HousingTransition() {
   const isAuthorized = user?.role === 'master' || user?.role === 'analyst'
 
   const [processData, setProcessData] = useState<any>(null)
+  const [firstHousingStage, setFirstHousingStage] = useState<string>('TRIAGEM CCA')
 
   useEffect(() => {
     if (!isAuthorized) {
@@ -45,8 +46,10 @@ export default function HousingTransition() {
       id
         ? pb.collection('processes').getOne(id, { expand: 'development_type' })
         : Promise.resolve(null),
+      pb.collection('housing_stages').getFullList({ sort: 'order' }),
     ])
-      .then(([companyList, processRecord]) => {
+      .then(([companyList, processRecord, stagesList]) => {
+        if (stagesList.length > 0) setFirstHousingStage(stagesList[0].name)
         setCompanies(companyList)
         if (processRecord?.construction_company) {
           setSelectedCompany(processRecord.construction_company)
@@ -83,9 +86,10 @@ export default function HousingTransition() {
     }
     setSubmitting(true)
     try {
+      const targetStep = firstHousingStage || 'TRIAGEM CCA'
       const payload: any = {
         type: 'housing',
-        current_step: 'Triagem CCA',
+        current_step: targetStep,
         status: 'Nova Solicitação',
         result: 'approved',
         construction_company: selectedCompany,
@@ -98,7 +102,7 @@ export default function HousingTransition() {
           body: JSON.stringify({
             process: id,
             from_step: processData?.current_step || '',
-            to_step: 'Triagem CCA',
+            to_step: targetStep,
             from_status: processData?.status || '',
             to_status: 'Nova Solicitação',
             note: 'Processo enviado para o fluxo habitacional',
@@ -145,6 +149,8 @@ export default function HousingTransition() {
             <DialogHeader>
               <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
               <DialogDescription>
+                Informe qual a Construtora responsável por este processo.
+                <br />
                 Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
               </DialogDescription>
             </DialogHeader>
@@ -175,6 +181,8 @@ export default function HousingTransition() {
             <DialogHeader>
               <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
               <DialogDescription>
+                Informe qual a Construtora responsável por este processo.
+                <br />
                 Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
               </DialogDescription>
             </DialogHeader>

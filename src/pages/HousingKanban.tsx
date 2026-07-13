@@ -113,10 +113,11 @@ export default function HousingKanban() {
   const handleCreate = async () => {
     if (!selectedBuyer) return
     try {
+      const firstStep = stages.length > 0 ? stages[0].name : 'TRIAGEM CCA'
       await createProcess({
         type: 'housing',
         buyer: selectedBuyer,
-        current_step: 'Triagem CCA',
+        current_step: firstStep,
         status: 'Nova Solicitação',
         observations: notes,
         assigned_analyst: user?.role === 'analyst' ? user.id : undefined,
@@ -135,7 +136,7 @@ export default function HousingKanban() {
     const credProc = creditProcesses.find((p) => p.id === selectedCredit)
     if (!credProc) return
     try {
-      const firstStep = 'Triagem CCA'
+      const firstStep = stages.length > 0 ? stages[0].name : 'TRIAGEM CCA'
 
       const updatedObservations = notes
         ? `${credProc.observations ? credProc.observations + '\n\n' : ''}Nota da Importação: ${notes}`

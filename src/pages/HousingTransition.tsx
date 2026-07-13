@@ -89,7 +89,6 @@ export default function HousingTransition() {
       const payload: any = {
         type: 'housing',
         current_step: 'Triagem CCA',
-        status: 'Nova Solicitação',
         last_updated_by: user?.id || '',
       }
       if (selectedCompany) {

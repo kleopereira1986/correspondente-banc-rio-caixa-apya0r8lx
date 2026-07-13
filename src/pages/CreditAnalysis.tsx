@@ -453,7 +453,6 @@ export default function CreditAnalysis() {
       const updateData: any = {
         type: 'housing',
         current_step: 'Triagem CCA',
-        status: 'Nova Solicitação',
         last_updated_by: user?.id || '',
       }
       if (selectedCompanyId && selectedCompanyId !== 'none') {

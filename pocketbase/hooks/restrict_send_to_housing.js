@@ -7,7 +7,7 @@ onRecordUpdateRequest((e) => {
 
   if (originalType === 'credit' && newType === 'housing') {
     const role = e.auth?.getString('role')
-    const allowedRoles = ['master', 'analyst']
+    const allowedRoles = ['master', 'analyst', 'broker']
 
     if (!allowedRoles.includes(role)) {
       throw new ForbiddenError(

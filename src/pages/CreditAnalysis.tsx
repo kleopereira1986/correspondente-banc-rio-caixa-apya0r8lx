@@ -66,6 +66,7 @@ export default function CreditAnalysis() {
   const [reevaluationProcess, setReevaluationProcess] = useState<any>(null)
   const [reevaluationReason, setReevaluationReason] = useState('')
   const [isSubmittingReevaluation, setIsSubmittingReevaluation] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   const loadData = async () => {
     try {
@@ -448,11 +449,14 @@ export default function CreditAnalysis() {
   }
 
   const submitTransition = async () => {
-    if (!processToLink) return
+    if (!processToLink || isTransitioning) return
+    setIsTransitioning(true)
     try {
       const updateData: any = {
         type: 'housing',
         current_step: 'Triagem CCA',
+        status: 'Nova Solicitação',
+        result: 'approved',
         last_updated_by: user?.id || '',
       }
       if (selectedCompanyId && selectedCompanyId !== 'none') {
@@ -461,24 +465,24 @@ export default function CreditAnalysis() {
 
       await pb.collection('processes').update(processToLink.id, updateData)
 
-      if (user?.id) {
-        try {
-          await pb.send('/backend/v1/process-logs/manual', {
-            method: 'POST',
-            body: JSON.stringify({
-              process: processToLink.id,
-              from_step: processToLink.current_step || '',
-              to_step: 'Triagem CCA',
-              note: 'Processo enviado para o fluxo habitacional',
-            }),
-            headers: { 'Content-Type': 'application/json' },
-          })
-        } catch (logErr) {
-          console.error('Erro ao registrar log manual', logErr)
-        }
+      try {
+        await pb.send('/backend/v1/process-logs/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            process: processToLink.id,
+            from_step: processToLink.current_step || '',
+            to_step: 'Triagem CCA',
+            from_status: processToLink.status || '',
+            to_status: 'Nova Solicitação',
+            note: 'Processo enviado para o fluxo habitacional',
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (logErr) {
+        console.error('Erro ao registrar log manual', logErr)
       }
 
-      toast({ title: 'Processo transferido para o fluxo Habitacional com sucesso.' })
+      toast({ title: 'Processo enviado para o Kanban Habitacional com sucesso!' })
       setTransitionProcess(null)
       setProcessToLink(null)
       setShowCompanySelect(false)
@@ -494,6 +498,8 @@ export default function CreditAnalysis() {
           err?.response?.message || err?.message || 'Falha na comunicação com o servidor.',
         variant: 'destructive',
       })
+    } finally {
+      setIsTransitioning(false)
     }
   }
 
@@ -651,11 +657,12 @@ export default function CreditAnalysis() {
               <div className="p-6 pt-0 flex items-center justify-end space-x-2">
                 <button
                   type="button"
+                  disabled={isTransitioning}
                   onClick={() => {
                     setShowCompanySelect(false)
                     setProcessToLink(null)
                   }}
-                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
@@ -669,12 +676,17 @@ export default function CreditAnalysis() {
                   type="button"
                   onClick={submitTransition}
                   disabled={
-                    processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
-                    selectedCompanyId === 'none'
+                    isTransitioning ||
+                    (processToLink?.expand?.development_type?.name?.toLowerCase() === 'novo' &&
+                      selectedCompanyId === 'none')
                   }
                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {selectedCompanyId === 'none' ? 'Continuar sem vincular' : 'Vincular e Continuar'}
+                  {isTransitioning
+                    ? 'Enviando...'
+                    : selectedCompanyId === 'none'
+                      ? 'Continuar sem vincular'
+                      : 'Vincular e Continuar'}
                 </button>
               </div>
             </div>

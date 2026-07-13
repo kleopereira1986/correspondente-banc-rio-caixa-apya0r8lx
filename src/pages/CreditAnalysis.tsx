@@ -53,7 +53,7 @@ export default function CreditAnalysis() {
   const [brokerFilter, setBrokerFilter] = useState('all')
   const [agencyFilter, setAgencyFilter] = useState('all')
 
-  const [firstHousingStage, setFirstHousingStage] = useState<string>('Montagem de Pasta')
+  const [firstHousingStage, setFirstHousingStage] = useState<string>('TRIAGEM CCA')
   const [transitionProcess, setTransitionProcess] = useState<any>(null)
 
   const [deleteProcessId, setDeleteProcessId] = useState<string | null>(null)
@@ -94,7 +94,9 @@ export default function CreditAnalysis() {
     pb.collection('housing_stages')
       .getFullList({ sort: 'order' })
       .then((stages) => {
-        if (stages.length > 0) setFirstHousingStage(stages[0].name)
+        const triagem = stages.find((s) => s.name.toLowerCase().includes('triagem'))
+        if (triagem) setFirstHousingStage(triagem.name)
+        else if (stages.length > 0) setFirstHousingStage(stages[0].name)
       })
       .catch(console.error)
   }, [])
@@ -398,14 +400,14 @@ export default function CreditAnalysis() {
             to_step: targetStep,
             from_status: transitionProcess.status || '',
             to_status: 'Nova Solicitação',
-            note: 'Processo enviado para o fluxo habitacional',
+            note: 'Transição para fluxo habitacional com seleção de construtora',
           }),
           headers: { 'Content-Type': 'application/json' },
         })
       } catch (logErr) {
         console.error('Erro ao registrar log manual', logErr)
       }
-      toast({ title: 'Processo movido para TRIAGEM CCA com sucesso!' })
+      toast({ title: 'Processo enviado com sucesso para a Triagem CCA!' })
       setTransitionProcess(null)
       setSelectedCompanyId('')
       navigate('/housing-kanban')
@@ -1204,8 +1206,7 @@ export default function CreditAnalysis() {
             <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
             <DialogDescription>
               Informe qual a Construtora responsável por este processo.
-              <br />
-              Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
+              <br />O processo será enviado para o fluxo habitacional na etapa TRIAGEM CCA.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -1237,7 +1238,7 @@ export default function CreditAnalysis() {
               onClick={submitTransition}
               disabled={isTransitioning || !selectedCompanyId}
             >
-              {isTransitioning ? 'Enviando...' : 'Confirmar Transferência'}
+              {isTransitioning ? 'Enviando...' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>

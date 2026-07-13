@@ -49,7 +49,9 @@ export default function HousingTransition() {
       pb.collection('housing_stages').getFullList({ sort: 'order' }),
     ])
       .then(([companyList, processRecord, stagesList]) => {
-        if (stagesList.length > 0) setFirstHousingStage(stagesList[0].name)
+        const triagem = stagesList.find((s) => s.name.toLowerCase().includes('triagem'))
+        if (triagem) setFirstHousingStage(triagem.name)
+        else if (stagesList.length > 0) setFirstHousingStage(stagesList[0].name)
         setCompanies(companyList)
         if (processRecord?.construction_company) {
           setSelectedCompany(processRecord.construction_company)
@@ -105,14 +107,14 @@ export default function HousingTransition() {
             to_step: targetStep,
             from_status: processData?.status || '',
             to_status: 'Nova Solicitação',
-            note: 'Processo enviado para o fluxo habitacional',
+            note: 'Transição para fluxo habitacional com seleção de construtora',
           }),
           headers: { 'Content-Type': 'application/json' },
         })
         .catch(() => {})
       toast({
         title: 'Sucesso',
-        description: 'Processo movido para TRIAGEM CCA com sucesso!',
+        description: 'Processo enviado com sucesso para a Triagem CCA!',
       })
       setOpen(false)
       navigate('/housing-kanban')
@@ -150,8 +152,7 @@ export default function HousingTransition() {
               <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
               <DialogDescription>
                 Informe qual a Construtora responsável por este processo.
-                <br />
-                Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
+                <br />O processo será enviado para o fluxo habitacional na etapa TRIAGEM CCA.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
@@ -182,8 +183,7 @@ export default function HousingTransition() {
               <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
               <DialogDescription>
                 Informe qual a Construtora responsável por este processo.
-                <br />
-                Será gerado um card em processo habitacional na etapa TRIAGEM CCA.
+                <br />O processo será enviado para o fluxo habitacional na etapa TRIAGEM CCA.
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">

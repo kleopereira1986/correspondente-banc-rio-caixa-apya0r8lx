@@ -57,6 +57,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { ConstructionCompanySelect } from '@/components/ConstructionCompanySelect'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -87,6 +88,11 @@ export default function Dashboard() {
   const [newClientEmail, setNewClientEmail] = useState('')
   const [deleteProcessId, setDeleteProcessId] = useState<string | null>(null)
   const [isDeletingProcess, setIsDeletingProcess] = useState(false)
+  const [companies, setCompanies] = useState<any[]>([])
+  const [transitionProcess, setTransitionProcess] = useState<any>(null)
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [firstHousingStage, setFirstHousingStage] = useState<string>('TRIAGEM CCA')
 
   const loadData = async () => {
     try {
@@ -113,6 +119,21 @@ export default function Dashboard() {
   useEffect(() => {
     loadData()
     loadClients()
+  }, [])
+
+  useEffect(() => {
+    pb.collection('construction_companies')
+      .getFullList({ sort: 'name' })
+      .then(setCompanies)
+      .catch(console.error)
+    pb.collection('housing_stages')
+      .getFullList({ sort: 'order' })
+      .then((stages) => {
+        const triagem = stages.find((s) => s.name.toLowerCase().includes('triagem'))
+        if (triagem) setFirstHousingStage(triagem.name)
+        else if (stages.length > 0) setFirstHousingStage(stages[0].name)
+      })
+      .catch(console.error)
   }, [])
 
   useRealtime('processes', () => loadData())
@@ -238,6 +259,58 @@ export default function Dashboard() {
     toast({ title: 'Processo iniciado com sucesso!' })
     setIsNewOpen(false)
     loadData()
+  }
+
+  const submitTransition = async () => {
+    if (!transitionProcess || isTransitioning) return
+    if (!selectedCompanyId) {
+      toast({
+        title: 'Aviso',
+        description: 'Selecione uma construtora para continuar.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setIsTransitioning(true)
+    try {
+      const targetStep = firstHousingStage || 'TRIAGEM CCA'
+      await updateProcess(transitionProcess.id, {
+        type: 'housing',
+        current_step: targetStep,
+        status: 'Nova Solicitação',
+        result: 'approved',
+        construction_company: selectedCompanyId,
+        last_updated_by: user?.id || '',
+      })
+      try {
+        await pb.send('/backend/v1/process-logs/manual', {
+          method: 'POST',
+          body: JSON.stringify({
+            process: transitionProcess.id,
+            from_step: transitionProcess.current_step || '',
+            to_step: targetStep,
+            from_status: transitionProcess.status || '',
+            to_status: 'Nova Solicitação',
+            note: 'Transição para fluxo habitacional com seleção de construtora',
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+      } catch (logErr) {
+        console.error('Erro ao registrar log manual', logErr)
+      }
+      toast({ title: 'Processo enviado com sucesso para a Triagem CCA!' })
+      setTransitionProcess(null)
+      setSelectedCompanyId('')
+      navigate('/housing-kanban')
+    } catch (err) {
+      toast({
+        title: 'Erro ao enviar para habitacional',
+        description: getErrorMessage(err),
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTransitioning(false)
+    }
   }
 
   const getStatusBadge = (status: string, result: string) => {
@@ -728,6 +801,58 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={!!transitionProcess}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransitionProcess(null)
+            setSelectedCompanyId('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar para Processo Habitacional</DialogTitle>
+            <DialogDescription>
+              Informe qual a Construtora responsável por este processo.
+              <br />O processo será enviado para o fluxo habitacional na etapa TRIAGEM CCA.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium">Construtora *</Label>
+            <ConstructionCompanySelect
+              companies={companies}
+              value={selectedCompanyId}
+              onChange={setSelectedCompanyId}
+            />
+            {!selectedCompanyId && (
+              <p className="text-sm text-red-600 font-medium">
+                É obrigatório selecionar uma construtora para continuar.
+              </p>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setTransitionProcess(null)
+                setSelectedCompanyId('')
+              }}
+              disabled={isTransitioning}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              onClick={submitTransition}
+              disabled={isTransitioning || !selectedCompanyId}
+            >
+              {isTransitioning ? 'Enviando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Tabs defaultValue="fila_credito" className="w-full space-y-6">
         <TabsList className="bg-slate-100/50 flex-wrap h-auto">
           <TabsTrigger value="fila_credito">Fila de Processos Análise de Crédito</TabsTrigger>
@@ -947,12 +1072,13 @@ export default function Dashboard() {
                     <TableHead className="text-right">Data/Hora Criação</TableHead>
                     <TableHead className="text-right">Última Atualização</TableHead>
                     <TableHead>Atualizado Por</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCredit.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                      <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                         Nenhum processo encontrado com os filtros atuais.
                       </TableCell>
                     </TableRow>
@@ -1034,12 +1160,31 @@ export default function Dashboard() {
                         <TableCell className="py-4 text-sm min-w-[150px]">
                           {process.expand?.last_updated_by?.name || '-'}
                         </TableCell>
+                        <TableCell className="py-4 text-right">
+                          {process.result === 'approved' &&
+                            (user?.role === 'master' ||
+                              user?.role === 'analyst' ||
+                              user?.role === 'broker') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs border-teal-200 text-teal-700 hover:bg-teal-50 whitespace-nowrap"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedCompanyId(process.construction_company || '')
+                                  setTransitionProcess(process)
+                                }}
+                              >
+                                Enviar para Habitacional
+                              </Button>
+                            )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
                   {filteredCredit.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                         Nenhum processo de análise de crédito encontrado.
                       </TableCell>
                     </TableRow>

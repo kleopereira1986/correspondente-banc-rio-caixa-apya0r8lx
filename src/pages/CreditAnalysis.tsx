@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select'
 import { useRealtime } from '@/hooks/use-realtime'
 import pb from '@/lib/pocketbase/client'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/auth-context'
 import {
   FileText,
@@ -42,6 +42,7 @@ import {
 export default function CreditAnalysis() {
   const { user } = useAuth()
   const { toast } = useToast()
+  const navigate = useNavigate()
   const [processes, setProcesses] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
@@ -453,7 +454,6 @@ export default function CreditAnalysis() {
         type: 'housing',
         current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
-        result: 'pending',
         last_updated_by: user?.id || '',
       }
       if (selectedCompanyId && selectedCompanyId !== 'none') {
@@ -468,6 +468,8 @@ export default function CreditAnalysis() {
             method: 'POST',
             body: JSON.stringify({
               process: processToLink.id,
+              from_step: processToLink.current_step || '',
+              to_step: 'Triagem CCA',
               note: 'Processo enviado para o fluxo habitacional',
             }),
             headers: { 'Content-Type': 'application/json' },
@@ -483,6 +485,7 @@ export default function CreditAnalysis() {
       setShowCompanySelect(false)
       setSelectedCompanyId('none')
       setCompanySearch('')
+      navigate('/housing-kanban')
       loadData()
     } catch (err: any) {
       console.error(err)

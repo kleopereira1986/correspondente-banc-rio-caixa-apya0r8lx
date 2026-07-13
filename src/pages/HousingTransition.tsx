@@ -90,7 +90,6 @@ export default function HousingTransition() {
         type: 'housing',
         current_step: 'Triagem CCA',
         status: 'Nova Solicitação',
-        result: 'pending',
         last_updated_by: user?.id || '',
       }
       if (selectedCompany) {
@@ -102,7 +101,9 @@ export default function HousingTransition() {
           method: 'POST',
           body: JSON.stringify({
             process: id,
-            note: 'Processo enviado para o Kanban Habitacional (Triagem CCA).',
+            from_step: processData?.current_step || '',
+            to_step: 'Triagem CCA',
+            note: 'Processo enviado para o fluxo habitacional',
           }),
           headers: { 'Content-Type': 'application/json' },
         })

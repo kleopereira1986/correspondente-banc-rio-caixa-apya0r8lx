@@ -34,6 +34,19 @@ routerAdd(
     record.set('note', body.note)
     record.set('changed_by', userId)
 
+    if (body.from_step !== undefined && body.from_step !== null) {
+      record.set('from_step', body.from_step)
+    }
+    if (body.to_step !== undefined && body.to_step !== null) {
+      record.set('to_step', body.to_step)
+    }
+    if (body.from_status !== undefined && body.from_status !== null) {
+      record.set('from_status', body.from_status)
+    }
+    if (body.to_status !== undefined && body.to_status !== null) {
+      record.set('to_status', body.to_status)
+    }
+
     $app.save(record)
 
     return e.json(200, { success: true })

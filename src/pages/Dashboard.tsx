@@ -246,7 +246,7 @@ export default function Dashboard() {
     if (!selectedBuyer) return
     let step = 'Documentação'
     if (newType === 'housing') {
-      step = 'Triagem CCA'
+      step = 'TRIAGEM CCA'
     }
 
     await createProcess({
@@ -274,6 +274,19 @@ export default function Dashboard() {
     setIsTransitioning(true)
     try {
       const targetStep = firstHousingStage || 'TRIAGEM CCA'
+      const triagemStages = await pb.collection('housing_stages').getFullList({
+        filter: `name = "${targetStep}"`,
+      })
+      if (triagemStages.length === 0) {
+        toast({
+          title: 'Erro de Configuração',
+          description:
+            'A etapa "TRIAGEM CCA" não foi encontrada. Verifique as configurações de etapas habitacionais.',
+          variant: 'destructive',
+        })
+        setIsTransitioning(false)
+        return
+      }
       await updateProcess(transitionProcess.id, {
         type: 'housing',
         current_step: targetStep,

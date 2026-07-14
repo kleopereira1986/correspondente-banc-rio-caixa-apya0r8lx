@@ -89,6 +89,19 @@ export default function HousingTransition() {
     setSubmitting(true)
     try {
       const targetStep = firstHousingStage || 'TRIAGEM CCA'
+      const triagemStages = await pb
+        .collection('housing_stages')
+        .getFullList({ filter: `name = "${targetStep}"` })
+      if (triagemStages.length === 0) {
+        toast({
+          title: 'Erro de Configuração',
+          description:
+            'A etapa "TRIAGEM CCA" não foi encontrada. Verifique as configurações de etapas habitacionais.',
+          variant: 'destructive',
+        })
+        setSubmitting(false)
+        return
+      }
       const payload: any = {
         type: 'housing',
         current_step: targetStep,

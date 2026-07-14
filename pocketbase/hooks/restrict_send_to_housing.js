@@ -23,6 +23,17 @@ onRecordUpdateRequest((e) => {
     )
   }
 
+  // Validação: garantir que a etapa TRIAGEM CCA existe antes de transicionar para habitacional
+  if (newType === 'housing' && originalType === 'credit') {
+    try {
+      $app.findFirstRecordByData('housing_stages', 'name', 'TRIAGEM CCA')
+    } catch (_) {
+      throw new BadRequestError(
+        'A etapa "TRIAGEM CCA" não foi encontrada. Verifique a configuração de etapas habitacionais antes de enviar processos.',
+      )
+    }
+  }
+
   // Validação: requer construtora se for imóvel Novo ao entrar na Triagem CCA
   if (newType === 'housing' && originalType === 'credit') {
     const developmentTypeId = e.record.getString('development_type')

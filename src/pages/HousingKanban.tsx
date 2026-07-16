@@ -43,6 +43,7 @@ import {
   Phone,
   Building2,
   AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -61,6 +62,7 @@ export default function HousingKanban() {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [pendencyDialogOpen, setPendencyDialogOpen] = useState(false)
+  const [isSubmittingPendency, setIsSubmittingPendency] = useState(false)
 
   const [selectedProcess, setSelectedProcess] = useState<any>(null)
   const [notes, setNotes] = useState('')
@@ -206,21 +208,43 @@ export default function HousingKanban() {
   const handlePendency = async () => {
     if (!selectedProcess || !notes) return
     if (user?.role === 'broker') return
+    setIsSubmittingPendency(true)
     try {
+      const fromStatus = selectedProcess.status || 'Início'
+      const fromStep = selectedProcess.current_step || 'Documentação'
+
+      await pb.send('/backend/v1/process-logs/manual', {
+        method: 'POST',
+        body: JSON.stringify({
+          process: selectedProcess.id,
+          from_step: fromStep,
+          to_step: fromStep,
+          from_status: fromStatus,
+          to_status: 'Pendência',
+          note: notes.trim(),
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+
       await updateProcess(selectedProcess.id, {
         status: 'Pendência',
         observations: notes,
+        last_updated_by: user?.id || '',
       })
-      toast({ title: 'Pendência registrada' })
+
+      toast({ title: 'Pendência registrada com sucesso' })
       setPendencyDialogOpen(false)
       setNotes('')
       setSelectedProcess(null)
+      loadData()
     } catch (e) {
       toast({
         title: 'Erro ao registrar pendência',
         description: getErrorMessage(e),
         variant: 'destructive',
       })
+    } finally {
+      setIsSubmittingPendency(false)
     }
   }
 
@@ -614,10 +638,15 @@ export default function HousingKanban() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendencyDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setPendencyDialogOpen(false)}
+              disabled={isSubmittingPendency}
+            >
               Cancelar
             </Button>
-            <Button onClick={handlePendency} disabled={!notes.trim()}>
+            <Button onClick={handlePendency} disabled={!notes.trim() || isSubmittingPendency}>
+              {isSubmittingPendency ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Salvar Pendência
             </Button>
           </DialogFooter>

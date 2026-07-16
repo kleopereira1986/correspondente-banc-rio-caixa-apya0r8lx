@@ -73,6 +73,7 @@ export default function ProcessDetail() {
   const [creditDocumentTypes, setCreditDocumentTypes] = useState<any[]>([])
   const [pendencyReason, setPendencyReason] = useState('')
   const [isPendencyDialogOpen, setIsPendencyDialogOpen] = useState(false)
+  const [isSubmittingPendency, setIsSubmittingPendency] = useState(false)
 
   const [resolvePendencyDialog, setResolvePendencyDialog] = useState(false)
   const [resolvePendencyNote, setResolvePendencyNote] = useState('')
@@ -279,26 +280,45 @@ export default function ProcessDetail() {
           })
           return
         }
-        const fromStatus = process.status || 'Início'
-        const fromStep = process.current_step || 'Análise'
-        await updateProcess(process.id, {
-          result: 'pending',
-          status: 'Pendência',
-          observations: pendencyReason,
-          last_updated_by: user?.id || '',
-        })
-        await createProcessLog({
-          process: process.id,
-          from_step: fromStep,
-          to_step: 'Análise',
-          from_status: fromStatus,
-          to_status: 'Pendência',
-          changed_by: user?.id || '',
-          note: pendencyReason.trim(),
-        })
-        toast({ title: 'Pendência Solicitada' })
-        setPendencyReason('')
-        setIsPendencyDialogOpen(false)
+        setIsSubmittingPendency(true)
+        try {
+          const fromStatus = process.status || 'Início'
+          const fromStep = process.current_step || 'Análise'
+
+          await pb.send('/backend/v1/process-logs/manual', {
+            method: 'POST',
+            body: JSON.stringify({
+              process: process.id,
+              from_step: fromStep,
+              to_step: 'Análise',
+              from_status: fromStatus,
+              to_status: 'Pendência',
+              note: pendencyReason.trim(),
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          })
+
+          await updateProcess(process.id, {
+            result: 'pending',
+            status: 'Pendência',
+            observations: pendencyReason.trim(),
+            last_updated_by: user?.id || '',
+          })
+
+          toast({ title: 'Pendência registrada com sucesso!' })
+          setPendencyReason('')
+          setIsPendencyDialogOpen(false)
+          loadData()
+        } catch (e: any) {
+          toast({
+            title: 'Erro ao registrar pendência',
+            description: e.message || 'Não foi possível atualizar.',
+            variant: 'destructive',
+          })
+        } finally {
+          setIsSubmittingPendency(false)
+        }
+        return
       } else if (action === 'resolve_pendency') {
         // Handled by handleResolvePendency
       } else if (action === 'start') {
@@ -405,19 +425,22 @@ export default function ProcessDetail() {
     try {
       const fromStep = process.current_step || 'Aprovado'
 
+      await createProcessLog({
+        process: process.id,
+        from_step: fromStep,
+        to_step: 'triagem',
+        from_status: process.status || 'Aprovado',
+        to_status: 'Aguardando Triagem',
+        changed_by: user?.id || '',
+        note: changeEvaluationReason.trim(),
+      })
+
       await updateProcess(process.id, {
         current_step: 'triagem',
         result: 'pending',
         status: 'Aguardando Triagem',
         is_conformity_approved: false,
-      })
-
-      await createProcessLog({
-        process: process.id,
-        from_step: fromStep,
-        to_step: 'triagem',
-        changed_by: user?.id,
-        note: changeEvaluationReason.trim(),
+        last_updated_by: user?.id || '',
       })
 
       toast({ title: 'Mudança na avaliação solicitada com sucesso!' })
@@ -452,22 +475,23 @@ export default function ProcessDetail() {
       const fromStep = process.current_step || 'Decisão'
       const fromStatus = process.status || 'Condicionado'
 
-      await updateProcess(process.id, {
-        analysis_type: 'reevaluation',
-        is_conformity_approved: true,
-        current_step: 'Análise',
-        status: 'Aguardando Análise',
-        result: 'pending',
-      })
-
       await createProcessLog({
         process: process.id,
         from_step: fromStep,
         to_step: 'Análise',
         from_status: fromStatus,
         to_status: 'Aguardando Análise',
-        changed_by: user?.id,
+        changed_by: user?.id || '',
         note: `Reavaliação solicitada pelo corretor. Motivo: ${reevaluationReason.trim()}`,
+      })
+
+      await updateProcess(process.id, {
+        analysis_type: 'reevaluation',
+        is_conformity_approved: true,
+        current_step: 'Análise',
+        status: 'Aguardando Análise',
+        result: 'pending',
+        last_updated_by: user?.id || '',
       })
 
       toast({ title: 'Reavaliação solicitada com sucesso!' })
@@ -587,15 +611,17 @@ export default function ProcessDetail() {
         rejection_reason_type: editResultForm.rejection_reason_type || '',
       }
 
-      await updateProcess(process.id, payload)
-
       await createProcessLog({
         process: process.id,
         from_status,
         to_status,
-        changed_by: user?.id,
+        from_step: process.current_step || '',
+        to_step: to_current_step,
+        changed_by: user?.id || '',
         note: `Result manually edited by user ${user?.name || 'Unknown'}`,
       })
+
+      await updateProcess(process.id, { ...payload, last_updated_by: user?.id || '' })
 
       toast({ title: 'Resultado editado com sucesso!' })
       setEditResultDialog(false)
@@ -1425,13 +1451,17 @@ export default function ProcessDetail() {
                                   <Button
                                     variant="outline"
                                     onClick={() => setIsPendencyDialogOpen(false)}
+                                    disabled={isSubmittingPendency}
                                   >
                                     Cancelar
                                   </Button>
                                   <Button
                                     onClick={() => handleAction('pendency')}
-                                    disabled={!pendencyReason.trim()}
+                                    disabled={!pendencyReason.trim() || isSubmittingPendency}
                                   >
+                                    {isSubmittingPendency ? (
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : null}
                                     Salvar
                                   </Button>
                                 </DialogFooter>

@@ -900,23 +900,71 @@ export default function PublicForm() {
 
             {/* Dynamic Documentation Checklist */}
             {documentTypes.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold text-slate-800 mb-2">Documentação</h2>
-                <p className="text-slate-600 mb-6">
-                  Indique quais documentos você possui no momento e anexe-os se possível para
-                  agilizar sua análise.
-                </p>
-                <div className="space-y-4">
-                  {documentTypes.map((doc) => (
-                    <ChecklistItem
-                      key={doc.id}
-                      doc={doc}
-                      form={form}
-                      documentFiles={documentFiles}
-                      setDocumentFiles={setDocumentFiles}
-                    />
-                  ))}
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 mb-2">Documentação</h2>
+                  <p className="text-slate-600">
+                    Indique quais documentos você possui no momento e anexe-os se possível para
+                    agilizar sua análise. A documentação é separada por proponente.
+                  </p>
                 </div>
+
+                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                  <CardHeader className="bg-slate-50 border-b border-slate-200">
+                    <CardTitle className="text-lg text-slate-800">
+                      Documentação do 1º Proponente
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    {documentTypes.filter((doc) => doc.category === '1º Proponente').length > 0 ? (
+                      documentTypes
+                        .filter((doc) => doc.category === '1º Proponente')
+                        .map((doc) => (
+                          <ChecklistItem
+                            key={doc.id}
+                            doc={doc}
+                            form={form}
+                            documentFiles={documentFiles}
+                            setDocumentFiles={setDocumentFiles}
+                          />
+                        ))
+                    ) : (
+                      <p className="text-sm text-slate-500 text-center py-4">
+                        Nenhum documento configurado para esta seção.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {hasBuyer2 && (
+                  <Card className="border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                    <CardHeader className="bg-slate-50 border-b border-slate-200">
+                      <CardTitle className="text-lg text-slate-800">
+                        Documentação do 2º Proponente
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-4">
+                      {documentTypes.filter((doc) => doc.category === '2º Proponente / Conjuge')
+                        .length > 0 ? (
+                        documentTypes
+                          .filter((doc) => doc.category === '2º Proponente / Conjuge')
+                          .map((doc) => (
+                            <ChecklistItem
+                              key={doc.id}
+                              doc={doc}
+                              form={form}
+                              documentFiles={documentFiles}
+                              setDocumentFiles={setDocumentFiles}
+                            />
+                          ))
+                      ) : (
+                        <p className="text-sm text-slate-500 text-center py-4">
+                          Nenhum documento configurado para esta seção.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             )}
 

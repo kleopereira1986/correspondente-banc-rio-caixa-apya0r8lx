@@ -33,7 +33,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, MoreVertical, Eye, FileText, Link as LinkIcon, User, Phone } from 'lucide-react'
+import {
+  Plus,
+  MoreVertical,
+  Eye,
+  FileText,
+  Link as LinkIcon,
+  User,
+  Phone,
+  Building2,
+  AlertCircle,
+} from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
@@ -56,12 +66,16 @@ export default function HousingKanban() {
   const [notes, setNotes] = useState('')
   const [selectedBuyer, setSelectedBuyer] = useState('')
   const [selectedCredit, setSelectedCredit] = useState('')
+  const [agencies, setAgencies] = useState<any[]>([])
+  const [selectedAgency, setSelectedAgency] = useState('')
 
   const loadData = async () => {
     try {
       let filter: string | undefined
-      if (user?.role === 'real_estate_agency' && user.real_estate_agency) {
-        filter = `broker.real_estate_agency = '${user.real_estate_agency}'`
+      if (user?.role === 'broker') {
+        filter = `broker = '${user.id}'`
+      } else if (user?.role === 'real_estate_agency' && user.real_estate_agency) {
+        filter = `broker.real_estate_agency = '${user.real_estate_agency}' || real_estate_agency = '${user.real_estate_agency}'`
       }
       const [stgs, procs, users] = await Promise.all([
         getHousingStages(),
@@ -85,12 +99,16 @@ export default function HousingKanban() {
 
   useEffect(() => {
     loadData()
+    pb.collection('real_estate_agencies')
+      .getFullList({ sort: 'name' })
+      .then(setAgencies)
+      .catch(console.error)
   }, [])
   useRealtime('housing_stages', () => loadData())
   useRealtime('processes', () => loadData())
 
   const moveProcess = async (processId: string, newStep: string) => {
-    if (user?.role === 'real_estate_agency') return
+    if (user?.role === 'real_estate_agency' || user?.role === 'broker') return
     try {
       const payload: any = { current_step: newStep, status: 'Em Andamento' }
       if (newStep === stages[stages.length - 1]?.name) {
@@ -112,11 +130,13 @@ export default function HousingKanban() {
 
   const handleCreate = async () => {
     if (!selectedBuyer) return
+    if (user?.role === 'broker') return
     try {
       const firstStep = stages.length > 0 ? stages[0].name : 'TRIAGEM CCA'
       await createProcess({
         type: 'housing',
         buyer: selectedBuyer,
+        real_estate_agency: selectedAgency,
         current_step: firstStep,
         status: 'Nova Solicitação',
         observations: notes,
@@ -126,6 +146,7 @@ export default function HousingKanban() {
       setCreateDialogOpen(false)
       setNotes('')
       setSelectedBuyer('')
+      setSelectedAgency('')
     } catch (e) {
       toast({ title: 'Erro ao criar', description: getErrorMessage(e), variant: 'destructive' })
     }
@@ -133,6 +154,7 @@ export default function HousingKanban() {
 
   const handleImport = async () => {
     if (!selectedCredit) return
+    if (user?.role === 'broker') return
     const credProc = creditProcesses.find((p) => p.id === selectedCredit)
     if (!credProc) return
     try {
@@ -142,7 +164,7 @@ export default function HousingKanban() {
         ? `${credProc.observations ? credProc.observations + '\n\n' : ''}Nota da Importação: ${notes}`
         : credProc.observations
 
-      await updateProcess(credProc.id, {
+      const importPayload: any = {
         type: 'housing',
         current_step: firstStep,
         status: 'Nova Solicitação',
@@ -150,7 +172,11 @@ export default function HousingKanban() {
         observations: updatedObservations,
         assigned_analyst: user?.role === 'analyst' ? user.id : credProc.assigned_analyst,
         last_updated_by: user?.id || '',
-      })
+      }
+      if (selectedAgency) {
+        importPayload.real_estate_agency = selectedAgency
+      }
+      await updateProcess(credProc.id, importPayload)
 
       if (user?.id) {
         try {
@@ -171,6 +197,7 @@ export default function HousingKanban() {
       setImportDialogOpen(false)
       setNotes('')
       setSelectedCredit('')
+      setSelectedAgency('')
     } catch (e) {
       toast({ title: 'Erro ao importar', description: getErrorMessage(e), variant: 'destructive' })
     }
@@ -178,6 +205,7 @@ export default function HousingKanban() {
 
   const handlePendency = async () => {
     if (!selectedProcess || !notes) return
+    if (user?.role === 'broker') return
     try {
       await updateProcess(selectedProcess.id, {
         status: 'Pendência',
@@ -197,6 +225,7 @@ export default function HousingKanban() {
   }
 
   const handleSendToReevaluation = async (proc: any) => {
+    if (user?.role === 'broker') return
     if (
       !confirm(
         'Deseja enviar este processo para nova análise de crédito (reavaliação)? O processo será transferido para a fila de análise de crédito.',
@@ -240,7 +269,12 @@ export default function HousingKanban() {
     }
   }
 
-  if (user?.role !== 'master' && user?.role !== 'analyst' && user?.role !== 'real_estate_agency')
+  if (
+    user?.role !== 'master' &&
+    user?.role !== 'analyst' &&
+    user?.role !== 'real_estate_agency' &&
+    user?.role !== 'broker'
+  )
     return <div className="p-8">Acesso Negado</div>
 
   return (
@@ -250,12 +284,23 @@ export default function HousingKanban() {
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Kanban Habitacional</h1>
           <p className="text-muted-foreground">Acompanhe as fases da documentação e contratos.</p>
         </div>
-        {user?.role !== 'real_estate_agency' && (
+        {user?.role !== 'real_estate_agency' && user?.role !== 'broker' && (
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedAgency('')
+                setImportDialogOpen(true)
+              }}
+            >
               Importar Cliente
             </Button>
-            <Button onClick={() => setCreateDialogOpen(true)}>
+            <Button
+              onClick={() => {
+                setSelectedAgency('')
+                setCreateDialogOpen(true)
+              }}
+            >
               <Plus className="w-4 h-4 mr-2" /> Novo Processo
             </Button>
           </div>
@@ -263,19 +308,19 @@ export default function HousingKanban() {
       </div>
 
       <div className="flex-1 overflow-x-auto pb-4">
-        <div className="flex gap-6 min-h-[600px] h-full" style={{ minWidth: 'min-content' }}>
+        <div className="flex gap-6 h-[calc(100vh-200px)]" style={{ minWidth: 'min-content' }}>
           {stages.map((stage) => {
             const colProcs = processes.filter((p) => p.current_step === stage.name)
             return (
               <div
                 key={stage.id}
-                className="w-[320px] shrink-0 flex flex-col bg-slate-100 rounded-lg border border-slate-200"
+                className="w-[320px] shrink-0 flex flex-col bg-slate-100 rounded-lg border border-slate-200 h-full"
               >
-                <div className="p-3 border-b border-slate-200 bg-white rounded-t-lg flex items-center justify-between">
+                <div className="p-3 border-b border-slate-200 bg-white rounded-t-lg flex items-center justify-between shrink-0">
                   <h3 className="font-semibold text-slate-700">{stage.name}</h3>
                   <Badge variant="secondary">{colProcs.length}</Badge>
                 </div>
-                <div className="p-3 flex-1 overflow-y-auto space-y-3">
+                <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-0">
                   {colProcs.map((proc) => (
                     <div
                       key={proc.id}
@@ -295,7 +340,7 @@ export default function HousingKanban() {
                             <DropdownMenuItem onClick={() => navigate(`/process/${proc.id}`)}>
                               <Eye className="w-4 h-4 mr-2" /> Detalhes
                             </DropdownMenuItem>
-                            {user?.role !== 'real_estate_agency' && (
+                            {user?.role !== 'real_estate_agency' && user?.role !== 'broker' && (
                               <DropdownMenuItem
                                 onClick={() => {
                                   setSelectedProcess(proc)
@@ -347,6 +392,15 @@ export default function HousingKanban() {
                           <User className="w-3 h-3 mr-1" />
                           <span>Corretor: {proc.expand?.broker?.name || 'Não atribuído'}</span>
                         </div>
+                        <div className="flex items-center">
+                          <Building2 className="w-3 h-3 mr-1" />
+                          <span>
+                            Imobiliária:{' '}
+                            {proc.expand?.real_estate_agency?.name ||
+                              proc.expand?.broker?.expand?.real_estate_agency?.name ||
+                              'Não vinculada'}
+                          </span>
+                        </div>
                       </div>
 
                       {proc.status === 'Pendência' && (
@@ -368,7 +422,18 @@ export default function HousingKanban() {
                           </Button>
                         )}
 
-                      {user?.role === 'real_estate_agency' ? (
+                      {user?.role === 'broker' &&
+                        proc.current_step?.toUpperCase() === 'DOC PENDENTE' && (
+                          <Button
+                            size="sm"
+                            className="w-full text-[10px] mb-3 bg-amber-500 hover:bg-amber-600 h-8 whitespace-normal leading-tight animate-pulse"
+                            onClick={() => navigate(`/process/${proc.id}`)}
+                          >
+                            <AlertCircle className="w-3 h-3 mr-1" /> AÇÃO NECESSÁRIA - Acessar
+                          </Button>
+                        )}
+
+                      {user?.role === 'real_estate_agency' || user?.role === 'broker' ? (
                         <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded-md text-center">
                           {proc.current_step || 'Não iniciada'}
                         </div>
@@ -413,7 +478,14 @@ export default function HousingKanban() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Processo de Crédito Aprovado</Label>
-              <Select value={selectedCredit} onValueChange={setSelectedCredit}>
+              <Select
+                value={selectedCredit}
+                onValueChange={(v) => {
+                  setSelectedCredit(v)
+                  const proc = creditProcesses.find((p) => p.id === v)
+                  if (proc) setSelectedAgency(proc.real_estate_agency || '')
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o processo de crédito..." />
                 </SelectTrigger>
@@ -428,6 +500,25 @@ export default function HousingKanban() {
                       Nenhum cliente aprovado
                     </SelectItem>
                   )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Imobiliária</Label>
+              <Select
+                value={selectedAgency || 'none'}
+                onValueChange={(v) => setSelectedAgency(v === 'none' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Manter imobiliária atual" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Manter atual</SelectItem>
+                  {agencies.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -473,6 +564,21 @@ export default function HousingKanban() {
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Imobiliária *</Label>
+              <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a imobiliária..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agencies.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>Observações Iniciais</Label>
               <Textarea
                 value={notes}
@@ -485,7 +591,7 @@ export default function HousingKanban() {
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreate} disabled={!selectedBuyer}>
+            <Button onClick={handleCreate} disabled={!selectedBuyer || !selectedAgency}>
               Criar Processo
             </Button>
           </DialogFooter>

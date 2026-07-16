@@ -30,6 +30,7 @@ import {
   FileSignature,
   Edit,
   Trash2,
+  Building2,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/contexts/auth-context'
@@ -126,6 +127,10 @@ export default function ProcessDetail() {
   const [selectedBroker, setSelectedBroker] = useState<string>('')
   const [agencyBrokers, setAgencyBrokers] = useState<any[]>([])
 
+  const [editAgency, setEditAgency] = useState<boolean>(false)
+  const [selectedAgency, setSelectedAgency] = useState<string>('')
+  const [agencies, setAgencies] = useState<any[]>([])
+
   const loadBrokers = async () => {
     if (user?.role === 'real_estate_agency') {
       const data = await pb.collection('users').getFullList({
@@ -158,6 +163,20 @@ export default function ProcessDetail() {
     }
   }
 
+  const handleEditAgencySubmit = async () => {
+    if (!process) return
+    try {
+      await updateProcess(process.id, {
+        real_estate_agency: selectedAgency === 'none' ? '' : selectedAgency,
+      })
+      toast({ title: 'Imobiliária atualizada com sucesso.' })
+      setEditAgency(false)
+      loadData()
+    } catch (e) {
+      toast({ title: 'Erro ao atualizar imobiliária.', variant: 'destructive' })
+    }
+  }
+
   const [changeEvaluationDialog, setChangeEvaluationDialog] = useState(false)
   const [changeEvaluationReason, setChangeEvaluationReason] = useState('')
   const [isSubmittingChangeEvaluation, setIsSubmittingChangeEvaluation] = useState(false)
@@ -173,35 +192,41 @@ export default function ProcessDetail() {
     try {
       const p = await pb.collection('processes').getOne(id, {
         expand:
-          'buyer,buyer_2,assigned_analyst,broker,credit_analysis_type,property_type,development_type,construction_company',
+          'buyer,buyer_2,assigned_analyst,broker,real_estate_agency,credit_analysis_type,property_type,development_type,construction_company',
       })
       setProcess(p)
 
       // Carregar dependências separadamente para evitar falha geral
       try {
-        const [docs, docTypes, processLogs, condReasons, rejReasons, ccList] = await Promise.all([
-          getDocuments(id).catch(() => []),
-          getCreditDocumentTypes().catch(() => []),
-          getProcessLogs(id).catch(() => []),
-          pb
-            .collection('conditioning_reasons')
-            .getFullList({ sort: 'name' })
-            .catch(() => []),
-          pb
-            .collection('rejection_reasons')
-            .getFullList({ sort: 'name' })
-            .catch(() => []),
-          pb
-            .collection('construction_companies')
-            .getFullList({ sort: 'name' })
-            .catch(() => []),
-        ])
+        const [docs, docTypes, processLogs, condReasons, rejReasons, ccList, agencyList] =
+          await Promise.all([
+            getDocuments(id).catch(() => []),
+            getCreditDocumentTypes().catch(() => []),
+            getProcessLogs(id).catch(() => []),
+            pb
+              .collection('conditioning_reasons')
+              .getFullList({ sort: 'name' })
+              .catch(() => []),
+            pb
+              .collection('rejection_reasons')
+              .getFullList({ sort: 'name' })
+              .catch(() => []),
+            pb
+              .collection('construction_companies')
+              .getFullList({ sort: 'name' })
+              .catch(() => []),
+            pb
+              .collection('real_estate_agencies')
+              .getFullList({ sort: 'name' })
+              .catch(() => []),
+          ])
         setDocuments(docs)
         setCreditDocumentTypes(docTypes)
         setLogs(processLogs)
         setConditioningReasons(condReasons)
         setRejectionReasons(rejReasons)
         setConstructionCompanies(ccList)
+        setAgencies(agencyList)
       } catch (err) {
         console.error('Erro ao carregar dependências', err)
       }
@@ -1046,6 +1071,27 @@ export default function ProcessDetail() {
                       }}
                       className="text-slate-400 hover:text-primary transition-colors ml-1"
                       title="Editar corretor"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-sm font-medium border border-slate-200">
+                <Building2 className="w-4 h-4 text-slate-500" />
+                <span>Imobiliária:</span>
+                <span className="text-slate-900 flex items-center gap-1.5">
+                  {process.expand?.real_estate_agency?.name ||
+                    process.expand?.broker?.expand?.real_estate_agency?.name ||
+                    'Não vinculada'}
+                  {isAnalyst && (
+                    <button
+                      onClick={() => {
+                        setSelectedAgency(process.real_estate_agency || 'none')
+                        setEditAgency(true)
+                      }}
+                      className="text-slate-400 hover:text-primary transition-colors ml-1"
+                      title="Editar imobiliária"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
@@ -2925,6 +2971,39 @@ export default function ProcessDetail() {
               Cancelar
             </Button>
             <Button onClick={handleEditBrokerSubmit} disabled={!selectedBroker}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={editAgency} onOpenChange={setEditAgency}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Imobiliária</DialogTitle>
+            <DialogDescription className="sr-only">
+              Selecione uma imobiliária para este processo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione uma imobiliária..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhuma imobiliária</SelectItem>
+                {agencies.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditAgency(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditAgencySubmit} disabled={!selectedAgency}>
               Salvar
             </Button>
           </DialogFooter>

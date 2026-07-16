@@ -81,6 +81,8 @@ export default function Dashboard() {
   const [newType, setNewType] = useState('credit')
   const [clients, setClients] = useState<any[]>([])
   const [selectedBuyer, setSelectedBuyer] = useState('')
+  const [agencies, setAgencies] = useState<any[]>([])
+  const [selectedAgency, setSelectedAgency] = useState('')
 
   const [isUnassignedListOpen, setIsUnassignedListOpen] = useState(false)
   const [isNewClientOpen, setIsNewClientOpen] = useState(false)
@@ -99,7 +101,7 @@ export default function Dashboard() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data)
     } catch (e) {
@@ -125,6 +127,10 @@ export default function Dashboard() {
     pb.collection('construction_companies')
       .getFullList({ sort: 'name' })
       .then(setCompanies)
+      .catch(console.error)
+    pb.collection('real_estate_agencies')
+      .getFullList({ sort: 'name' })
+      .then(setAgencies)
       .catch(console.error)
     pb.collection('housing_stages')
       .getFullList({ sort: 'order' })
@@ -254,10 +260,12 @@ export default function Dashboard() {
       status: newType === 'credit' ? 'Triagem' : 'Nova Solicitação',
       current_step: newType === 'credit' ? 'Triagem' : step,
       buyer: selectedBuyer,
+      real_estate_agency: selectedAgency,
       result: 'pending',
     })
     toast({ title: 'Processo iniciado com sucesso!' })
     setIsNewOpen(false)
+    setSelectedAgency('')
     loadData()
   }
 
@@ -367,7 +375,13 @@ export default function Dashboard() {
 
   const uniqueAgencies = Array.from(
     new Set(
-      processes.map((p) => p.expand?.broker?.expand?.real_estate_agency?.name).filter(Boolean),
+      processes
+        .map(
+          (p) =>
+            p.expand?.real_estate_agency?.name ||
+            p.expand?.broker?.expand?.real_estate_agency?.name,
+        )
+        .filter(Boolean),
     ),
   ) as string[]
 
@@ -396,7 +410,8 @@ export default function Dashboard() {
 
     if (
       agencyFilter !== 'all' &&
-      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+      (p.expand?.real_estate_agency?.name || p.expand?.broker?.expand?.real_estate_agency?.name) !==
+        agencyFilter
     )
       return false
     if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
@@ -537,7 +552,8 @@ export default function Dashboard() {
     if (p.type !== 'housing') return false
     if (
       agencyFilter !== 'all' &&
-      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+      (p.expand?.real_estate_agency?.name || p.expand?.broker?.expand?.real_estate_agency?.name) !==
+        agencyFilter
     )
       return false
     if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
@@ -721,9 +737,28 @@ export default function Dashboard() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Imobiliária *</Label>
+                    <Select value={selectedAgency} onValueChange={setSelectedAgency}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a imobiliária..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agencies.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleCreate} className="w-full">
+                  <Button
+                    onClick={handleCreate}
+                    className="w-full"
+                    disabled={!selectedBuyer || !selectedAgency}
+                  >
                     Criar Processo
                   </Button>
                 </DialogFooter>
@@ -1115,7 +1150,9 @@ export default function Dashboard() {
                         <TableCell className="py-4 min-w-[180px]">
                           <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
                           <div className="text-xs text-muted-foreground">
-                            {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
+                            {process.expand?.real_estate_agency?.name ||
+                              process.expand?.broker?.expand?.real_estate_agency?.name ||
+                              ''}
                           </div>
                         </TableCell>
                         <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">
@@ -1301,7 +1338,9 @@ export default function Dashboard() {
                       <TableCell className="py-4 min-w-[180px]">
                         <div className="text-sm">{process.expand?.broker?.name || '-'}</div>
                         <div className="text-xs text-muted-foreground">
-                          {process.expand?.broker?.expand?.real_estate_agency?.name || ''}
+                          {process.expand?.real_estate_agency?.name ||
+                            process.expand?.broker?.expand?.real_estate_agency?.name ||
+                            ''}
                         </div>
                       </TableCell>
                       <TableCell className="py-4 text-right font-medium text-slate-700 whitespace-nowrap">

@@ -3,7 +3,7 @@ import pb from '@/lib/pocketbase/client'
 export const getProcesses = (filterStr?: string) => {
   const options: any = {
     expand:
-      'buyer,buyer_2,seller,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,construction_company,last_updated_by',
+      'buyer,buyer_2,seller,assigned_analyst,broker,broker.real_estate_agency,real_estate_agency,credit_analysis_type,property_type,development_type,construction_company,last_updated_by',
     sort: '-created',
   }
   if (filterStr) options.filter = filterStr
@@ -12,7 +12,7 @@ export const getProcesses = (filterStr?: string) => {
 export const getProcess = (id: string) =>
   pb.collection('processes').getOne(id, {
     expand:
-      'buyer,buyer_2,seller,assigned_analyst,broker,credit_analysis_type,property_type,development_type',
+      'buyer,buyer_2,seller,assigned_analyst,broker,real_estate_agency,credit_analysis_type,property_type,development_type',
   })
 
 export const resetSystemData = () => pb.send('/backend/v1/system/reset', { method: 'POST' })

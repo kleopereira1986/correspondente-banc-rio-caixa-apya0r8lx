@@ -27,6 +27,7 @@ import {
   CheckCircle,
   Trash2,
   Search,
+  Building2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -75,7 +76,7 @@ export default function CreditAnalysis() {
       const data = await pb.collection('processes').getFullList({
         sort: '-created',
         expand:
-          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
+          'buyer,buyer_2,assigned_analyst,broker,broker.real_estate_agency,real_estate_agency,credit_analysis_type,property_type,development_type,last_updated_by',
       })
       setProcesses(data)
 
@@ -108,7 +109,11 @@ export default function CreditAnalysis() {
     new Set(
       processes
         .filter((p) => p.type === 'credit')
-        .map((p) => p.expand?.broker?.expand?.real_estate_agency?.name)
+        .map(
+          (p) =>
+            p.expand?.real_estate_agency?.name ||
+            p.expand?.broker?.expand?.real_estate_agency?.name,
+        )
         .filter(Boolean),
     ),
   ) as string[]
@@ -138,7 +143,8 @@ export default function CreditAnalysis() {
     if (brokerFilter !== 'all' && p.expand?.broker?.name !== brokerFilter) return false
     if (
       agencyFilter !== 'all' &&
-      p.expand?.broker?.expand?.real_estate_agency?.name !== agencyFilter
+      (p.expand?.real_estate_agency?.name || p.expand?.broker?.expand?.real_estate_agency?.name) !==
+        agencyFilter
     )
       return false
 
@@ -597,6 +603,15 @@ export default function CreditAnalysis() {
                       <span className="flex items-center gap-1 text-slate-600">
                         <User className="w-3.5 h-3.5" />
                         Corretor: {proc.expand.broker.name}
+                      </span>
+                    )}
+                    {(proc.expand?.real_estate_agency?.name ||
+                      proc.expand?.broker?.expand?.real_estate_agency?.name) && (
+                      <span className="flex items-center gap-1 text-slate-600">
+                        <Building2 className="w-3.5 h-3.5" />
+                        Imobiliária:{' '}
+                        {proc.expand?.real_estate_agency?.name ||
+                          proc.expand?.broker?.expand?.real_estate_agency?.name}
                       </span>
                     )}
                     <Badge variant="outline" className="font-normal text-[10px] bg-slate-50">

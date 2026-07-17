@@ -41,6 +41,8 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { ConstructionCompanySelect } from '@/components/ConstructionCompanySelect'
+import { DateRangeFilter } from '@/components/DateRangeFilter'
+import { startOfDay, endOfDay } from 'date-fns'
 
 export default function CreditAnalysis() {
   const { user } = useAuth()
@@ -53,6 +55,8 @@ export default function CreditAnalysis() {
   const [searchQuery, setSearchQuery] = useState('')
   const [brokerFilter, setBrokerFilter] = useState('all')
   const [agencyFilter, setAgencyFilter] = useState('all')
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined)
+  const [toDate, setToDate] = useState<Date | undefined>(undefined)
 
   const [firstHousingStage, setFirstHousingStage] = useState<string>('TRIAGEM CCA')
   const [transitionProcess, setTransitionProcess] = useState<any>(null)
@@ -127,8 +131,16 @@ export default function CreditAnalysis() {
     ),
   ) as string[]
 
+  const dateFilterActive = !!fromDate || !!toDate
+
   const filteredProcesses = processes.filter((p: any) => {
     if (p.type !== 'credit') return false
+
+    if (dateFilterActive) {
+      const created = new Date(p.created)
+      if (fromDate && created < startOfDay(fromDate)) return false
+      if (toDate && created > endOfDay(toDate)) return false
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -507,6 +519,9 @@ export default function CreditAnalysis() {
     const filteredList = applyCreditFilters(list)
     const shouldRenderFilterBar = !renderedFilterBar
     if (shouldRenderFilterBar) renderedFilterBar = true
+    const effectiveEmptyMessage = dateFilterActive
+      ? 'Nenhum registro encontrado para este período.'
+      : emptyMessage
 
     return (
       <div className="divide-y divide-border/50 relative">
@@ -548,7 +563,7 @@ export default function CreditAnalysis() {
         {list.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
             <CheckCircle2 className="w-10 h-10 text-slate-200 mb-3" />
-            <p className="text-sm">{emptyMessage}</p>
+            <p className="text-sm">{effectiveEmptyMessage}</p>
           </div>
         ) : (
           list.map((proc: any) => (
@@ -798,6 +813,20 @@ export default function CreditAnalysis() {
             </SelectContent>
           </Select>
         </div>
+        {user?.role === 'master' && (
+          <div className="md:col-span-3 border-t border-slate-100 pt-4 mt-1">
+            <DateRangeFilter
+              fromDate={fromDate}
+              toDate={toDate}
+              onFromChange={setFromDate}
+              onToChange={setToDate}
+              onClear={() => {
+                setFromDate(undefined)
+                setToDate(undefined)
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">

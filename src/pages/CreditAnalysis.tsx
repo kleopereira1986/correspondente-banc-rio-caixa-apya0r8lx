@@ -28,6 +28,7 @@ import {
   Trash2,
   Search,
   Building2,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
@@ -74,6 +75,10 @@ export default function CreditAnalysis() {
   const [reevaluationReason, setReevaluationReason] = useState('')
   const [isSubmittingReevaluation, setIsSubmittingReevaluation] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
+
+  const [bloqueioCEFProcess, setBloqueioCEFProcess] = useState<any>(null)
+  const [bloqueioCEFDate, setBloqueioCEFDate] = useState('')
+  const [isSubmittingBloqueioCEF, setIsSubmittingBloqueioCEF] = useState(false)
 
   const loadData = async () => {
     try {
@@ -220,6 +225,14 @@ export default function CreditAnalysis() {
         p.result !== 'rejected' &&
         p.result !== 'conditioned',
     ),
+    bloqueio_cef: filteredProcesses.filter(
+      (p) =>
+        p.is_conformity_approved &&
+        p.status === 'BLOQUEIO CEF' &&
+        p.result !== 'approved' &&
+        p.result !== 'rejected' &&
+        p.result !== 'conditioned',
+    ),
     primeira_analise: filteredProcesses.filter(
       (p) =>
         p.is_conformity_approved &&
@@ -280,6 +293,49 @@ export default function CreditAnalysis() {
       }
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleBloqueioCEF = async () => {
+    if (!bloqueioCEFProcess) return
+    if (!bloqueioCEFDate) {
+      toast({
+        title: 'Aviso',
+        description: 'A data de liberação é obrigatória.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setIsSubmittingBloqueioCEF(true)
+    try {
+      const fromStatus = bloqueioCEFProcess.status || ''
+      await pb.collection('processes').update(bloqueioCEFProcess.id, {
+        status: 'BLOQUEIO CEF',
+        cef_unlock_date: bloqueioCEFDate,
+        last_updated_by: user?.id || '',
+      })
+      if (user?.id) {
+        await pb.collection('process_logs').create({
+          process: bloqueioCEFProcess.id,
+          from_status: fromStatus,
+          to_status: 'BLOQUEIO CEF',
+          changed_by: user.id,
+          note: `Processo bloqueado pela CEF. Data de liberação: ${new Date(bloqueioCEFDate).toLocaleDateString('pt-BR')}`,
+        })
+      }
+      toast({ title: 'Bloqueio CEF registrado com sucesso!' })
+      setBloqueioCEFProcess(null)
+      setBloqueioCEFDate('')
+      loadData()
+    } catch (e: any) {
+      console.error(e)
+      toast({
+        title: 'Erro ao registrar bloqueio CEF',
+        description: 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmittingBloqueioCEF(false)
     }
   }
 
@@ -648,13 +704,21 @@ export default function CreditAnalysis() {
                           ? 'bg-secondary text-white border-transparent'
                           : proc.status === 'Autorização Solicitada'
                             ? 'bg-amber-100 text-amber-800 border-transparent font-medium'
-                            : 'bg-slate-50',
+                            : proc.status === 'BLOQUEIO CEF'
+                              ? 'bg-orange-100 text-orange-800 border-transparent font-medium'
+                              : 'bg-slate-50',
                       )}
                     >
                       {proc.status === 'Autorização Solicitada'
                         ? 'Aguardando Autorização Gerencial'
                         : proc.status}
                     </Badge>
+                    {proc.status === 'BLOQUEIO CEF' && proc.cef_unlock_date && (
+                      <span className="flex items-center gap-1 text-orange-700 font-medium">
+                        <Clock className="w-3.5 h-3.5" />
+                        Liberação: {new Date(proc.cef_unlock_date).toLocaleDateString('pt-BR')}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -671,6 +735,21 @@ export default function CreditAnalysis() {
                     Informar Autorização Concluída
                   </Button>
                 )}
+                {proc.status === 'Autorização Solicitada' &&
+                  ['master', 'analyst'].includes(user?.role || '') && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-orange-300 text-orange-700 hover:bg-orange-50 shadow-sm text-xs"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setBloqueioCEFProcess(proc)
+                        setBloqueioCEFDate('')
+                      }}
+                    >
+                      BLOQUEIO CEF
+                    </Button>
+                  )}
                 {proc.status === 'Pendência Resolvida' && (
                   <Button
                     size="sm"
@@ -829,7 +908,7 @@ export default function CreditAnalysis() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-6">
         <Card
           className={cn(
             'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md',
@@ -951,6 +1030,23 @@ export default function CreditAnalysis() {
         </Card>
         <Card
           className={cn(
+            'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-orange-50/50',
+            activeFilter === 'bloqueio_cef'
+              ? 'border-orange-600 shadow-md bg-orange-100/50'
+              : 'border-orange-200',
+          )}
+          onClick={() => toggleFilter('bloqueio_cef')}
+        >
+          <CardContent className="p-4 flex flex-col items-center justify-center text-center gap-2">
+            <div className="p-3 rounded-full bg-orange-100 text-orange-700">
+              <Lock className="w-5 h-5" />
+            </div>
+            <p className="font-semibold text-orange-800 text-sm mt-1 leading-tight">Bloqueio CEF</p>
+            <p className="text-2xl font-bold text-orange-900">{stats.bloqueio_cef.length}</p>
+          </CardContent>
+        </Card>
+        <Card
+          className={cn(
             'border-2 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md bg-blue-50/50',
             activeFilter === 'primeira_analise'
               ? 'border-blue-600 shadow-md bg-blue-100/50'
@@ -1059,6 +1155,18 @@ export default function CreditAnalysis() {
                 stats.aguardando_autorizacao,
                 'Nenhum processo aguardando autorização.',
               )}
+            </CardContent>
+          </Card>
+        )}
+        {(!activeFilter || activeFilter === 'bloqueio_cef') && (
+          <Card className="shadow-sm border-orange-200 h-full flex flex-col">
+            <CardHeader className="bg-orange-50/50 border-b border-orange-100 pb-4">
+              <CardTitle className="text-lg text-orange-800 flex items-center gap-2">
+                <Lock className="w-5 h-5" /> Fila: Bloqueio CEF
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 flex-1">
+              {renderProcessList(stats.bloqueio_cef, 'Nenhum processo em Bloqueio CEF.')}
             </CardContent>
           </Card>
         )}
@@ -1231,6 +1339,55 @@ export default function CreditAnalysis() {
               disabled={isSubmittingReevaluation || !reevaluationReason.trim()}
             >
               {isSubmittingReevaluation ? 'Enviando...' : 'Confirmar Reavaliação'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!bloqueioCEFProcess}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBloqueioCEFProcess(null)
+            setBloqueioCEFDate('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bloqueio CEF</DialogTitle>
+            <DialogDescription>
+              Qual a data para liberação para uma nova avaliação?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium">Data de Liberação *</Label>
+            <Input
+              type="date"
+              value={bloqueioCEFDate}
+              onChange={(e) => setBloqueioCEFDate(e.target.value)}
+            />
+            {!bloqueioCEFDate && (
+              <p className="text-sm text-red-600 font-medium">A data de liberação é obrigatória.</p>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBloqueioCEFProcess(null)
+                setBloqueioCEFDate('')
+              }}
+              disabled={isSubmittingBloqueioCEF}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              onClick={handleBloqueioCEF}
+              disabled={isSubmittingBloqueioCEF || !bloqueioCEFDate}
+            >
+              {isSubmittingBloqueioCEF ? 'Salvando...' : 'Confirmar Bloqueio'}
             </Button>
           </DialogFooter>
         </DialogContent>

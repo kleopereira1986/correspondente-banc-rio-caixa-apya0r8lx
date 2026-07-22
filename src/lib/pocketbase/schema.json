@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-17T21:25:02.974Z",
+  "generatedAt": "2026-07-22T04:05:21.554Z",
   "collections": [
     {
       "name": "users",
@@ -424,6 +424,12 @@
           "required": false,
           "system": false,
           "collectionRef": "real_estate_agencies"
+        },
+        {
+          "name": "cef_unlock_date",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -9,37 +9,49 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
     return e.badRequestError('O Comprador 1 precisa ter Nome e CPF preenchidos.')
   }
 
+  const cpf1 = (b1.cpf || '').replace(/\D/g, '')
+  const cpf2 = b2 && b2.cpf ? (b2.cpf || '').replace(/\D/g, '') : ''
+
+  // --- CPF duplicate validation (block before any write to ensure process integrity) ---
+  try {
+    const existing1 = $app.findFirstRecordByData('users', 'cpf', cpf1)
+    if (existing1) {
+      return e.badRequestError(
+        'Já existe um cliente com este CPF cadastrado no sistema sob o nome: ' +
+          existing1.getString('name') +
+          '.',
+      )
+    }
+  } catch (_) {}
+
+  if (cpf2) {
+    try {
+      const existing2 = $app.findFirstRecordByData('users', 'cpf', cpf2)
+      if (existing2) {
+        return e.badRequestError(
+          'Já existe um cliente com este CPF cadastrado no sistema sob o nome: ' +
+            existing2.getString('name') +
+            '.',
+        )
+      }
+    } catch (_) {}
+  }
+
   let processId = null
 
   $app.runInTransaction((txApp) => {
-    const upsertUser = (b) => {
-      let userRecord
+    const createUser = (b) => {
+      const usersCol = txApp.findCollectionByNameOrId('users')
+      const userRecord = new Record(usersCol)
       const safeEmail = (b.email || '').trim()
       const safeCpf = (b.cpf || '').replace(/\D/g, '')
 
       if (safeEmail) {
-        try {
-          userRecord = txApp.findAuthRecordByEmail('users', safeEmail)
-        } catch (_) {}
+        userRecord.setEmail(safeEmail)
       }
-      if (!userRecord && safeCpf) {
-        try {
-          const records = txApp.findRecordsByFilter('users', `cpf = '{:cpf}'`, '', 1, 0, {
-            cpf: safeCpf,
-          })
-          if (records.length > 0) userRecord = records[0]
-        } catch (_) {}
-      }
-
-      if (!userRecord) {
-        const usersCol = txApp.findCollectionByNameOrId('users')
-        userRecord = new Record(usersCol)
-        if (safeEmail) userRecord.setEmail(safeEmail)
-        userRecord.setPassword($security.randomString(16))
-        userRecord.setVerified(true)
-        userRecord.set('role', 'buyer')
-      }
-
+      userRecord.setPassword($security.randomString(16))
+      userRecord.setVerified(true)
+      userRecord.set('role', 'buyer')
       userRecord.set('emailVisibility', true)
       userRecord.set('name', b.name)
       userRecord.set('cpf', safeCpf)
@@ -53,8 +65,10 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
         try {
           const parts = b.birth_date.split('/')
           if (parts.length === 3) {
-            const [d, m, y] = parts
-            userRecord.set('birth_date', `${y}-${m}-${d} 12:00:00.000Z`)
+            const d = parts[0]
+            const m = parts[1]
+            const y = parts[2]
+            userRecord.set('birth_date', y + '-' + m + '-' + d + ' 12:00:00.000Z')
           }
         } catch (_) {}
       }
@@ -68,10 +82,10 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
       return userRecord
     }
 
-    const user1 = upsertUser(b1)
+    const user1 = createUser(b1)
     let user2 = null
     if (b2 && b2.name && b2.cpf) {
-      user2 = upsertUser(b2)
+      user2 = createUser(b2)
     }
 
     const processesCol = txApp.findCollectionByNameOrId('processes')
@@ -123,11 +137,11 @@ routerAdd('POST', '/backend/v1/public-credit-submit', (e) => {
       }
     } catch (_) {}
 
-    let obs = `Correspondente: ${body.correspondente || 'N/A'}\n`
-    obs += `Opção: ${property.type_option || 'N/A'}\n`
+    let obs = 'Correspondente: ' + (body.correspondente || 'N/A') + '\n'
+    obs += 'Opção: ' + (property.type_option || 'N/A') + '\n'
 
-    if (b1.observations) obs += `\nObs Comprador 1: ${b1.observations}\n`
-    if (b2 && b2.observations) obs += `\nObs Comprador 2: ${b2.observations}\n`
+    if (b1.observations) obs += '\nObs Comprador 1: ' + b1.observations + '\n'
+    if (b2 && b2.observations) obs += '\nObs Comprador 2: ' + b2.observations + '\n'
 
     processRecord.set('observations', obs.trim())
     processRecord.set('additional_details', JSON.stringify({ checklist: body.checklist }))

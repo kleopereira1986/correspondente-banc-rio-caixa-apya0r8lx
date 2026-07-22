@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/form'
 import { CheckCircle2, Loader2, UploadCloud } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 const YesNoRadio = ({ name, label, control }: { name: string; label: string; control: any }) => (
   <FormField
@@ -627,8 +628,8 @@ export default function PublicForm() {
       }
 
       setIsSuccess(true)
-    } catch (err: any) {
-      setServerError(err?.message || 'Ocorreu um erro ao processar sua solicitação.')
+    } catch (err) {
+      setServerError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }
